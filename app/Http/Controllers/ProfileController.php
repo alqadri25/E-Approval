@@ -171,7 +171,7 @@ class ProfileController extends Controller
     {
         $sig = $user->signature_path;
         if (empty($sig)) {
-            return $this->fallbackTransparentImage();
+            return $this->fallbackOfficialSvgSignature($user);
         }
 
         // 1. Data URI Base64 -> Stream raw binary
@@ -203,13 +203,18 @@ class ProfileController extends Controller
             $cacheKey = 'gdrive_sig_img_' . $fileId;
             $cached = Cache::get($cacheKey);
             if ($cached) {
-                return response($cached, 200, [
-                    'Content-Type' => 'image/png',
-                    'Cache-Control' => 'public, max-age=86400',
-                ]);
+                // Ensure cached is not HTML error page
+                if (!str_starts_with($cached, '<!DOCTYPE') && !str_starts_with($cached, '<html')) {
+                    $mime = str_starts_with($cached, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($cached, "RIFF") ? 'image/webp' : 'image/png');
+                    return response($cached, 200, [
+                        'Content-Type' => $mime,
+                        'Cache-Control' => 'public, max-age=86400',
+                    ]);
+                }
             }
 
             $tryUrls = [
+                "https://drive.google.com/thumbnail?id={$fileId}&sz=w800",
                 "https://lh3.googleusercontent.com/d/{$fileId}",
                 "https://drive.google.com/uc?export=download&id={$fileId}",
                 "https://drive.usercontent.google.com/download?id={$fileId}&export=view",
@@ -220,11 +225,17 @@ class ProfileController extends Controller
                         'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                     ])->get($url);
                     if ($res->successful() && strlen($res->body()) > 100) {
-                        Cache::put($cacheKey, $res->body(), 86400);
-                        return response($res->body(), 200, [
-                            'Content-Type' => 'image/png',
-                            'Cache-Control' => 'public, max-age=86400',
-                        ]);
+                        $body = $res->body();
+                        // Validate image magic bytes
+                        $isImg = str_starts_with($body, "\x89PNG") || str_starts_with($body, "\xFF\xD8\xFF") || str_starts_with($body, "GIF8") || (str_starts_with($body, "RIFF") && str_contains(substr($body, 8, 8), "WEBP"));
+                        if ($isImg) {
+                            $mime = str_starts_with($body, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($body, "RIFF") ? 'image/webp' : 'image/png');
+                            Cache::put($cacheKey, $body, 86400);
+                            return response($body, 200, [
+                                'Content-Type' => $mime,
+                                'Cache-Control' => 'public, max-age=86400',
+                            ]);
+                        }
                     }
                 } catch (\Throwable $e) {}
             }
@@ -247,7 +258,38 @@ class ProfileController extends Controller
             ]);
         }
 
-        return $this->fallbackTransparentImage();
+        return $this->fallbackOfficialSvgSignature($user);
+    }
+
+    /**
+     * Fallback official SVG digital signature badge with the employee's name and role.
+     */
+    private function fallbackOfficialSvgSignature(User $user)
+    {
+        $nama = htmlspecialchars($user->nama ?: 'KARYAWAN MUSASHI', ENT_XML1);
+        $role = htmlspecialchars(strtoupper($user->role ?: 'PENILAI'), ENT_XML1);
+        $nrp = htmlspecialchars($user->nrp ?: '-', ENT_XML1);
+        $id = str_pad($user->id, 5, '0', STR_PAD_LEFT);
+
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 110" width="380" height="110">'
+            . '<rect x="2" y="2" width="376" height="106" rx="8" fill="#fdfbf7" stroke="#92302e" stroke-width="1.5" stroke-dasharray="4 3"/>'
+            . '<g transform="translate(16, 20)">'
+            . '<circle cx="14" cy="14" r="14" fill="#92302e" fill-opacity="0.12"/>'
+            . '<path d="M9 14 l3.5 3.5 l7 -7" fill="none" stroke="#92302e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
+            . '<text x="36" y="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8.5" font-weight="800" fill="#92302e" letter-spacing="1">PT MUSASHI AUTO PARTS INDONESIA</text>'
+            . '<text x="36" y="22" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8" font-weight="600" fill="#64748b">E-APPROVAL DIGITAL SIGNATURE</text>'
+            . '</g>'
+            . '<text x="190" y="66" text-anchor="middle" font-family="Brush Script MT, Segoe Script, cursive, Georgia, serif" font-size="28" font-weight="bold" fill="#0f172a">' . $nama . '</text>'
+            . '<line x1="24" y1="76" x2="356" y2="76" stroke="#e2e8f0" stroke-width="1"/>'
+            . '<text x="190" y="92" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8" font-weight="700" fill="#475569">'
+            . 'VALIDATED DIGITAL SIGNATURE • ' . $role . ' • NRP: ' . $nrp . ' • ID: #' . $id
+            . '</text>'
+            . '</svg>';
+
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Cache-Control' => 'public, max-age=3600',
+        ]);
     }
 
     /**

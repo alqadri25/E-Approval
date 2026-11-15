@@ -3291,6 +3291,17 @@ class PenilaianController extends Controller
         } elseif (!empty($user->signature_path)) {
             // Automatically use user's saved profile signature (Data URI, local file, or Drive link)
             $signaturePath = $user->signature_path;
+
+            // Pastikan tanda tangan tersimpan ini juga otomatis terunggah ke Google Drive (TANDA_TANGAN / [ROLE])
+            if (str_starts_with($user->signature_path, 'data:image')) {
+                try {
+                    $commaPos = strpos($user->signature_path, ',');
+                    if ($commaPos !== false) {
+                        $binary = base64_decode(substr($user->signature_path, $commaPos + 1));
+                        \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $binary, 'png');
+                    }
+                } catch (\Throwable $e) {}
+            }
         }
 
         if (!$signaturePath) {
@@ -3628,34 +3639,23 @@ class PenilaianController extends Controller
      */
     protected function persistScores(int $dokumenId, string $level, array $scores): void
     {
-        \App\Repositories\SheetRepository::withoutSync(function () use ($dokumenId, $level, $scores) {
-            foreach ($scores as $aspectCode => $val) {
-                $numVal = floatval($val);
-                if ($numVal <= 0) continue;
+        $now = now()->toDateTimeString();
+        foreach ($scores as $aspectCode => $val) {
+            $numVal = floatval($val);
+            if ($numVal <= 0) continue;
 
-                $existing = DB::table('nilai')
-                    ->where('dokumen_id', $dokumenId)
-                    ->where('level', $level)
-                    ->where('aspek_kode', $aspectCode)
-                    ->first();
-
-                if ($existing) {
-                    $this->repository->update('nilai', 'id', $existing->id, [
-                        'skor' => $numVal,
-                        'updated_at' => now()->toDateTimeString(),
-                    ]);
-                } else {
-                    $this->repository->insert('nilai', [
-                        'dokumen_id' => $dokumenId,
-                        'level' => $level,
-                        'aspek_kode' => $aspectCode,
-                        'skor' => $numVal,
-                        'catatan' => null,
-                        'created_at' => now()->toDateTimeString(),
-                    ]);
-                }
-            }
-        });
+            DB::table('nilai')->updateOrInsert(
+                [
+                    'dokumen_id' => $dokumenId,
+                    'level' => $level,
+                    'aspek_kode' => $aspectCode,
+                ],
+                [
+                    'skor' => $numVal,
+                    'updated_at' => $now,
+                ]
+            );
+        }
         $this->repository->clearCache('nilai');
     }
 
@@ -3947,11 +3947,11 @@ class PenilaianController extends Controller
         }
 
         if ($existing) {
-            $this->repository->update('indikator', 'id', $existing->id, $fields);
+            DB::table('indikator')->where('id', $existing->id)->update($fields);
         } else {
             $fields['dokumen_id'] = $dokumenId;
             $fields['created_at'] = now()->toDateTimeString();
-            $this->repository->insert('indikator', $fields);
+            DB::table('indikator')->insert($fields);
         }
         $this->repository->clearCache('indikator');
     }

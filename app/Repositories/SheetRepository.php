@@ -233,87 +233,139 @@ class SheetRepository implements SheetRepositoryInterface
      */
     public function insert(string $table, array $data): array
     {
-        $lockKey = "sheet_lock_{$table}";
-
-        return Cache::lock($lockKey, 10)->block(5, function () use ($table, $data) {
-            $columns = self::SCHEMAS[$table] ?? array_keys($data);
-
-            // Auto-increment ID if missing and needed
-            if (in_array('id', $columns) && empty($data['id'])) {
-                $all = $this->all($table, 0);
-                $maxId = 0;
-                foreach ($all as $item) {
-                    if (isset($item['id']) && is_numeric($item['id'])) {
-                        $maxId = max($maxId, (int)$item['id']);
-                    }
-                }
-                $data['id'] = $maxId + 1;
-            }
-
-            if (in_array('created_at', $columns) && empty($data['created_at'])) {
-                $data['created_at'] = date('Y-m-d H:i:s');
-            }
-
-            // Prepare row in exact column order
-            $rowValues = [];
-            foreach ($columns as $col) {
-                $rowValues[] = $data[$col] ?? '';
-            }
-
-            if ($this->googleService->isConfigured()) {
-                try {
-                    $sheets = $this->googleService->getSheetsService();
-                    $spreadsheetId = $this->googleService->getSpreadsheetId();
-
-                    $body = new ValueRange([
-                        'values' => [$rowValues]
-                    ]);
-
-                    $sheets->spreadsheets_values->append(
-                        $spreadsheetId,
-                        "{$table}!A1",
-                        $body,
-                        ['valueInputOption' => 'USER_ENTERED']
-                    );
-                } catch (Exception $e) {
-                    Log::warning("Google Sheets insert failed for table '{$table}': " . $e->getMessage());
-                }
-            }
-
-            // Always write to local DB
+        // 1. If sync is disabled, insert local DB directly without locking or network overhead
+        if (!$this->isSyncEnabled()) {
             $localTable = $this->getLocalTableName($table);
             if (Schema::hasTable($localTable)) {
+                $columns = self::SCHEMAS[$table] ?? array_keys($data);
                 $insertPayload = [];
                 foreach ($columns as $col) {
-                    if (Schema::hasColumn($localTable, $col)) {
-                        $insertPayload[$col] = $data[$col] ?? null;
+                    if (Schema::hasColumn($localTable, $col) && array_key_exists($col, $data)) {
+                        $insertPayload[$col] = $data[$col];
                     }
                 }
-
                 $keyCol = match ($table) {
                     'pengaturan' => 'key',
                     'karyawan' => 'nrp',
                     default => 'id',
                 };
-
                 if (isset($data[$keyCol]) && Schema::hasColumn($localTable, $keyCol)) {
-                    DB::table($localTable)->updateOrInsert(
-                        [$keyCol => $data[$keyCol]],
-                        $insertPayload
-                    );
+                    DB::table($localTable)->updateOrInsert([$keyCol => $data[$keyCol]], $insertPayload);
                 } else {
-                    DB::table($localTable)->insert($insertPayload);
+                    $newId = DB::table($localTable)->insertGetId($insertPayload);
+                    $data['id'] = $newId;
                 }
             }
-
-            // Sync to Google Spreadsheet via non-blocking background async worker
-            if ($this->hasAppscript() && $this->isSyncEnabled() && $table === 'karyawan' && !empty($data['nrp'])) {
-                GoogleSyncService::syncEmployeeRowAsync('upsert', (string)$data['nrp']);
-            }
-
-            $this->clearCache($table);
             return $data;
-        });
+        }
+
+        $lockKey = "sheet_lock_{$table}";
+
+        try {
+            return Cache::lock($lockKey, 10)->block(3, function () use ($table, $data) {
+                $columns = self::SCHEMAS[$table] ?? array_keys($data);
+
+                // Auto-increment ID if missing and needed
+                if (in_array('id', $columns) && empty($data['id'])) {
+                    $all = $this->all($table, 0);
+                    $maxId = 0;
+                    foreach ($all as $item) {
+                        if (isset($item['id']) && is_numeric($item['id'])) {
+                            $maxId = max($maxId, (int)$item['id']);
+                        }
+                    }
+                    $data['id'] = $maxId + 1;
+                }
+
+                if (in_array('created_at', $columns) && empty($data['created_at'])) {
+                    $data['created_at'] = date('Y-m-d H:i:s');
+                }
+
+                // Prepare row in exact column order
+                $rowValues = [];
+                foreach ($columns as $col) {
+                    $rowValues[] = $data[$col] ?? '';
+                }
+
+                if ($this->googleService->isConfigured()) {
+                    try {
+                        $sheets = $this->googleService->getSheetsService();
+                        $spreadsheetId = $this->googleService->getSpreadsheetId();
+
+                        $body = new ValueRange([
+                            'values' => [$rowValues]
+                        ]);
+
+                        $sheets->spreadsheets_values->append(
+                            $spreadsheetId,
+                            "{$table}!A1",
+                            $body,
+                            ['valueInputOption' => 'USER_ENTERED']
+                        );
+                    } catch (Exception $e) {
+                        Log::warning("Google Sheets insert failed for table '{$table}': " . $e->getMessage());
+                    }
+                }
+
+                // Always write to local DB
+                $localTable = $this->getLocalTableName($table);
+                if (Schema::hasTable($localTable)) {
+                    $insertPayload = [];
+                    foreach ($columns as $col) {
+                        if (Schema::hasColumn($localTable, $col)) {
+                            $insertPayload[$col] = $data[$col] ?? null;
+                        }
+                    }
+
+                    $keyCol = match ($table) {
+                        'pengaturan' => 'key',
+                        'karyawan' => 'nrp',
+                        default => 'id',
+                    };
+
+                    if (isset($data[$keyCol]) && Schema::hasColumn($localTable, $keyCol)) {
+                        DB::table($localTable)->updateOrInsert(
+                            [$keyCol => $data[$keyCol]],
+                            $insertPayload
+                        );
+                    } else {
+                        DB::table($localTable)->insert($insertPayload);
+                    }
+                }
+
+                // Sync to Google Spreadsheet via non-blocking background async worker
+                if ($this->hasAppscript() && $this->isSyncEnabled() && $table === 'karyawan' && !empty($data['nrp'])) {
+                    GoogleSyncService::syncEmployeeRowAsync('upsert', (string)$data['nrp']);
+                }
+
+                $this->clearCache($table);
+                return $data;
+            });
+        } catch (\Throwable $e) {
+            Log::warning("SheetRepository insert fallback to local DB for table '{$table}': " . $e->getMessage());
+            $localTable = $this->getLocalTableName($table);
+            if (Schema::hasTable($localTable)) {
+                $columns = self::SCHEMAS[$table] ?? array_keys($data);
+                $insertPayload = [];
+                foreach ($columns as $col) {
+                    if (Schema::hasColumn($localTable, $col) && array_key_exists($col, $data)) {
+                        $insertPayload[$col] = $data[$col];
+                    }
+                }
+                $keyCol = match ($table) {
+                    'pengaturan' => 'key',
+                    'karyawan' => 'nrp',
+                    default => 'id',
+                };
+                if (isset($data[$keyCol]) && Schema::hasColumn($localTable, $keyCol)) {
+                    DB::table($localTable)->updateOrInsert([$keyCol => $data[$keyCol]], $insertPayload);
+                } else {
+                    $newId = DB::table($localTable)->insertGetId($insertPayload);
+                    $data['id'] = $newId;
+                }
+            }
+            return $data;
+        }
     }
 
     /**
@@ -411,58 +463,11 @@ class SheetRepository implements SheetRepositoryInterface
      */
     public function update(string $table, string $keyColumn, $keyValue, array $data): bool
     {
-        $lockKey = "sheet_lock_{$table}";
-
-        return Cache::lock($lockKey, 10)->block(5, function () use ($table, $keyColumn, $keyValue, $data) {
-            $all = $this->all($table, 0); // Fresh data
-            $rowIndex = null;
-            $existing = null;
-
-            foreach ($all as $item) {
-                if (isset($item[$keyColumn]) && (string)$item[$keyColumn] === (string)$keyValue) {
-                    $rowIndex = $item['_row_index'] ?? null;
-                    $existing = $item;
-                    break;
-                }
-            }
-
-            if (!$existing && !$this->find($table, $keyColumn, $keyValue)) {
-                return false;
-            }
-
-            $merged = array_merge($existing ?? [], $data);
-            $columns = self::SCHEMAS[$table] ?? array_keys($merged);
-
-            // Google Sheets update if row index found
-            if ($this->googleService->isConfigured() && $rowIndex) {
-                try {
-                    $sheets = $this->googleService->getSheetsService();
-                    $spreadsheetId = $this->googleService->getSpreadsheetId();
-
-                    $rowValues = [];
-                    foreach ($columns as $col) {
-                        $rowValues[] = $merged[$col] ?? '';
-                    }
-
-                    $range = "{$table}!A{$rowIndex}";
-                    $body = new ValueRange([
-                        'values' => [$rowValues]
-                    ]);
-
-                    $sheets->spreadsheets_values->update(
-                        $spreadsheetId,
-                        $range,
-                        $body,
-                        ['valueInputOption' => 'USER_ENTERED']
-                    );
-                } catch (Exception $e) {
-                    Log::warning("Google Sheets update failed for table '{$table}', row {$rowIndex}: " . $e->getMessage());
-                }
-            }
-
-            // Always update local database
+        // 1. If sync is disabled or running in withoutSync, update local DB directly without locking or network overhead
+        if (!$this->isSyncEnabled()) {
             $localTable = $this->getLocalTableName($table);
             if (Schema::hasTable($localTable)) {
+                $columns = self::SCHEMAS[$table] ?? array_keys($data);
                 $updatePayload = [];
                 foreach ($columns as $col) {
                     if (Schema::hasColumn($localTable, $col) && array_key_exists($col, $data)) {
@@ -473,18 +478,101 @@ class SheetRepository implements SheetRepositoryInterface
                     DB::table($localTable)->where($keyColumn, $keyValue)->update($updatePayload);
                 }
             }
+            return true;
+        }
 
-            // Sync to Google Spreadsheet via non-blocking background async worker
-            if ($this->hasAppscript() && $this->isSyncEnabled() && $table === 'karyawan') {
-                $nrpVal = ($keyColumn === 'nrp') ? (string)$keyValue : (string)($data['nrp'] ?? '');
-                if ($nrpVal !== '') {
-                    GoogleSyncService::syncEmployeeRowAsync('upsert', $nrpVal);
+        $lockKey = "sheet_lock_{$table}";
+
+        try {
+            return Cache::lock($lockKey, 10)->block(3, function () use ($table, $keyColumn, $keyValue, $data) {
+                $all = $this->all($table, 0); // Fresh data
+                $rowIndex = null;
+                $existing = null;
+
+                foreach ($all as $item) {
+                    if (isset($item[$keyColumn]) && (string)$item[$keyColumn] === (string)$keyValue) {
+                        $rowIndex = $item['_row_index'] ?? null;
+                        $existing = $item;
+                        break;
+                    }
+                }
+
+                if (!$existing && !$this->find($table, $keyColumn, $keyValue)) {
+                    return false;
+                }
+
+                $merged = array_merge($existing ?? [], $data);
+                $columns = self::SCHEMAS[$table] ?? array_keys($merged);
+
+                // Google Sheets update if row index found
+                if ($this->googleService->isConfigured() && $rowIndex) {
+                    try {
+                        $sheets = $this->googleService->getSheetsService();
+                        $spreadsheetId = $this->googleService->getSpreadsheetId();
+
+                        $rowValues = [];
+                        foreach ($columns as $col) {
+                            $rowValues[] = $merged[$col] ?? '';
+                        }
+
+                        $range = "{$table}!A{$rowIndex}";
+                        $body = new ValueRange([
+                            'values' => [$rowValues]
+                        ]);
+
+                        $sheets->spreadsheets_values->update(
+                            $spreadsheetId,
+                            $range,
+                            $body,
+                            ['valueInputOption' => 'USER_ENTERED']
+                        );
+                    } catch (Exception $e) {
+                        Log::warning("Google Sheets update failed for table '{$table}', row {$rowIndex}: " . $e->getMessage());
+                    }
+                }
+
+                // Always update local database
+                $localTable = $this->getLocalTableName($table);
+                if (Schema::hasTable($localTable)) {
+                    $updatePayload = [];
+                    foreach ($columns as $col) {
+                        if (Schema::hasColumn($localTable, $col) && array_key_exists($col, $data)) {
+                            $updatePayload[$col] = $data[$col];
+                        }
+                    }
+                    if (!empty($updatePayload)) {
+                        DB::table($localTable)->where($keyColumn, $keyValue)->update($updatePayload);
+                    }
+                }
+
+                // Sync to Google Spreadsheet via non-blocking background async worker
+                if ($this->hasAppscript() && $this->isSyncEnabled() && $table === 'karyawan') {
+                    $nrpVal = ($keyColumn === 'nrp') ? (string)$keyValue : (string)($data['nrp'] ?? '');
+                    if ($nrpVal !== '') {
+                        GoogleSyncService::syncEmployeeRowAsync('upsert', $nrpVal);
+                    }
+                }
+
+                $this->clearCache($table);
+                return true;
+            });
+        } catch (\Throwable $e) {
+            Log::warning("SheetRepository update fallback to local DB for table '{$table}': " . $e->getMessage());
+            $localTable = $this->getLocalTableName($table);
+            if (Schema::hasTable($localTable)) {
+                $columns = self::SCHEMAS[$table] ?? array_keys($data);
+                $updatePayload = [];
+                foreach ($columns as $col) {
+                    if (Schema::hasColumn($localTable, $col) && array_key_exists($col, $data)) {
+                        $updatePayload[$col] = $data[$col];
+                    }
+                }
+                if (!empty($updatePayload)) {
+                    DB::table($localTable)->where($keyColumn, $keyValue)->update($updatePayload);
                 }
             }
-
-            $this->clearCache($table);
             return true;
-        });
+        }
     }
 
     /**
