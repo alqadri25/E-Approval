@@ -4,6 +4,10 @@
  * Vercel Serverless Function Bridge for Laravel
  */
 
+@set_time_limit(180);
+@ini_set('max_execution_time', '180');
+@ini_set('memory_limit', '512M');
+
 // Ensure writable directories exist in /tmp
 $tmpDirs = [
     '/tmp/views',

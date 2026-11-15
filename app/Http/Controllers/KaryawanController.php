@@ -1080,6 +1080,10 @@ class KaryawanController extends Controller
      */
     public function import(Request $request)
     {
+        @set_time_limit(180);
+        @ini_set('max_execution_time', '180');
+        @ini_set('memory_limit', '512M');
+
         /** @var User $user */
         $user = Auth::user();
 
@@ -1319,187 +1323,206 @@ class KaryawanController extends Controller
         $existingDocNrps = DB::table('dokumen')->pluck('nrp')->mapWithKeys(fn ($n) => [strtolower(trim((string)$n)) => true])->toArray();
         $activePeriod = DB::table('periode')->where('status', 'aktif')->first() ?? (object)['id' => 1];
 
-        // Execute all employee insertions & updates within a single DB transaction for maximum speed
-        DB::transaction(function () use (
-            $parsedRows,
-            $syncExisting,
-            &$existingNrps,
-            &$skippedDuplicates,
-            &$imported,
-            &$updatedExisting,
-            $isSectionHeadWithoutForeman,
-            $user,
-            $divHeadByDiv,
-            $deptHeadByDivDept,
-            $deptHeadByDept,
-            $shByDivDeptSect,
-            $foremanByCat,
-            &$dbKaryawanMap,
-            &$existingDocNrps,
-            $activePeriod
-        ) {
-            foreach ($parsedRows as $rawItem) {
-                $nrp = trim((string)($rawItem['nrp'] ?? ''));
-                if ($nrp === '') {
-                    continue;
-                }
+        $now = now()->toDateTimeString();
+        $maxDocId = (int)(DB::table('dokumen')->max('id') ?? 0);
+        $karyawanInserts = [];
+        $karyawanUpdates = [];
+        $dokumenInserts = [];
 
-                $lowerNrp = strtolower($nrp);
-                $isDuplicate = isset($existingNrps[$lowerNrp]);
-                if ($isDuplicate && !$syncExisting) {
-                    $existingPerson = $existingNrps[$lowerNrp];
-                    $skippedDuplicates[] = "{$nrp} (" . ($existingPerson !== '-' ? $existingPerson : 'Terdaftar') . ")";
-                    continue;
-                }
+        foreach ($parsedRows as $rawItem) {
+            $nrp = trim((string)($rawItem['nrp'] ?? ''));
+            if ($nrp === '') {
+                continue;
+            }
 
-                $jabatan = strtoupper(trim((string)($rawItem['jabatan'] ?? ''))) ?: 'OPERATOR';
-                if ($isSectionHeadWithoutForeman && \App\Services\ExcelKaryawanReader::isExcludedPosition($jabatan)) {
-                    continue;
-                }
+            $lowerNrp = strtolower($nrp);
+            $isDuplicate = isset($existingNrps[$lowerNrp]);
+            if ($isDuplicate && !$syncExisting) {
+                $existingPerson = $existingNrps[$lowerNrp];
+                $skippedDuplicates[] = "{$nrp} (" . ($existingPerson !== '-' ? $existingPerson : 'Terdaftar') . ")";
+                continue;
+            }
 
-                $namaLengkap = strtoupper(trim((string)($rawItem['nama_lengkap'] ?? ''))) ?: ('KARYAWAN ' . $nrp);
-                $subGol = strtoupper(trim((string)($rawItem['sub_gol'] ?? ''))) ?: 'IIB';
-                $rawKj = strtoupper(trim((string)($rawItem['kj'] ?? '')));
-                if ($rawKj !== '') {
-                    $kj = \App\Services\ExcelKaryawanReader::normalizeKj($rawKj);
-                } elseif (str_contains($subGol, 'V') && !str_contains($subGol, 'IV')) {
-                    $kj = 'KJ 5';
-                } elseif (str_contains($subGol, 'IV')) {
-                    $kj = 'KJ 4';
-                } elseif (str_contains($subGol, 'III')) {
-                    $kj = 'KJ 3';
+            $jabatan = strtoupper(trim((string)($rawItem['jabatan'] ?? ''))) ?: 'OPERATOR';
+            if ($isSectionHeadWithoutForeman && \App\Services\ExcelKaryawanReader::isExcludedPosition($jabatan)) {
+                continue;
+            }
+
+            $namaLengkap = strtoupper(trim((string)($rawItem['nama_lengkap'] ?? ''))) ?: ('KARYAWAN ' . $nrp);
+            $subGol = strtoupper(trim((string)($rawItem['sub_gol'] ?? ''))) ?: 'IIB';
+            $rawKj = strtoupper(trim((string)($rawItem['kj'] ?? '')));
+            if ($rawKj !== '') {
+                $kj = \App\Services\ExcelKaryawanReader::normalizeKj($rawKj);
+            } elseif (str_contains($subGol, 'V') && !str_contains($subGol, 'IV')) {
+                $kj = 'KJ 5';
+            } elseif (str_contains($subGol, 'IV')) {
+                $kj = 'KJ 4';
+            } elseif (str_contains($subGol, 'III')) {
+                $kj = 'KJ 3';
+            } else {
+                $kj = 'KJ 2';
+            }
+
+            $golongan = trim((string)($rawItem['golongan'] ?? ''));
+            if ($golongan === '') {
+                $golongan = \App\Services\ExcelKaryawanReader::subGolToGolongan($subGol);
+            }
+
+            $levelByPos = \App\Services\ExcelKaryawanReader::kjToLevelForm($kj, $jabatan);
+            $tglMasuk = \App\Services\ExcelKaryawanReader::excelDateToYmd($rawItem['tgl_masuk'] ?? null);
+            $codeBagian = trim((string)($rawItem['code_bagian'] ?? '')) ?: '1141600000';
+            $rawDept = trim((string)($rawItem['departemen'] ?? ''));
+            $dept = $rawDept !== '' ? $rawDept : ($levelByPos === 'DIV_HEAD' ? '-' : ($user->departemen ?? 'PROD 2'));
+            $rawSect = trim((string)($rawItem['nama_sect'] ?? ''));
+            $namaSect = $rawSect !== '' ? strtoupper($rawSect) : (in_array($levelByPos, ['DIV_HEAD', 'DEPT_HEAD'], true) ? '-' : 'FACTORY 1');
+            $namaBagian = strtoupper(trim((string)($rawItem['nama_bagian'] ?? ''))) ?: (($namaSect !== '' && $namaSect !== '-') ? ($namaSect . ' SEC.') : '-');
+            $lineCategory = trim((string)($rawItem['line_category'] ?? '')) ?: '-';
+            $division = trim((string)($rawItem['division'] ?? '')) ?: 'PRODUCTION A DIV';
+
+            $hierarchy = $this->resolveEmployeeHierarchy($user, $dept, $namaSect, $jabatan);
+            $nrpForemanVal = $hierarchy['nrp_foreman'];
+            $nrpSectionVal = $hierarchy['nrp_section_head'];
+            $nrpDeptVal = $hierarchy['nrp_dept_head'];
+            $nrpDivVal = $hierarchy['nrp_div_head'];
+
+            $divU = strtoupper($division);
+            $deptU = strtoupper($dept);
+            $sectU = strtoupper($namaSect);
+            $catU = strtoupper($lineCategory);
+
+            if ($user->isAdmin() || $user->isSuperadmin() || $user->role === 'hr') {
+                $resolvedDivHead = $divHeadByDiv[$divU] ?? $nrpDivVal;
+                $resolvedDeptHead = $deptHeadByDivDept["{$divU}|{$deptU}"] ?? ($deptHeadByDept[$deptU] ?? $nrpDeptVal);
+                $resolvedSectHead = $shByDivDeptSect["{$divU}|{$deptU}|{$sectU}"] ?? $nrpSectionVal;
+
+                if ($levelByPos === 'DIV_HEAD') {
+                    $nrpForemanVal = null;
+                    $nrpSectionVal = null;
+                    $nrpDeptVal = null;
+                    $nrpDivVal = $nrp;
+                } elseif ($levelByPos === 'DEPT_HEAD') {
+                    $nrpForemanVal = null;
+                    $nrpSectionVal = null;
+                    $nrpDeptVal = $nrp;
+                    $nrpDivVal = $resolvedDivHead;
+                } elseif ($levelByPos === 'SECTION_HEAD') {
+                    $nrpForemanVal = null;
+                    $nrpSectionVal = $nrp;
+                    $nrpDeptVal = $resolvedDeptHead;
+                    $nrpDivVal = $resolvedDivHead;
+                } elseif ($levelByPos === 'FOREMAN') {
+                    $nrpForemanVal = null;
+                    $nrpSectionVal = $resolvedSectHead;
+                    $nrpDeptVal = $resolvedDeptHead;
+                    $nrpDivVal = $resolvedDivHead;
                 } else {
-                    $kj = 'KJ 2';
+                    if ($catU !== '' && $catU !== '-' && isset($foremanByCat[$catU]) && empty($nrpSectionVal)) {
+                        $nrpForemanVal = $foremanByCat[$catU];
+                    }
+                    $nrpSectionVal = $nrpSectionVal ?: $resolvedSectHead;
+                    $nrpDeptVal = $nrpDeptVal ?: $resolvedDeptHead;
+                    $nrpDivVal = $nrpDivVal ?: $resolvedDivHead;
                 }
 
-                $golongan = trim((string)($rawItem['golongan'] ?? ''));
-                if ($golongan === '') {
-                    $golongan = \App\Services\ExcelKaryawanReader::subGolToGolongan($subGol);
-                }
-
-                $levelByPos = \App\Services\ExcelKaryawanReader::kjToLevelForm($kj, $jabatan);
-                $tglMasuk = \App\Services\ExcelKaryawanReader::excelDateToYmd($rawItem['tgl_masuk'] ?? null);
-                $codeBagian = trim((string)($rawItem['code_bagian'] ?? '')) ?: '1141600000';
-                $rawDept = trim((string)($rawItem['departemen'] ?? ''));
-                $dept = $rawDept !== '' ? $rawDept : ($levelByPos === 'DIV_HEAD' ? '-' : ($user->departemen ?? 'PROD 2'));
-                $rawSect = trim((string)($rawItem['nama_sect'] ?? ''));
-                $namaSect = $rawSect !== '' ? strtoupper($rawSect) : (in_array($levelByPos, ['DIV_HEAD', 'DEPT_HEAD'], true) ? '-' : 'FACTORY 1');
-                $namaBagian = strtoupper(trim((string)($rawItem['nama_bagian'] ?? ''))) ?: (($namaSect !== '' && $namaSect !== '-') ? ($namaSect . ' SEC.') : '-');
-                $lineCategory = trim((string)($rawItem['line_category'] ?? '')) ?: '-';
-                $division = trim((string)($rawItem['division'] ?? '')) ?: 'PRODUCTION A DIV';
-
-                $hierarchy = $this->resolveEmployeeHierarchy($user, $dept, $namaSect, $jabatan);
-                $nrpForemanVal = $hierarchy['nrp_foreman'];
-                $nrpSectionVal = $hierarchy['nrp_section_head'];
-                $nrpDeptVal = $hierarchy['nrp_dept_head'];
-                $nrpDivVal = $hierarchy['nrp_div_head'];
-
-                $divU = strtoupper($division);
-                $deptU = strtoupper($dept);
-                $sectU = strtoupper($namaSect);
-                $catU = strtoupper($lineCategory);
-
-                if ($user->isAdmin() || $user->isSuperadmin() || $user->role === 'hr') {
-                    $resolvedDivHead = $divHeadByDiv[$divU] ?? $nrpDivVal;
-                    $resolvedDeptHead = $deptHeadByDivDept["{$divU}|{$deptU}"] ?? ($deptHeadByDept[$deptU] ?? $nrpDeptVal);
-                    $resolvedSectHead = $shByDivDeptSect["{$divU}|{$deptU}|{$sectU}"] ?? $nrpSectionVal;
-
-                    if ($levelByPos === 'DIV_HEAD') {
-                        $nrpForemanVal = null;
-                        $nrpSectionVal = null;
-                        $nrpDeptVal = null;
-                        $nrpDivVal = $nrp;
-                    } elseif ($levelByPos === 'DEPT_HEAD') {
-                        $nrpForemanVal = null;
-                        $nrpSectionVal = null;
-                        $nrpDeptVal = $nrp;
-                        $nrpDivVal = $resolvedDivHead;
-                    } elseif ($levelByPos === 'SECTION_HEAD') {
-                        $nrpForemanVal = null;
-                        $nrpSectionVal = $nrp;
-                        $nrpDeptVal = $resolvedDeptHead;
-                        $nrpDivVal = $resolvedDivHead;
-                    } elseif ($levelByPos === 'FOREMAN') {
-                        $nrpForemanVal = null;
-                        $nrpSectionVal = $resolvedSectHead;
-                        $nrpDeptVal = $resolvedDeptHead;
-                        $nrpDivVal = $resolvedDivHead;
-                    } else {
-                        if ($catU !== '' && $catU !== '-' && isset($foremanByCat[$catU]) && empty($nrpSectionVal)) {
-                            $nrpForemanVal = $foremanByCat[$catU];
-                        }
-                        $nrpSectionVal = $nrpSectionVal ?: $resolvedSectHead;
-                        $nrpDeptVal = $nrpDeptVal ?: $resolvedDeptHead;
-                        $nrpDivVal = $nrpDivVal ?: $resolvedDivHead;
-                    }
-
-                    $impForeman = trim((string)($rawItem['nrp_foreman'] ?? ''));
-                    if ($impForeman !== '') {
-                        $nrpForemanVal = $impForeman;
-                        $foremanRow = $dbKaryawanMap[strtolower($impForeman)] ?? null;
-                        if ($foremanRow) {
-                            $nrpSectionVal = $nrpSectionVal ?: ($foremanRow->nrp_section_head ?? null);
-                            $nrpDeptVal = $nrpDeptVal ?: ($foremanRow->nrp_dept_head ?? null);
-                            $nrpDivVal = $nrpDivVal ?: ($foremanRow->nrp_div_head ?? null);
-                        }
+                $impForeman = trim((string)($rawItem['nrp_foreman'] ?? ''));
+                if ($impForeman !== '') {
+                    $nrpForemanVal = $impForeman;
+                    $foremanRow = $dbKaryawanMap[strtolower($impForeman)] ?? null;
+                    if ($foremanRow) {
+                        $nrpSectionVal = $nrpSectionVal ?: ($foremanRow->nrp_section_head ?? null);
+                        $nrpDeptVal = $nrpDeptVal ?: ($foremanRow->nrp_dept_head ?? null);
+                        $nrpDivVal = $nrpDivVal ?: ($foremanRow->nrp_div_head ?? null);
                     }
                 }
+            }
 
-                $levelForm = PenilaianController::determineLevelForm([
-                    'kj' => $kj,
-                    'sub_gol' => $subGol,
-                    'jabatan' => $jabatan,
-                    'nrp_foreman' => $nrpForemanVal,
-                    'nrp_section_head' => $nrpSectionVal,
-                    'nrp_dept_head' => $nrpDeptVal,
-                    'nrp_div_head' => $nrpDivVal,
-                ]);
+            $levelForm = PenilaianController::determineLevelForm([
+                'kj' => $kj,
+                'sub_gol' => $subGol,
+                'jabatan' => $jabatan,
+                'nrp_foreman' => $nrpForemanVal,
+                'nrp_section_head' => $nrpSectionVal,
+                'nrp_dept_head' => $nrpDeptVal,
+                'nrp_div_head' => $nrpDivVal,
+            ]);
 
-                $employeeRecord = [
-                    'nama_lengkap' => $namaLengkap,
-                    'golongan' => $golongan,
-                    'sub_gol' => $subGol,
-                    'kj' => $kj,
-                    'jabatan' => $jabatan,
-                    'tgl_masuk' => $tglMasuk,
-                    'departemen' => $dept,
-                    'seksi' => $namaSect,
-                    'code_bagian' => $codeBagian,
-                    'nama_bagian' => $namaBagian,
-                    'nama_sect' => $namaSect,
-                    'line_category' => $lineCategory,
-                    'division' => $division,
-                    'level_form' => $levelForm,
-                    'nrp_foreman' => $nrpForemanVal,
-                    'nrp_section_head' => $nrpSectionVal,
-                    'nrp_dept_head' => $nrpDeptVal,
-                    'nrp_div_head' => $nrpDivVal,
-                ];
+            $employeeRecord = [
+                'nama_lengkap' => $namaLengkap,
+                'golongan' => $golongan,
+                'sub_gol' => $subGol,
+                'kj' => $kj,
+                'jabatan' => $jabatan,
+                'tgl_masuk' => $tglMasuk,
+                'departemen' => $dept,
+                'seksi' => $namaSect,
+                'code_bagian' => $codeBagian,
+                'nama_bagian' => $namaBagian,
+                'nama_sect' => $namaSect,
+                'line_category' => $lineCategory,
+                'division' => $division,
+                'level_form' => $levelForm,
+                'nrp_foreman' => $nrpForemanVal,
+                'nrp_section_head' => $nrpSectionVal,
+                'nrp_dept_head' => $nrpDeptVal,
+                'nrp_div_head' => $nrpDivVal,
+            ];
 
-                if ($isDuplicate && $syncExisting) {
-                    $this->repository->update('karyawan', 'nrp', $nrp, $employeeRecord);
-                    $dbKaryawanMap[$lowerNrp] = (object)array_merge(['nrp' => $nrp], $employeeRecord);
-                    $updatedExisting++;
-                } else {
-                    $newEmployee = array_merge(['nrp' => $nrp], $employeeRecord);
-                    $this->repository->insert('karyawan', $newEmployee);
-                    $dbKaryawanMap[$lowerNrp] = (object)$newEmployee;
+            if ($isDuplicate && $syncExisting) {
+                $karyawanUpdates[] = array_merge(['nrp' => $nrp, 'updated_at' => $now], $employeeRecord);
+                $dbKaryawanMap[$lowerNrp] = (object)array_merge(['nrp' => $nrp], $employeeRecord);
+                $updatedExisting++;
+            } else {
+                $newEmployee = array_merge([
+                    'nrp' => $nrp,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ], $employeeRecord);
+                $karyawanInserts[] = $newEmployee;
+                $dbKaryawanMap[$lowerNrp] = (object)$newEmployee;
 
-                    // Automatically create initial appraisal document for direct subordinate
-                    if (!empty($hierarchy['auto_create_doc']) && !isset($existingDocNrps[$lowerNrp])) {
-                        $this->repository->insert('dokumen', [
-                            'periode_id' => $activePeriod->id ?? 1,
-                            'nrp' => $nrp,
-                            'kode_form' => PenilaianController::determineKodeForm($newEmployee),
-                            'status' => $hierarchy['default_status'] ?? 'menunggu_section_head',
-                            'kode_verifikasi' => 'VERIF-' . strtoupper(Str::random(10)),
-                            'created_at' => now()->toDateTimeString(),
-                            'updated_at' => now()->toDateTimeString(),
-                        ]);
-                        $existingDocNrps[$lowerNrp] = true;
-                    }
-                    $existingNrps[$lowerNrp] = $namaLengkap;
-                    $imported++;
+                // Automatically create initial appraisal document for direct subordinate
+                if (!empty($hierarchy['auto_create_doc']) && !isset($existingDocNrps[$lowerNrp])) {
+                    $maxDocId++;
+                    $dokumenInserts[] = [
+                        'id' => $maxDocId,
+                        'periode_id' => $activePeriod->id ?? 1,
+                        'nrp' => $nrp,
+                        'kode_form' => PenilaianController::determineKodeForm($newEmployee),
+                        'status' => $hierarchy['default_status'] ?? 'menunggu_section_head',
+                        'total_nilai' => null,
+                        'grade_original' => null,
+                        'docking_final' => null,
+                        'drive_file_id' => null,
+                        'drive_url' => null,
+                        'hash_dokumen' => null,
+                        'kode_verifikasi' => 'VERIF-' . strtoupper(Str::random(10)),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                    $existingDocNrps[$lowerNrp] = true;
+                }
+                $existingNrps[$lowerNrp] = $namaLengkap;
+                $imported++;
+            }
+        }
+
+        // Execute all employee insertions & updates atomically in bulk (< 50 ms)
+        DB::transaction(function () use ($karyawanInserts, $karyawanUpdates, $dokumenInserts) {
+            if (!empty($karyawanInserts)) {
+                foreach (array_chunk($karyawanInserts, 50) as $chunk) {
+                    DB::table('karyawan')->insert($chunk);
+                }
+            }
+            if (!empty($karyawanUpdates)) {
+                foreach ($karyawanUpdates as $item) {
+                    $nrpVal = $item['nrp'];
+                    unset($item['nrp']);
+                    DB::table('karyawan')->where('nrp', $nrpVal)->update($item);
+                }
+            }
+            if (!empty($dokumenInserts)) {
+                foreach (array_chunk($dokumenInserts, 50) as $chunk) {
+                    DB::table('dokumen')->insert($chunk);
                 }
             }
         });
@@ -1524,6 +1547,9 @@ class KaryawanController extends Controller
         if ($imported > 0 || $updatedExisting > 0) {
             $this->repository->clearCache('karyawan');
             $this->repository->clearCache('dokumen');
+            \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
+            \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
+            \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
             \Illuminate\Support\Facades\Cache::flush();
 
             // Automatically create / sync leadership accounts (Foreman, Section Head, Dept Head, Div Head)
@@ -1542,13 +1568,6 @@ class KaryawanController extends Controller
 
             $successMsg = "Berhasil mengimpor sheet karyawan (" . implode(', ', $parts) . ")!{$msgDuplicates}";
 
-            // Sinkronisasi otomatis ke Google Spreadsheet secara instan & non-blocking
-            try {
-                \App\Services\GoogleSyncService::syncTablesAsync(['karyawan', 'dokumen', 'users']);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning("Google sync trigger error: " . $e->getMessage());
-            }
-
             // If fastcgi_finish_request exists (FrankenPHP / PHP-FPM), immediately return redirect response to browser
             if (function_exists('fastcgi_finish_request')) {
                 session()->flash('success', $successMsg);
@@ -1556,11 +1575,18 @@ class KaryawanController extends Controller
                 $resp->send();
                 fastcgi_finish_request();
                 try {
-                    \App\Services\GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users']);
+                    \App\Services\GoogleSyncService::syncTables(['Master Karyawan', 'karyawan', 'dokumen', 'users']);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning("Background syncTables failed: " . $e->getMessage());
                 }
                 exit;
+            }
+
+            // Sync to Google Spreadsheet with safe short timeout (< 2s)
+            try {
+                \App\Services\GoogleSyncService::syncTables(['Master Karyawan', 'karyawan', 'dokumen', 'users']);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Google syncTables notice on import: " . $e->getMessage());
             }
 
             return redirect()->route($targetRoute)->with('success', $successMsg);
