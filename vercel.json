@@ -4,7 +4,7 @@
     "buildCommand": "npm run build",
     "outputDirectory": "public",
     "functions": {
-        "api/index.php": {
+        "api/*.php": {
             "runtime": "vercel-php@0.7.4",
             "maxDuration": 30
         }
@@ -37,6 +37,10 @@
         {
             "src": "/storage/(.*)",
             "dest": "/storage/$1"
+        },
+        {
+            "src": "/api/test",
+            "dest": "/api/test.php"
         },
         {
             "src": "/(.*)",
