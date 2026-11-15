@@ -1,18 +1,20 @@
 {
     "version": 2,
     "framework": null,
-    "buildCommand": "npm run build",
-    "outputDirectory": "public",
-    "functions": {
-        "api/*.php": {
-            "runtime": "vercel-php@0.9.0",
-            "maxDuration": 30
+    "builds": [
+        {
+            "src": "api/index.php",
+            "use": "vercel-php@0.6.2"
+        },
+        {
+            "src": "public/**",
+            "use": "@vercel/static"
         }
-    },
+    ],
     "routes": [
         {
-            "src": "/api/test",
-            "dest": "/api/test.php"
+            "src": "/build/assets/(.*)",
+            "dest": "/public/build/assets/$1"
         },
         {
             "src": "/build/(.*)",
@@ -47,20 +49,22 @@
             "dest": "/api/index.php"
         }
     ],
+    "outputDirectory": "public",
     "env": {
         "APP_NAME": "E-Approval",
         "APP_ENV": "production",
         "APP_DEBUG": "false",
         "APP_KEY": "base64:iI/y07XaGJ1V1DZ4AEuy11Oa2HmBVQmMdcJSHvVMvcg=",
+        "LOG_CHANNEL": "stderr",
+        "CACHE_STORE": "array",
+        "CACHE_DRIVER": "array",
+        "SESSION_DRIVER": "cookie",
         "APP_CONFIG_CACHE": "/tmp/config.php",
         "APP_EVENTS_CACHE": "/tmp/events.php",
         "APP_PACKAGES_CACHE": "/tmp/packages.php",
         "APP_ROUTES_CACHE": "/tmp/routes.php",
         "APP_SERVICES_CACHE": "/tmp/services.php",
         "VIEW_COMPILED_PATH": "/tmp/views",
-        "CACHE_STORE": "array",
-        "LOG_CHANNEL": "stderr",
-        "SESSION_DRIVER": "cookie",
         "LARAVEL_STORAGE_PATH": "/tmp/storage",
         "DB_CONNECTION": "sqlite",
         "DB_DATABASE": "/tmp/database.sqlite"
