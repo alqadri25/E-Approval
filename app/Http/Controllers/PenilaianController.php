@@ -3376,11 +3376,11 @@ class PenilaianController extends Controller
         // Realtime sync to Google Spreadsheet
         GoogleSyncService::syncTables(['dokumen', 'nilai', 'tanda_tangan', 'indikator', 'audit_log']);
 
-        // If finalized (selesai), upload PDF to Google Drive in organized folder
-        if ($nextStatus === 'selesai') {
-            try {
-                GoogleSyncService::uploadPdfToDrive($id);
-            } catch (\Throwable $e) {}
+        // Otomatis buat dan unggah / perbarui arsip PDF penilaian ke Google Drive di setiap tahapan tanda tangan (Foreman, Section, Dept, Div)
+        try {
+            GoogleSyncService::uploadPdfToDrive($id);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Upload PDF to Google Drive on sign ({$level}) failed: " . $e->getMessage());
         }
 
         return redirect(self::getFormUrlForUser($user, $id))
@@ -6168,7 +6168,7 @@ class PenilaianController extends Controller
         }
 
         $this->repository->clearCache('dokumen');
-        GoogleSyncService::syncTable('dokumen');
+        GoogleSyncService::syncTables(['dokumen', 'kuota_departemen', 'pengaturan', 'audit_log']);
 
         return redirect()->route($routeTarget)->with('success', "Penyesuaian nilai untuk {$savedCount} karyawan berhasil disimpan dan diselaraskan!");
     }
@@ -6551,6 +6551,11 @@ class PenilaianController extends Controller
 
             $updatedCount++;
         }
+
+        $this->repository->clearCache('dokumen');
+        try {
+            GoogleSyncService::syncTables(['dokumen', 'kuota_departemen', 'pengaturan', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         return redirect()->back()->with('success', "Penyesuaian kuota ({$updatedCount} karyawan) berhasil disimpan dan diteruskan ke Division Head / Manajemen!");
     }

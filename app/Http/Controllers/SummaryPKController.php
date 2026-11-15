@@ -6,6 +6,7 @@ use App\Contracts\SheetRepositoryInterface;
 use App\Models\User;
 use App\Services\AppraisalCalculationService;
 use App\Services\ExcelKaryawanReader;
+use App\Services\GoogleSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -379,6 +380,11 @@ class SummaryPKController extends Controller
 
         $msg = "Target kuota nilai untuk Departemen {$dept} berhasil disimpan!";
 
+        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        try {
+            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+        } catch (\Throwable $e) {}
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json(['success' => true, 'message' => $msg]);
         }
@@ -408,6 +414,11 @@ class SummaryPKController extends Controller
             'updated_at' => now(),
         ]);
         $this->repository->clearCache('dokumen');
+
+        // Realtime sync ke Google Spreadsheet untuk update docking dokumen
+        try {
+            GoogleSyncService::syncTables(['dokumen', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         return response()->json([
             'success' => true, 

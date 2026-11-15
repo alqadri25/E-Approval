@@ -595,6 +595,10 @@ class GoogleSyncService
         $karyawan = DB::table('karyawan')->where('nrp', $dokumen->nrp)->first();
         $karyawanArr = $karyawan ? (array)$karyawan : [];
 
+        $tahun = (string)($dokumen->tahun ?? DB::table('pengaturan')->where('key', 'tahun_penilaian')->value('value') ?? '2026');
+        $departemen = (string)($karyawanArr['departemen'] ?? $dokumen->departemen ?? 'PROD 2');
+        $seksi = (string)($karyawanArr['seksi'] ?? '');
+
         if (empty($pdfBinary)) {
             try {
                 $calcService = app(\App\Services\AppraisalCalculationService::class);
@@ -615,15 +619,17 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(12)->withoutVerifying()->post($appscriptUrl, [
+            $response = Http::timeout(15)->withoutVerifying()->post($appscriptUrl, [
                 'action' => 'save_pdf',
                 'pdf_base64' => base64_encode($pdfBinary),
                 'nrp' => (string)($karyawanArr['nrp'] ?? $dokumen->nrp),
                 'nama_lengkap' => (string)($karyawanArr['nama_lengkap'] ?? 'KARYAWAN'),
                 'jabatan' => (string)($karyawanArr['jabatan'] ?? 'OPERATOR'),
                 'golongan' => (string)($karyawanArr['golongan'] ?? ($karyawanArr['kj'] ?? 'KJ')),
-                'departemen' => (string)($karyawanArr['departemen'] ?? 'PRODUCTION 2 DEPT'),
-                'tahun' => '2025',
+                'departemen' => $departemen,
+                'seksi' => $seksi,
+                'tahun' => $tahun,
+                'status' => (string)($dokumen->status ?? ''),
             ]);
 
             if ($response->successful()) {
@@ -634,6 +640,8 @@ class GoogleSyncService
                         'drive_url' => $resData['file_url'] ?? null,
                         'updated_at' => now()->toDateTimeString(),
                     ]);
+                    // Otomatis sinkronkan link drive_url ke tab dokumen di Google Spreadsheet
+                    self::syncTable('dokumen');
                 }
                 return ['success' => true, 'data' => $resData];
             }
@@ -675,7 +683,7 @@ class GoogleSyncService
 var CONFIG = {
   SPREADSHEET_ID: '{$ssId}',
   DRIVE_FOLDER_ID: '{$drId}',
-  DEFAULT_YEAR: '2025',
+  DEFAULT_YEAR: '2026',
   COMPANY_NAME: 'PT MUSASHI AUTO PARTS INDONESIA'
 };
 
@@ -788,25 +796,30 @@ function setupDatabaseSheets() {
  */
 function setupDriveFolders() {
   var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
-  var depts = [
-    'PRODUCTION 1 DEPT',
-    'PRODUCTION 2 DEPT',
-    'QA QC DEPT',
-    'ENGINEERING DEPT',
-    'HR GA FINANCE DEPT'
-  ];
+  var tahun = CONFIG.DEFAULT_YEAR;
+  var yearFolder = getOrCreateSubfolder(rootFolder, 'TAHUN ' + tahun);
 
-  // Folder Tahun
-  var yearFolderName = 'TAHUN ' + CONFIG.DEFAULT_YEAR;
-  var yearFolder = getOrCreateSubfolder(rootFolder, yearFolderName);
+  // Struktur Rapi Seluruh Departemen & Seksi Musashi
+  var structure = {
+    'PROD 1': ['FACTORY 1'],
+    'PROD 2': ['FACTORY 1', 'FACTORY 2', 'FACTORY 3'],
+    'PROD 3': ['FACTORY 2'],
+    'PROD 4': ['FACTORY 1'],
+    'QA QC DEPT': [],
+    'ENGINEERING DEPT': [],
+    'HR GA FINANCE DEPT': []
+  };
 
-  // Subfolder per Departemen
-  for (var i = 0; i < depts.length; i++) {
-    getOrCreateSubfolder(yearFolder, depts[i]);
+  for (var dept in structure) {
+    var deptFolder = getOrCreateSubfolder(yearFolder, dept);
+    var sects = structure[dept];
+    for (var s = 0; s < sects.length; s++) {
+      getOrCreateSubfolder(deptFolder, sects[s]);
+    }
   }
 
   showAlertSafely(
-    'Sukses! Struktur folder Google Drive untuk arsip PDF (' + yearFolderName + ') telah dirapikan.'
+    'Sukses! Struktur folder Google Drive untuk arsip PDF (TAHUN ' + tahun + ') telah dirapikan per Departemen & Seksi.'
   );
 }
 
@@ -942,31 +955,48 @@ function doPost(e) {
     // Format File: PK_[TAHUN]_[NRP]_[NAMA]_[JABATAN]_[GOL].pdf
     if (action === 'save_pdf') {
       var pdfBase64 = postData.pdf_base64;
-      var nrp = postData.nrp || '0';
-      var nama = (postData.nama_lengkap || 'KARYAWAN').toUpperCase().replace(/[^A-Z0-9]/g, '_');
-      var jabatan = (postData.jabatan || 'OPERATOR').toUpperCase().replace(/[^A-Z0-9]/g, '_');
-      var golongan = (postData.golongan || 'KJ').toUpperCase().replace(/[^A-Z0-9]/g, '_');
-      var departemen = (postData.departemen || 'PRODUCTION 2 DEPT').toUpperCase();
-      var tahun = postData.tahun || CONFIG.DEFAULT_YEAR;
+      var nrp = String(postData.nrp || '0').trim();
+      var nama = String(postData.nama_lengkap || 'KARYAWAN').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      var jabatan = String(postData.jabatan || 'OPERATOR').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      var golongan = String(postData.golongan || 'KJ').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      var departemen = String(postData.departemen || 'PROD 2').toUpperCase().trim();
+      var seksi = String(postData.seksi || '').toUpperCase().trim();
+      var tahun = String(postData.tahun || CONFIG.DEFAULT_YEAR);
 
       var filename = 'PK_' + tahun + '_' + nrp + '_' + nama + '_' + jabatan + '_' + golongan + '.pdf';
 
-      // Struktur Folder: Root -> TAHUN [YYYY] -> [DEPARTEMEN]
+      // Struktur Folder Rapi & Berjenjang:
+      // Root Folder -> TAHUN [YYYY] -> [DEPARTEMEN] -> [SEKSI] (jika ada)
       var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
       var yearFolder = getOrCreateSubfolder(rootFolder, 'TAHUN ' + tahun);
       var deptFolder = getOrCreateSubfolder(yearFolder, departemen);
+      var targetFolder = (seksi && seksi !== '-' && seksi !== 'SEMUA')
+          ? getOrCreateSubfolder(deptFolder, seksi)
+          : deptFolder;
 
       var decodedBytes = Utilities.base64Decode(pdfBase64);
       var blob = Utilities.newBlob(decodedBytes, 'application/pdf', filename);
-      var file = deptFolder.createFile(blob);
-      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+      // Bersihkan / timpa berkas versi lama dengan nama sama agar tidak bertumpuk duplikat di Drive
+      var existingFiles = targetFolder.getFilesByName(filename);
+      while (existingFiles.hasNext()) {
+        var oldFile = existingFiles.next();
+        oldFile.setTrashed(true);
+      }
+
+      var file = targetFolder.createFile(blob);
+      try {
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (eShare) {}
+
+      var folderPath = 'TAHUN ' + tahun + ' / ' + departemen + (seksi && seksi !== '-' ? ' / ' + seksi : '');
 
       return jsonResponse({
         status: 'success',
         file_id: file.getId(),
         file_name: filename,
         file_url: file.getUrl(),
-        folder_path: 'TAHUN ' + tahun + ' / ' + departemen,
+        folder_path: folderPath,
         timestamp: new Date().toISOString()
       });
     }

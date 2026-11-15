@@ -2120,6 +2120,11 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
+        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        try {
+            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+        } catch (\Throwable $e) {}
+
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
         $tableTab = str_starts_with($scope, 'DIV-') ? 'divisi' : ($scope !== 'all' ? 'departemen' : 'all');
         return redirect()->route($redirectRoute, [
@@ -2472,6 +2477,11 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
+        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        try {
+            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+        } catch (\Throwable $e) {}
+
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
         return redirect()->route($redirectRoute, [
             'tab' => 'kj',
@@ -2612,6 +2622,11 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
+        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        try {
+            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+        } catch (\Throwable $e) {}
+
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
         return redirect()->route($redirectRoute, [
             'tab' => 'level',
@@ -2680,6 +2695,11 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
+        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        try {
+            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+        } catch (\Throwable $e) {}
+
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
         return redirect()->route($redirectRoute, ['tab' => 'kj'])->with('success', "Jenjang baru '{$kodeKj}' ({$golongan}) berhasil ditambahkan ke dalam sistem!");
     }
@@ -2729,6 +2749,11 @@ class AdminController extends Controller
 
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
+
+        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        try {
+            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
         return redirect()->route($redirectRoute, ['tab' => 'kj'])->with('success', $msg);
@@ -3317,8 +3342,12 @@ class AdminController extends Controller
             ]);
         }
 
-        // Sinkronisasi update karyawan ke Google Spreadsheet secara instan & non-blocking (cepat tanpa delay)
-        \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $nrp);
+        // Sinkronisasi update karyawan ke Google Spreadsheet secara real-time
+        try {
+            \App\Services\GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users', 'audit_log']);
+        } catch (\Throwable $e) {
+            \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $nrp);
+        }
 
         $redirectTo = (url()->previous() && str_contains(url()->previous(), 'karyawan') && !str_contains(url()->previous(), 'admin'))
             ? route('karyawan.index')

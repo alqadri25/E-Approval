@@ -749,8 +749,12 @@ class KaryawanController extends Controller
             $this->ensureInitialDocument($newEmployee, $hierarchy['default_status'] ?? 'menunggu_section_head');
         }
 
-        // Sinkronisasi tambah karyawan ke Google Spreadsheet secara instan & non-blocking (cepat tanpa delay)
-        \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $newEmployee['nrp']);
+        // Sinkronisasi tambah karyawan ke Google Spreadsheet secara real-time
+        try {
+            \App\Services\GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users', 'audit_log']);
+        } catch (\Throwable $e) {
+            \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $newEmployee['nrp']);
+        }
 
         $targetRoute = str_contains((string)url()->previous(), '/admin/karyawan') ? 'admin.karyawan' : 'karyawan.index';
         return redirect()->route($targetRoute)->with('success', "Karyawan {$newEmployee['nama_lengkap']} (NRP: {$newEmployee['nrp']}) berhasil ditambahkan!");
