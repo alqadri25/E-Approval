@@ -244,30 +244,72 @@ class GoogleSyncService
         // Attempt pull from Google Apps Script Web App if URL is provided
         if (!empty($targetAppscript) && filter_var($targetAppscript, FILTER_VALIDATE_URL)) {
             try {
-                $response = Http::timeout(8)->withoutVerifying()->get($targetAppscript, [
+                $response = Http::timeout(12)->withoutVerifying()->get($targetAppscript, [
                     'action' => 'pull_all',
                     'spreadsheet_id' => $targetSpreadsheet,
                 ]);
 
                 if ($response->successful()) {
-                    $data = $response->json();
-                    if (is_array($data) && isset($data['data']['karyawan']) && is_array($data['data']['karyawan'])) {
-                        $pulledRowsCount = count($data['data']['karyawan']);
+                    $json = $response->json();
+                    $data = $json['data'] ?? [];
+                    $empRows = $data['karyawan'] ?? ($data['Master Karyawan'] ?? []);
+
+                    if (!empty($empRows) && is_array($empRows)) {
+                        $pulledRowsCount = count($empRows);
                         $syncSource = "Google Apps Script & Spreadsheet (ID: {$targetSpreadsheet})";
-                        foreach ($data['data']['karyawan'] as $row) {
-                            if (!empty($row['nrp'])) {
-                                DB::table('karyawan')->updateOrInsert(
-                                    ['nrp' => trim((string)$row['nrp'])],
-                                    array_filter([
-                                        'nama_lengkap' => $row['nama_lengkap'] ?? null,
-                                        'jabatan' => $row['jabatan'] ?? null,
-                                        'seksi' => $row['seksi'] ?? null,
-                                        'departemen' => $row['departemen'] ?? null,
-                                        'division' => $row['division'] ?? null,
-                                    ])
-                                );
+
+                        $karyawanCols = Schema::getColumnListing('karyawan');
+                        $karyawanColSet = array_flip($karyawanCols);
+
+                        DB::transaction(function () use ($empRows, $karyawanColSet) {
+                            foreach ($empRows as $row) {
+                                $nrp = trim((string)($row['nrp'] ?? ''));
+                                if ($nrp === '') continue;
+
+                                $cleanRow = [];
+                                foreach ($row as $k => $v) {
+                                    $kLower = strtolower(trim((string)$k));
+                                    if (isset($karyawanColSet[$kLower])) {
+                                        $cleanRow[$kLower] = $v;
+                                    }
+                                }
+                                if (!empty($cleanRow)) {
+                                    DB::table('karyawan')->updateOrInsert(['nrp' => $nrp], $cleanRow);
+                                }
                             }
+                        });
+
+                        // Also sync documents from spreadsheet if present
+                        if (!empty($data['dokumen']) && is_array($data['dokumen'])) {
+                            $docCols = Schema::getColumnListing('dokumen');
+                            $docColSet = array_flip($docCols);
+
+                            DB::transaction(function () use ($data, $docColSet) {
+                                foreach ($data['dokumen'] as $docRow) {
+                                    $id = trim((string)($docRow['id'] ?? ''));
+                                    $nrp = trim((string)($docRow['nrp'] ?? ''));
+                                    if ($id === '' && $nrp === '') continue;
+
+                                    $cleanDoc = [];
+                                    foreach ($docRow as $k => $v) {
+                                        $kLower = strtolower(trim((string)$k));
+                                        if (isset($docColSet[$kLower])) {
+                                            $cleanDoc[$kLower] = $v;
+                                        }
+                                    }
+                                    if (!empty($cleanDoc)) {
+                                        if ($id !== '') {
+                                            DB::table('dokumen')->updateOrInsert(['id' => $id], $cleanDoc);
+                                        } else {
+                                            DB::table('dokumen')->updateOrInsert(['nrp' => $nrp], $cleanDoc);
+                                        }
+                                    }
+                                }
+                            });
                         }
+
+                        // Auto-generate leadership accounts for the pulled employees
+                        AccountSyncService::syncLeadershipAccountsFromKaryawan();
                     }
                 }
             } catch (Exception $e) {
@@ -275,8 +317,16 @@ class GoogleSyncService
             }
         }
 
-        // Always run canonical DatabaseSyncService to guarantee 100% integrity of 180 employees & docs
-        $localSync = DatabaseSyncService::syncAll();
+        // If no records in karyawan and local DATA PK.xlsx exists, fallback to DatabaseSyncService
+        if (DB::table('karyawan')->count() === 0 && file_exists(base_path('DATA PK.xlsx'))) {
+            $localSync = DatabaseSyncService::syncAll();
+        } else {
+            $localSync = [
+                'karyawan_total' => DB::table('karyawan')->count(),
+                'dokumen_total' => DB::table('dokumen')->count(),
+                'users_total' => DB::table('app_users')->count(),
+            ];
+        }
 
         $timestampNow = date('d F Y, H:i') . ' WIB';
         DB::table('pengaturan')->updateOrInsert(

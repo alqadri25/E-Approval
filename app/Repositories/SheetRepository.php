@@ -145,7 +145,40 @@ class SheetRepository implements SheetRepositoryInterface
                         return $rows;
                     }
                 } catch (Exception $e) {
-                    Log::warning("Google Sheets read failed for table '{$table}': " . $e->getMessage() . ". Falling back to local database.");
+                    Log::warning("Google Sheets read failed for table '{$table}': " . $e->getMessage() . ". Falling back to Apps Script / local.");
+                }
+            }
+
+            // 2. Fetch via Google Apps Script Web App if available
+            if ($this->hasAppscript()) {
+                try {
+                    $config = GoogleSyncService::getConfig();
+                    $appscriptUrl = $config['appscript_url'];
+
+                    $tableVariants = [$table];
+                    if ($table === 'karyawan') {
+                        $tableVariants = ['karyawan', 'Master Karyawan'];
+                    }
+
+                    foreach ($tableVariants as $sheetTable) {
+                        $response = \Illuminate\Support\Facades\Http::timeout(6)->withoutVerifying()->get($appscriptUrl, [
+                            'action' => 'get_table',
+                            'table' => $sheetTable,
+                        ]);
+
+                        if ($response->successful()) {
+                            $json = $response->json();
+                            if (isset($json['status']) && $json['status'] === 'success' && isset($json['data']) && is_array($json['data'])) {
+                                $rows = $json['data'];
+                                if (!empty($rows)) {
+                                    $this->mirrorToLocal($table, $rows);
+                                    return $rows;
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception $e) {
+                    Log::warning("Apps Script read failed for table '{$table}': " . $e->getMessage() . ". Falling back to local database.");
                 }
             }
 
@@ -635,21 +668,31 @@ class SheetRepository implements SheetRepositoryInterface
         }
 
         try {
-            foreach ($rows as $row) {
-                $cleanRow = [];
-                foreach ($row as $k => $v) {
-                    if ($k !== '_row_index' && Schema::hasColumn($localTable, $k)) {
-                        $cleanRow[$k] = $v;
+            $columns = Schema::getColumnListing($localTable);
+            $colSet = array_flip($columns);
+
+            DB::transaction(function () use ($localTable, $rows, $colSet) {
+                foreach ($rows as $row) {
+                    $cleanRow = [];
+                    foreach ($row as $k => $v) {
+                        $kLower = strtolower(trim((string)$k));
+                        if ($kLower !== '_row_index' && isset($colSet[$kLower])) {
+                            $cleanRow[$kLower] = $v;
+                        }
+                    }
+
+                    $keyField = isset($cleanRow['id']) ? 'id' : (isset($cleanRow['nrp']) ? 'nrp' : (isset($cleanRow['key']) ? 'key' : null));
+                    if ($keyField && !empty($cleanRow[$keyField])) {
+                        DB::table($localTable)->updateOrInsert([$keyField => $cleanRow[$keyField]], $cleanRow);
                     }
                 }
+            });
 
-                $keyField = isset($cleanRow['id']) ? 'id' : (isset($cleanRow['nrp']) ? 'nrp' : (isset($cleanRow['key']) ? 'key' : null));
-                if ($keyField && !empty($cleanRow[$keyField])) {
-                    DB::table($localTable)->updateOrInsert([$keyField => $cleanRow[$keyField]], $cleanRow);
-                }
+            if ($table === 'karyawan') {
+                \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
             }
         } catch (Exception $e) {
-            // Silently ignore mirror errors
+            Log::info("Mirror error for table {$table}: " . $e->getMessage());
         }
     }
 }
