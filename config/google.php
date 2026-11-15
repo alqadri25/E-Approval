@@ -15,6 +15,8 @@ return [
 
     'drive_folder_id' => env('GOOGLE_DRIVE_FOLDER_ID', '1zB2loWV14fCpLWMCnNiEa4dVKAvhLZYE'),
 
+    'appscript_url' => env('GOOGLE_APPSCRIPT_URL', 'https://script.google.com/macros/s/AKfycbwDK80WrKfr7iKOp7awaqhf1ezP7A-xREMbbSuuaGMlhHJJrPuGF5VXHnedi8v2ZIRE/exec'),
+
     'service_account_path' => env('GOOGLE_SERVICE_ACCOUNT_JSON', storage_path('app/google-service-account.json')),
 
     'service_account_json' => env('GOOGLE_SERVICE_ACCOUNT_RAW', null),

@@ -161,6 +161,12 @@ class ProfileController extends Controller
             } catch (\Throwable $e) {}
         }
 
+        if (isset($driveResult) && empty($driveResult['success']) && !empty($driveResult['message'])) {
+            return redirect()->route('profile.index')
+                ->with('success', 'Profil pengguna dan gambar tanda tangan digital berhasil diperbarui di sistem!')
+                ->with('error', 'Catatan Google Drive: ' . $driveResult['message']);
+        }
+
         return redirect()->route('profile.index')->with('success', 'Profil pengguna dan gambar tanda tangan digital berhasil diperbarui!' . $driveNotice);
     }
 

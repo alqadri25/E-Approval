@@ -115,7 +115,10 @@ class GoogleSyncService
 
         $spreadsheetUrl = $settings['google_spreadsheet_url'] ?? "https://docs.google.com/spreadsheets/d/{$spreadsheetId}/edit?usp=sharing";
         $driveFolderUrl = $settings['google_drive_folder_url'] ?? "https://drive.google.com/drive/folders/{$driveFolderId}?usp=sharing";
-        $appscriptUrl = $settings['google_appscript_url'] ?? '';
+        $appscriptUrl = $settings['google_appscript_url'] ?? env('GOOGLE_APPSCRIPT_URL', '');
+        if (empty($appscriptUrl) || str_contains($appscriptUrl, 'AKfycbwTG3pNhrTe')) {
+            $appscriptUrl = env('GOOGLE_APPSCRIPT_URL', 'https://script.google.com/macros/s/AKfycbwDK80WrKfr7iKOp7awaqhf1ezP7A-xREMbbSuuaGMlhHJJrPuGF5VXHnedi8v2ZIRE/exec');
+        }
 
         $lastSyncGoogle = $settings['terakhir_sinkron_google'] ?? null;
         $lastPushGoogle = $settings['terakhir_push_google'] ?? null;
@@ -837,9 +840,18 @@ class GoogleSyncService
                         'folder_path' => $resData['folder_path'] ?? "TANDA_TANGAN / {$role}",
                     ];
                 }
+
+                $rawErr = $resData['error'] ?? $resData['message'] ?? ($resData['status'] ?? null);
+                $errExplanation = $rawErr;
+                if ($rawErr && str_contains($rawErr, 'DriveApp')) {
+                    $errExplanation = 'Izin Google Drive belum diotorisasi di Google Apps Script. Di Apps Script, pastikan Deploy diset dengan "Execute as: Me" dan setujui izin otorisasi akses Drive.';
+                } elseif (isset($resData['status']) && $resData['status'] === 'unknown_action') {
+                    $errExplanation = 'Kode Google Apps Script belum diperbarui ke versi yang memiliki fungsi save_signature. Silakan salin kode terbaru dan deploy New Version.';
+                }
+
                 return [
                     'success' => false,
-                    'message' => $resData['message'] ?? ($resData['status'] ?? 'Gagal menyimpan ke Google Drive.'),
+                    'message' => $errExplanation ?: 'Gagal menyimpan ke Google Drive.',
                     'file_name' => $cleanFilename,
                 ];
             }
