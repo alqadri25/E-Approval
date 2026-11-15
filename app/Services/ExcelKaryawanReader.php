@@ -78,10 +78,25 @@ class ExcelKaryawanReader
                 return [];
             }
 
-            $headers = array_map(fn ($h) => strtoupper(trim((string)$h)), $rawRows[0]);
+            // Dynamically detect header row within first 10 rows
+            $headerRowIdx = 0;
+            for ($i = 0; $i < min(10, count($rawRows)); $i++) {
+                $rowNormalized = array_map(function ($cell) {
+                    return strtoupper((string)preg_replace('/[^a-zA-Z0-9]/', '', (string)$cell));
+                }, $rawRows[$i]);
+
+                foreach ($rowNormalized as $val) {
+                    if (in_array($val, ['NRP', 'NIK', 'EMPLOYEENO', 'NAMA', 'NAMALENGKAP', 'FULLNAME', 'POSITION', 'JABATAN', 'CODEBAGIAN', 'ORGSTRUCTURECODE'])) {
+                        $headerRowIdx = $i;
+                        break 2;
+                    }
+                }
+            }
+
+            $headers = array_map(fn ($h) => strtoupper(trim((string)$h)), $rawRows[$headerRowIdx]);
             $result = [];
 
-            for ($r = 1; $r < count($rawRows); $r++) {
+            for ($r = $headerRowIdx + 1; $r < count($rawRows); $r++) {
                 $vals = $rawRows[$r];
                 $assoc = [];
                 $hasValue = false;
@@ -90,6 +105,9 @@ class ExcelKaryawanReader
                         continue;
                     }
                     $cellVal = trim((string)($vals[$idx] ?? ''));
+                    if (preg_match('/^-?\d+\.0+$/', $cellVal)) {
+                        $cellVal = preg_replace('/\.0+$/', '', $cellVal);
+                    }
                     if ($cellVal !== '') {
                         $hasValue = true;
                     }

@@ -393,9 +393,17 @@ class GoogleSyncService
             };
 
             if (Schema::hasTable($localTable)) {
-                $rows = DB::table($localTable)->get()->map(function ($row) {
-                    return (array)$row;
-                })->toArray();
+                if ($localTable === 'app_users') {
+                    $rows = DB::table('app_users')
+                        ->select('id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif')
+                        ->get()
+                        ->map(fn ($row) => (array)$row)
+                        ->toArray();
+                } else {
+                    $rows = DB::table($localTable)->get()->map(function ($row) {
+                        return (array)$row;
+                    })->toArray();
+                }
 
                 $payload[$table] = $rows;
                 if ($table === 'karyawan') {
@@ -409,7 +417,7 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(8)->withoutVerifying()->post($appscriptUrl, [
+            $response = Http::timeout(10)->withoutVerifying()->post($appscriptUrl, [
                 'action' => 'push_all',
                 'data' => $payload,
             ]);

@@ -137,72 +137,110 @@ class AccountSyncService
         $updated = 0;
         $details = [];
 
-        foreach ($employees as $emp) {
-            $nrp = trim((string)($emp->nrp ?? ''));
-            if ($nrp === '') {
-                continue;
+        // Preload all existing users into memory for O(1) instant lookup
+        $allUsers = User::all();
+        $usersByNrp = [];
+        $usersByEmail = [];
+        foreach ($allUsers as $u) {
+            if (!empty($u->nrp)) {
+                $usersByNrp[strtolower(trim((string)$u->nrp))] = $u;
             }
-
-            $jabatan = (string)($emp->jabatan ?? '');
-            $leadership = self::resolveLeadershipRole($jabatan, (string)($emp->kj ?? ''));
-            if (!$leadership) {
-                continue;
-            }
-
-            $nama = trim((string)($emp->nama_lengkap ?? '')) ?: ('User ' . $nrp);
-            $role = $leadership['role'];
-            $posLabel = $leadership['label'];
-            $email = self::generateAccountEmail($nrp, $posLabel);
-            $passwordPlain = self::generateAccountPassword($nrp, $posLabel);
-            $passwordHash = Hash::make($passwordPlain);
-
-            $rawDept = trim((string)($emp->departemen ?? ''));
-            $dept = ($rawDept !== '' && $rawDept !== '-') ? $rawDept : (trim((string)($emp->division ?? '')) ?: 'ALL');
-
-            // Find existing user by NRP or by email
-            $existingUser = User::where('nrp', $nrp)->first();
-            if (!$existingUser) {
-                $existingUser = User::where('email', $email)->first();
-            }
-
-            if ($existingUser) {
-                $existingUser->nama = $nama;
-                $existingUser->role = $role;
-                $existingUser->departemen = $dept;
-                $existingUser->email = $email;
-                $existingUser->password_hash = $passwordHash;
-                $existingUser->aktif = 1;
-                $existingUser->save();
-                $updated++;
-                $details[] = [
-                    'action' => 'updated',
-                    'nrp' => $nrp,
-                    'nama' => $nama,
-                    'role' => $role,
-                    'email' => $email,
-                    'password' => $passwordPlain,
-                ];
-            } else {
-                User::create([
-                    'nama' => $nama,
-                    'email' => $email,
-                    'password_hash' => $passwordHash,
-                    'role' => $role,
-                    'nrp' => $nrp,
-                    'departemen' => $dept,
-                    'aktif' => 1,
-                ]);
-                $created++;
-                $details[] = [
-                    'action' => 'created',
-                    'nrp' => $nrp,
-                    'nama' => $nama,
-                    'role' => $role,
-                    'email' => $email,
-                    'password' => $passwordPlain,
-                ];
+            if (!empty($u->email)) {
+                $usersByEmail[strtolower(trim((string)$u->email))] = $u;
             }
         }
+
+        DB::transaction(function () use ($employees, &$usersByNrp, &$usersByEmail, &$created, &$updated, &$details) {
+            foreach ($employees as $emp) {
+                $nrp = trim((string)($emp->nrp ?? ''));
+                if ($nrp === '') {
+                    continue;
+                }
+
+                $jabatan = (string)($emp->jabatan ?? '');
+                $leadership = self::resolveLeadershipRole($jabatan, (string)($emp->kj ?? ''));
+                if (!$leadership) {
+                    continue;
+                }
+
+                $nama = trim((string)($emp->nama_lengkap ?? '')) ?: ('User ' . $nrp);
+                $role = $leadership['role'];
+                $posLabel = $leadership['label'];
+                $email = self::generateAccountEmail($nrp, $posLabel);
+                $passwordPlain = self::generateAccountPassword($nrp, $posLabel);
+
+                $rawDept = trim((string)($emp->departemen ?? ''));
+                $dept = ($rawDept !== '' && $rawDept !== '-') ? $rawDept : (trim((string)($emp->division ?? '')) ?: 'ALL');
+
+                // Instant in-memory lookup
+                $lowerNrp = strtolower($nrp);
+                $lowerEmail = strtolower($email);
+                $existingUser = $usersByNrp[$lowerNrp] ?? ($usersByEmail[$lowerEmail] ?? null);
+
+                if ($existingUser) {
+                    $dirty = false;
+                    if ($existingUser->nama !== $nama) {
+                        $existingUser->nama = $nama;
+                        $dirty = true;
+                    }
+                    if ($existingUser->role !== $role) {
+                        $existingUser->role = $role;
+                        $dirty = true;
+                    }
+                    if ($existingUser->departemen !== $dept) {
+                        $existingUser->departemen = $dept;
+                        $dirty = true;
+                    }
+                    if ($existingUser->email !== $email) {
+                        $existingUser->email = $email;
+                        $dirty = true;
+                    }
+                    if ($existingUser->aktif != 1) {
+                        $existingUser->aktif = 1;
+                        $dirty = true;
+                    }
+                    // Only compute expensive bcrypt hash if password is missing
+                    if (empty($existingUser->password_hash)) {
+                        $existingUser->password_hash = Hash::make($passwordPlain);
+                        $dirty = true;
+                    }
+
+                    if ($dirty) {
+                        $existingUser->save();
+                    }
+                    $updated++;
+                    $details[] = [
+                        'action' => 'updated',
+                        'nrp' => $nrp,
+                        'nama' => $nama,
+                        'role' => $role,
+                        'email' => $email,
+                        'password' => $passwordPlain,
+                    ];
+                } else {
+                    $newUser = User::create([
+                        'nama' => $nama,
+                        'email' => $email,
+                        'password_hash' => Hash::make($passwordPlain),
+                        'role' => $role,
+                        'nrp' => $nrp,
+                        'departemen' => $dept,
+                        'aktif' => 1,
+                    ]);
+                    $usersByNrp[$lowerNrp] = $newUser;
+                    $usersByEmail[$lowerEmail] = $newUser;
+                    $created++;
+                    $details[] = [
+                        'action' => 'created',
+                        'nrp' => $nrp,
+                        'nama' => $nama,
+                        'role' => $role,
+                        'email' => $email,
+                        'password' => $passwordPlain,
+                    ];
+                }
+            }
+        });
 
         // Clean up any phantom/obsolete leadership accounts not present in karyawan
         $cleanupResult = self::cleanupPhantomLeadershipAccounts();

@@ -52,6 +52,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/karyawan', [KaryawanController::class, 'store'])->name('karyawan.store');
     Route::delete('/karyawan/{nrp}', [KaryawanController::class, 'destroy'])->name('karyawan.destroy');
     Route::post('/karyawan/{nrp}/delete', [KaryawanController::class, 'destroy'])->name('karyawan.delete');
+    Route::get('/karyawan/import', function () {
+        return redirect()->route('admin.karyawan');
+    });
     Route::post('/karyawan/import', [KaryawanController::class, 'import'])->name('karyawan.import');
     Route::get('/karyawan/template', [KaryawanController::class, 'downloadTemplate'])->name('karyawan.template');
     Route::get('/karyawan/export', [KaryawanController::class, 'export'])->name('karyawan.export');
