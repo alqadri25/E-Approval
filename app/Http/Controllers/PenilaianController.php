@@ -1979,14 +1979,25 @@ class PenilaianController extends Controller
         $kodeForm = $dokumen['kode_form'];
         $formStructure = $this->calcService->getFormStructure($kodeForm);
 
-        // 5. Fetch Master Aspek & Master Kriteria from repository
+        // 5. Fetch Master Aspek & Master Kriteria from repository / DB
         $allAspek = $this->repository->where('master_aspek', ['kode_form' => $kodeForm]);
+        if (empty($allAspek) || !isset($allAspek[0]['aspek_kode'])) {
+            $allAspek = DB::table('master_aspek')->where('kode_form', $kodeForm)->get()->map(fn($r) => (array)$r)->toArray();
+        }
         usort($allAspek, fn($a, $b) => ($a['urutan'] ?? 0) <=> ($b['urutan'] ?? 0));
 
         $allKriteria = $this->repository->all('master_kriteria');
+        if (empty($allKriteria) || !isset($allKriteria[0]['aspek_kode'])) {
+            $allKriteria = DB::table('master_kriteria')->get()->map(fn($r) => (array)$r)->toArray();
+        }
         $kriteriaMap = [];
         foreach ($allKriteria as $crit) {
-            $kriteriaMap[$crit['aspek_kode']][$crit['skor']] = $crit['deskripsi'];
+            $aspekKode = $crit['aspek_kode'] ?? ($crit['KODE ASPEK'] ?? null);
+            $skor = $crit['skor'] ?? ($crit['SKOR (1-5)'] ?? null);
+            $deskripsi = $crit['deskripsi'] ?? ($crit['DESKRIPSI KRITERIA'] ?? '');
+            if ($aspekKode && $skor !== null) {
+                $kriteriaMap[$aspekKode][$skor] = $deskripsi;
+            }
         }
 
         // 6. Fetch Existing Scores (nilai table) - fresh directly from DB

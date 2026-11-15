@@ -149,8 +149,11 @@ class SheetRepository implements SheetRepositoryInterface
                 }
             }
 
-            // 2. Fetch via Google Apps Script Web App if available
-            if ($this->hasAppscript()) {
+            // 2. Fetch via Google Apps Script Web App for operational tables only
+            $appscriptTables = [
+                'karyawan', 'dokumen', 'users', 'kuota_departemen', 'nilai', 'indikator', 'tanda_tangan', 'pengaturan', 'audit_log'
+            ];
+            if ($this->hasAppscript() && in_array($table, $appscriptTables)) {
                 try {
                     $config = GoogleSyncService::getConfig();
                     $appscriptUrl = $config['appscript_url'];
