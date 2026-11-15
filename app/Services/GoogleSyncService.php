@@ -373,6 +373,30 @@ class GoogleSyncService
     }
 
     /**
+     * Standard column headers for Google Spreadsheet tables
+     */
+    public static function getStandardHeaders(string $table): array
+    {
+        return match ($table) {
+            'Master Karyawan', 'karyawan' => [
+                'id', 'nrp', 'nama_lengkap', 'role', 'jabatan', 'departemen', 'seksi', 'division',
+                'kj', 'sub_gol', 'golongan', 'tgl_masuk', 'tgl_lahir', 'pendidikan', 'status_kerja',
+                'lokasi_kerja', 'email', 'telepon', 'alamat', 'nrp_atasan', 'nrp_foreman',
+                'nrp_section_head', 'nrp_dept_head', 'nrp_div_head', 'created_at'
+            ],
+            'dokumen' => [
+                'id', 'periode_id', 'nrp', 'kode_form', 'status', 'total_nilai',
+                'grade_original', 'docking_final', 'drive_file_id', 'drive_url',
+                'hash_dokumen', 'kode_verifikasi', 'created_at'
+            ],
+            'users' => [
+                'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif'
+            ],
+            default => ['id', 'created_at']
+        };
+    }
+
+    /**
      * Synchronize specific table(s) in real time to Google Spreadsheet via Apps Script Web App
      */
     public static function syncTables(array $tables): array
@@ -385,6 +409,7 @@ class GoogleSyncService
         }
 
         $payload = [];
+        $emptyTables = [];
         foreach ($tables as $table) {
             $localTable = match ($table) {
                 'users' => 'app_users',
@@ -392,6 +417,7 @@ class GoogleSyncService
                 default => $table,
             };
 
+            $rows = [];
             if (Schema::hasTable($localTable)) {
                 if ($localTable === 'app_users') {
                     $rows = DB::table('app_users')
@@ -404,7 +430,17 @@ class GoogleSyncService
                         return (array)$row;
                     })->toArray();
                 }
+            }
 
+            if (empty($rows)) {
+                $emptyHeaders = self::getStandardHeaders($table);
+                $payload[$table] = [array_fill_keys($emptyHeaders, '')];
+                $emptyTables[] = $table;
+                if ($table === 'karyawan') {
+                    $payload['Master Karyawan'] = [array_fill_keys(self::getStandardHeaders('Master Karyawan'), '')];
+                    $emptyTables[] = 'Master Karyawan';
+                }
+            } else {
                 $payload[$table] = $rows;
                 if ($table === 'karyawan') {
                     $payload['Master Karyawan'] = $rows;
@@ -417,10 +453,32 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(10)->withoutVerifying()->post($appscriptUrl, [
+            $response = Http::timeout(12)->withoutVerifying()->post($appscriptUrl, [
                 'action' => 'push_all',
                 'data' => $payload,
             ]);
+
+            // Clean up temporary blank rows for empty tables so sheet has 0 data rows and styled headers
+            if (!empty($emptyTables)) {
+                foreach (array_unique($emptyTables) as $emptyTable) {
+                    $keyCol = match($emptyTable) {
+                        'Master Karyawan', 'karyawan' => 'nrp',
+                        'dokumen' => 'id',
+                        'users' => 'email',
+                        default => 'id',
+                    };
+                    try {
+                        Http::timeout(5)->withoutVerifying()->post($appscriptUrl, [
+                            'action' => 'delete_row',
+                            'tables' => [$emptyTable],
+                            'key_column' => $keyCol,
+                            'key_value' => '',
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning("Failed cleaning placeholder row for {$emptyTable}: " . $e->getMessage());
+                    }
+                }
+            }
 
             if ($response->successful()) {
                 $timestampNow = date('d F Y, H:i') . ' WIB';
@@ -1147,18 +1205,17 @@ function writeObjectsToSheet(ss, sheetName, items) {
   }
 
   if (!items || items.length === 0) {
-    if (sheet.getLastRow() === 0 && CONFIG_TABLES[sheetName]) {
-      var stdHeaders = CONFIG_TABLES[sheetName];
-      sheet.appendRow(stdHeaders);
-      var hr = sheet.getRange(1, 1, 1, stdHeaders.length);
-      hr.setBackground('#92302E')
-        .setFontColor('#FFFFFF')
-        .setFontWeight('bold')
-        .setFontFamily('Arial')
-        .setFontSize(10)
-        .setHorizontalAlignment('center');
-      sheet.setFrozenRows(1);
-    }
+    sheet.clear();
+    var stdHeaders = CONFIG_TABLES[sheetName] || ['id'];
+    sheet.appendRow(stdHeaders);
+    var hr = sheet.getRange(1, 1, 1, stdHeaders.length);
+    hr.setBackground('#92302E')
+      .setFontColor('#FFFFFF')
+      .setFontWeight('bold')
+      .setFontFamily('Arial')
+      .setFontSize(10)
+      .setHorizontalAlignment('center');
+    sheet.setFrozenRows(1);
     return;
   }
 

@@ -1588,23 +1588,31 @@ class KaryawanController extends Controller
 
         $nama = $karyawan['nama_lengkap'] ?? $nrp;
 
-        // Clean up related documents, scores, indicators, signatures directly in DB (fast & atomic < 5ms)
+        // Clean up related documents, scores, indicators, signatures directly in DB (atomic transaction)
         try {
-            $docIds = DB::table('dokumen')->where('nrp', $nrp)->pluck('id')->toArray();
-            if (!empty($docIds)) {
-                if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $docIds)->delete();
-                if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $docIds)->delete();
-                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $docIds)->delete();
-                if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $docIds)->delete();
-                if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $docIds)->delete();
-                DB::table('dokumen')->where('nrp', $nrp)->delete();
-            }
+            DB::transaction(function () use ($nrp) {
+                $docIds = DB::table('dokumen')->where('nrp', $nrp)->pluck('id')->toArray();
+                if (!empty($docIds)) {
+                    if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $docIds)->delete();
+                    if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $docIds)->delete();
+                    if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $docIds)->delete();
+                    if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $docIds)->delete();
+                    if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $docIds)->delete();
+                    DB::table('dokumen')->where('nrp', $nrp)->delete();
+                }
+                DB::table('karyawan')->where('nrp', $nrp)->delete();
+            });
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Notice on cascading delete documents for NRP {$nrp}: " . $e->getMessage());
+            DB::table('karyawan')->where('nrp', $nrp)->delete();
         }
 
-        // Direct delete employee record
-        DB::table('karyawan')->where('nrp', $nrp)->delete();
+        // Clean up phantom leadership accounts if applicable
+        try {
+            \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Phantom leadership cleanup notice: " . $e->getMessage());
+        }
 
         // Flush all relevant caches completely
         $this->repository->clearCache('karyawan');
@@ -1614,9 +1622,16 @@ class KaryawanController extends Controller
         $this->repository->clearCache('tanda_tangan');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
+        \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
+        \Illuminate\Support\Facades\Cache::flush();
 
-        // Sinkronisasi hapus otomatis ke Google Spreadsheet secara instan & non-blocking (cepat tanpa delay)
-        \App\Services\GoogleSyncService::syncEmployeeRowAsync('delete', $nrp);
+        // Sinkronisasi hapus ke Google Spreadsheet (karyawan, Master Karyawan, dokumen, users)
+        try {
+            \App\Services\GoogleSyncService::syncEmployeeRow('delete', $nrp);
+            \App\Services\GoogleSyncService::syncTables(['users']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Google delete sync notice: " . $e->getMessage());
+        }
 
         return redirect()->back()->with('success', "Data karyawan {$nama} (NRP: {$nrp}) berhasil dihapus!");
     }
@@ -1735,25 +1750,34 @@ class KaryawanController extends Controller
             return redirect()->back()->with('error', 'Tidak ada data karyawan yang cocok dengan kriteria filter untuk dihapus.');
         }
 
-        // Cascade delete related records
+        // Cascade delete related records and employees atomically in DB
+        $deletedCount = 0;
         try {
-            $docIds = DB::table('dokumen')->whereIn('nrp', $targetNrps)->pluck('id')->toArray();
-            if (!empty($docIds)) {
-                if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $docIds)->delete();
-                if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $docIds)->delete();
-                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $docIds)->delete();
-                if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $docIds)->delete();
-                if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $docIds)->delete();
-                DB::table('dokumen')->whereIn('id', $docIds)->delete();
-            }
+            DB::transaction(function () use ($targetNrps, &$deletedCount) {
+                $docIds = DB::table('dokumen')->whereIn('nrp', $targetNrps)->pluck('id')->toArray();
+                if (!empty($docIds)) {
+                    if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $docIds)->delete();
+                    if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $docIds)->delete();
+                    if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $docIds)->delete();
+                    if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $docIds)->delete();
+                    if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $docIds)->delete();
+                    DB::table('dokumen')->whereIn('id', $docIds)->delete();
+                }
+                $deletedCount = DB::table('karyawan')->whereIn('nrp', $targetNrps)->delete();
+            });
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Notice on cascading bulk delete: " . $e->getMessage());
+            $deletedCount = DB::table('karyawan')->whereIn('nrp', $targetNrps)->delete();
         }
 
-        // Delete from karyawan table
-        $deletedCount = DB::table('karyawan')->whereIn('nrp', $targetNrps)->delete();
+        // Clean up phantom leadership accounts whose entire team was deleted
+        try {
+            \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Phantom leadership cleanup notice on bulk delete: " . $e->getMessage());
+        }
 
-        // Clear all caches
+        // Clear all caches completely
         $this->repository->clearCache('karyawan');
         $this->repository->clearCache('dokumen');
         $this->repository->clearCache('nilai');
@@ -1761,10 +1785,16 @@ class KaryawanController extends Controller
         $this->repository->clearCache('tanda_tangan');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
+        \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
+        \Illuminate\Support\Facades\Cache::flush();
 
-        // Sync to Google Spreadsheet in background
-        \App\Services\GoogleSyncService::syncTablesAsync(['karyawan', 'dokumen']);
+        // Realtime sync to Google Spreadsheet (reliable sync for Master Karyawan, karyawan, dokumen, and users)
+        try {
+            \App\Services\GoogleSyncService::syncTables(['Master Karyawan', 'karyawan', 'dokumen', 'users']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Google bulk delete sync notice: " . $e->getMessage());
+        }
 
-        return redirect()->route('admin.karyawan')->with('success', "Berhasil menghapus {$deletedCount} data karyawan ({$scopeDescription}) secara massal beserta seluruh dokumen penilaian terkait!");
+        return redirect()->route('admin.karyawan')->with('success', "Berhasil menghapus {$deletedCount} data karyawan ({$scopeDescription}) secara massal beserta seluruh dokumen penilaian terkait dan menyinkronkannya ke Google Spreadsheet!");
     }
 }
