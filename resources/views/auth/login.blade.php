@@ -117,10 +117,10 @@
             <!-- Center Typography: Catchphrase -->
             <div class="relative z-10 my-auto py-12 lg:py-16">
                 <h1 class="text-3xl sm:text-4xl xl:text-5xl font-extrabold text-white leading-[1.15] tracking-tight">
-                    Kelola produksi<br class="hidden sm:inline"> dalam satu tempat.
+                    Kelola Penilaian<br class="hidden sm:inline"> dalam satu tempat.
                 </h1>
                 <p class="mt-5 text-red-100/90 text-sm sm:text-base font-normal leading-relaxed max-w-md">
-                    Masuk sesuai peran Anda untuk melihat data dan laporan divisi.
+                    Masuk sesuai peran Anda untuk melihat data dan laporan.
                 </p>
 
                 <!-- Flow Process Indicator (Foreman -> Section -> Dept -> Division) -->
