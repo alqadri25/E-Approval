@@ -21,7 +21,7 @@ Route::get('/', function () {
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::get('/quick-login/{id}', [AuthController::class, 'quickLogin'])->name('quick.login');
-Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Public Document Verification via QR Code
 Route::get('/verifikasi/{kode}', [PenilaianController::class, 'verifikasi'])->name('verifikasi');
