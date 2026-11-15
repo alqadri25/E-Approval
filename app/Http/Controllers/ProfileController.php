@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class ProfileController extends Controller
@@ -129,17 +131,18 @@ class ProfileController extends Controller
             $cleanDept = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->departemen ?: 'ALL'))) ?: 'ALL';
             $filename = "{$cleanNrp}_{$cleanNama}_{$cleanPos}_{$cleanDept}.{$signatureExt}";
 
-            // 1. Simpan di local storage publik
-            Storage::disk('public')->put('signatures/' . $filename, $signatureBinary);
-            $user->signature_path = 'signatures/' . $filename;
+            // 1. Simpan di local storage publik sebagai cadangan berkas
+            try {
+                Storage::disk('public')->put('signatures/' . $filename, $signatureBinary);
+            } catch (\Throwable $e) {}
 
-            // 2. Unggah otomatis ke Google Drive (Struktur: TANDA_TANGAN / [ROLE] / {filename})
+            // 2. Simpan Data URI Base64 ke $user->signature_path agar 100% tampil instan tanpa ketergantungan file lokal atau blokir Google Drive
+            $mime = ($signatureExt === 'jpg' || $signatureExt === 'jpeg') ? 'image/jpeg' : 'image/png';
+            $user->signature_path = 'data:' . $mime . ';base64,' . base64_encode($signatureBinary);
+
+            // 3. Unggah otomatis ke Google Drive (Struktur Rapi: Root -> TANDA_TANGAN -> [ROLE] -> {filename})
             $driveResult = \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $signatureBinary, $signatureExt);
             if (!empty($driveResult['success'])) {
-                if (!empty($driveResult['file_url'])) {
-                    // Gunakan URL Google Drive agar persisten di Vercel serverless
-                    $user->signature_path = $driveResult['file_url'];
-                }
                 $driveNotice = " Berkas TTD tersimpan rapi di Google Drive ({$driveResult['folder_path']}/{$driveResult['file_name']}).";
             } elseif (!empty($driveResult['message'])) {
                 $driveNotice = " (Google Drive: {$driveResult['message']})";
@@ -159,6 +162,104 @@ class ProfileController extends Controller
         }
 
         return redirect()->route('profile.index')->with('success', 'Profil pengguna dan gambar tanda tangan digital berhasil diperbarui!' . $driveNotice);
+    }
+
+    /**
+     * Stream user digital signature image (handles Data URI, Google Drive URLs, and local files).
+     */
+    public function showSignature(User $user)
+    {
+        $sig = $user->signature_path;
+        if (empty($sig)) {
+            return $this->fallbackTransparentImage();
+        }
+
+        // 1. Data URI Base64 -> Stream raw binary
+        if (str_starts_with($sig, 'data:image')) {
+            $comma = strpos($sig, ',');
+            if ($comma !== false) {
+                $header = substr($sig, 0, $comma);
+                $mime = 'image/png';
+                if (preg_match('/data:(image\/[a-zA-Z0-9+]+);base64/', $header, $m)) {
+                    $mime = $m[1];
+                }
+                $binary = base64_decode(substr($sig, $comma + 1));
+                return response($binary, 200, [
+                    'Content-Type' => $mime,
+                    'Cache-Control' => 'public, max-age=86400',
+                ]);
+            }
+        }
+
+        // 2. Google Drive URL -> Extract file ID, fetch image and stream directly
+        $fileId = null;
+        if (preg_match('/[?&]id=([a-zA-Z0-9_-]+)/', $sig, $m)) {
+            $fileId = $m[1];
+        } elseif (preg_match('/\/d\/([a-zA-Z0-9_-]+)/', $sig, $m)) {
+            $fileId = $m[1];
+        }
+
+        if ($fileId) {
+            $cacheKey = 'gdrive_sig_img_' . $fileId;
+            $cached = Cache::get($cacheKey);
+            if ($cached) {
+                return response($cached, 200, [
+                    'Content-Type' => 'image/png',
+                    'Cache-Control' => 'public, max-age=86400',
+                ]);
+            }
+
+            $tryUrls = [
+                "https://lh3.googleusercontent.com/d/{$fileId}",
+                "https://drive.google.com/uc?export=download&id={$fileId}",
+                "https://drive.usercontent.google.com/download?id={$fileId}&export=view",
+            ];
+            foreach ($tryUrls as $url) {
+                try {
+                    $res = Http::timeout(6)->withHeaders([
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                    ])->get($url);
+                    if ($res->successful() && strlen($res->body()) > 100) {
+                        Cache::put($cacheKey, $res->body(), 86400);
+                        return response($res->body(), 200, [
+                            'Content-Type' => 'image/png',
+                            'Cache-Control' => 'public, max-age=86400',
+                        ]);
+                    }
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        // 3. Local filesystem in storage disk
+        if (Storage::disk('public')->exists($sig)) {
+            $mime = Storage::disk('public')->mimeType($sig) ?? 'image/png';
+            return response(Storage::disk('public')->get($sig), 200, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        // 4. Public path storage file
+        if (file_exists(public_path('storage/' . $sig))) {
+            return response(file_get_contents(public_path('storage/' . $sig)), 200, [
+                'Content-Type' => 'image/png',
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+
+        return $this->fallbackTransparentImage();
+    }
+
+    /**
+     * Fallback transparent 1x1 PNG.
+     */
+    private function fallbackTransparentImage()
+    {
+        $transparentPng = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+        return response($transparentPng, 200, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'no-cache',
+        ]);
     }
 
     /**

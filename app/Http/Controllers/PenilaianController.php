@@ -2045,13 +2045,19 @@ class PenilaianController extends Controller
         foreach ($existingTtd as $t) {
             $u = DB::table('app_users')->where('id', $t['user_id'])->first();
             $t['user'] = $u ? (array)$u : $this->repository->find('users', 'id', $t['user_id']);
-            if (!empty($t['ttd_image']) && Storage::disk('public')->exists($t['ttd_image'])) {
-                try {
-                    $imgContent = Storage::disk('public')->get($t['ttd_image']);
-                    $mime = Storage::disk('public')->mimeType($t['ttd_image']) ?? 'image/png';
-                    $t['ttd_base64'] = 'data:' . $mime . ';base64,' . base64_encode($imgContent);
-                } catch (\Throwable $e) {
-                    $t['ttd_base64'] = null;
+            if (!empty($t['ttd_image'])) {
+                if (str_starts_with($t['ttd_image'], 'data:image')) {
+                    $t['ttd_base64'] = $t['ttd_image'];
+                } elseif (Storage::disk('public')->exists($t['ttd_image'])) {
+                    try {
+                        $imgContent = Storage::disk('public')->get($t['ttd_image']);
+                        $mime = Storage::disk('public')->mimeType($t['ttd_image']) ?? 'image/png';
+                        $t['ttd_base64'] = 'data:' . $mime . ';base64,' . base64_encode($imgContent);
+                    } catch (\Throwable $e) {
+                        $t['ttd_base64'] = null;
+                    }
+                } else {
+                    $t['ttd_base64'] = route('user.signature', $t['user_id']);
                 }
             }
             $ttdByLevel[$t['level']] = $t;
@@ -3245,30 +3251,46 @@ class PenilaianController extends Controller
             if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'svg'])) {
                 $ext = 'png';
             }
+            $binary = file_get_contents($file->getRealPath());
+            $mime = ($ext === 'jpg' || $ext === 'jpeg') ? 'image/jpeg' : 'image/png';
+            $dataUri = 'data:' . $mime . ';base64,' . base64_encode($binary);
+
             $filename = 'ttd_' . $id . '_' . $level . '_' . time() . '.' . $ext;
-            $file->storeAs('signatures', $filename, 'public');
-            $signaturePath = 'signatures/' . $filename;
+            try {
+                Storage::disk('public')->put('signatures/' . $filename, $binary);
+            } catch (\Throwable $e) {}
 
-            // Automatically persist newly uploaded signature to user profile
-            $user->signature_path = $signaturePath;
+            $signaturePath = $dataUri;
+
+            // Automatically persist newly uploaded signature to user profile as Data URI
+            $user->signature_path = $dataUri;
             $user->save();
-        } elseif (!empty($user->signature_path) && (Storage::disk('public')->exists($user->signature_path) || file_exists(public_path('storage/' . $user->signature_path)))) {
-            // Automatically use user's saved profile signature
-            $signaturePath = $user->signature_path;
-        } elseif (!empty($signatureData) && str_starts_with($signatureData, 'data:image')) {
-            // Decode base64 PNG
-            $imageParts = explode(';base64,', $signatureData);
-            if (count($imageParts) === 2) {
-                $imageDecoded = base64_decode($imageParts[1]);
-                $filename = 'ttd_' . $id . '_' . $level . '_' . time() . '.png';
-                Storage::disk('public')->put('signatures/' . $filename, $imageDecoded);
-                $signaturePath = 'signatures/' . $filename;
 
-                if (empty($user->signature_path)) {
-                    $user->signature_path = $signaturePath;
-                    $user->save();
-                }
-            }
+            // Also upload to Google Drive in background
+            try {
+                \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $binary, $ext);
+            } catch (\Throwable $e) {}
+        } elseif (!empty($signatureData) && str_starts_with($signatureData, 'data:image')) {
+            $commaPos = strpos($signatureData, ',');
+            $binary = ($commaPos !== false) ? base64_decode(substr($signatureData, $commaPos + 1)) : base64_decode($signatureData);
+            $filename = 'ttd_' . $id . '_' . $level . '_' . time() . '.png';
+            try {
+                Storage::disk('public')->put('signatures/' . $filename, $binary);
+            } catch (\Throwable $e) {}
+
+            $signaturePath = $signatureData;
+
+            // Automatically persist newly drawn signature to user profile as Data URI
+            $user->signature_path = $signatureData;
+            $user->save();
+
+            // Also upload to Google Drive in background
+            try {
+                \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $binary, 'png');
+            } catch (\Throwable $e) {}
+        } elseif (!empty($user->signature_path)) {
+            // Automatically use user's saved profile signature (Data URI, local file, or Drive link)
+            $signaturePath = $user->signature_path;
         }
 
         if (!$signaturePath) {

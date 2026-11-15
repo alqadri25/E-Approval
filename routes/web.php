@@ -26,6 +26,9 @@ Route::match(['get', 'post'], '/logout', [AuthController::class, 'logout'])->nam
 // Public Document Verification via QR Code
 Route::get('/verifikasi/{kode}', [PenilaianController::class, 'verifikasi'])->name('verifikasi');
 
+// Direct User Digital Signature Stream (handles Data URI, Google Drive URLs, and local disk with instant image/png response)
+Route::get('/user-signature/{user}', [ProfileController::class, 'showSignature'])->name('user.signature');
+
 // Serve storage files (signatures, uploads) directly when storage symlink is not available
 Route::get('/storage/{path}', function ($path) {
     if (!Illuminate\Support\Facades\Storage::disk('public')->exists($path)) {

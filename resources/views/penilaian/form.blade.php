@@ -1993,8 +1993,11 @@
                                         </div>
                                     </template>
                                     <template x-if="!uploadedPreview">
-                                        <div>
-                                            <img src="{{ $currentUserSignatureUrl }}" alt="TTD {{ Auth::user()->nama }}" class="max-h-20 max-w-full mx-auto object-contain">
+                                        <div class="py-1">
+                                            <img src="{{ $currentUserSignatureUrl }}" 
+                                                 alt="TTD {{ Auth::user()->nama }}" 
+                                                 class="max-h-24 max-w-full mx-auto object-contain transition-all"
+                                                 onerror="this.onerror=null; this.src='{{ route('user.signature', Auth::id()) }}';">
                                         </div>
                                     </template>
                                 </div>
@@ -3022,16 +3025,27 @@ function penilaianApp() {
                 }
             }
 
+            if (this.uploadedPreview && this.uploadedPreview.startsWith('data:image')) {
+                const sigBase64Input = document.getElementById('signature_base64');
+                if (sigBase64Input) {
+                    sigBase64Input.value = this.uploadedPreview;
+                }
+            }
+
             if (!this.hasSavedSignature) {
                 const fileIn = document.getElementById('signature_file_input');
-                if (!fileIn || !fileIn.files || fileIn.files.length === 0) {
+                const hasFile = fileIn && fileIn.files && fileIn.files.length > 0;
+                const hasPreview = this.uploadedPreview && this.uploadedPreview.startsWith('data:image');
+                if (!hasFile && !hasPreview) {
                     alert('Silakan pilih berkas gambar tanda tangan (PNG/JPG) Anda terlebih dahulu!');
                     e.preventDefault();
                     return false;
                 }
             } else if (this.wantChangeSignature) {
                 const fileIn = document.getElementById('signature_file_input');
-                if (!fileIn || !fileIn.files || fileIn.files.length === 0) {
+                const hasFile = fileIn && fileIn.files && fileIn.files.length > 0;
+                const hasPreview = this.uploadedPreview && this.uploadedPreview.startsWith('data:image');
+                if (!hasFile && !hasPreview) {
                     alert('Anda memilih untuk mengganti tanda tangan. Silakan pilih berkas gambar tanda tangan baru atau hilangkan centang.');
                     e.preventDefault();
                     return false;

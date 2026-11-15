@@ -107,27 +107,26 @@ class User extends Authenticatable
 
     public function getSignatureUrlAttribute(): ?string
     {
-        if (!empty($this->signature_path)) {
-            // Full URL (e.g. Google Drive uc view URL or web URL) or Data URL
-            if (str_starts_with($this->signature_path, 'http://') || str_starts_with($this->signature_path, 'https://') || str_starts_with($this->signature_path, 'data:image')) {
-                return $this->signature_path;
-            }
-            if (\Illuminate\Support\Facades\Storage::disk('public')->exists($this->signature_path)) {
-                return asset('storage/' . $this->signature_path);
-            }
-            if (file_exists(public_path('storage/' . $this->signature_path))) {
-                return asset('storage/' . $this->signature_path);
-            }
-            if (file_exists(public_path($this->signature_path))) {
-                return asset($this->signature_path);
-            }
+        if (empty($this->signature_path)) {
+            return null;
         }
-        return null;
+
+        // 1. Full Data URI (Direct base64 image - instant render with zero network requests)
+        if (str_starts_with($this->signature_path, 'data:image')) {
+            return $this->signature_path;
+        }
+
+        // 2. Stream through reliable backend proxy route (handles Google Drive URLs and local files with proper image/png MIME and CORS)
+        try {
+            return route('user.signature', $this->id);
+        } catch (\Throwable $e) {
+            return $this->signature_path;
+        }
     }
 
     public function hasSignature(): bool
     {
-        return !empty($this->signature_url);
+        return !empty($this->signature_path);
     }
 
     public function getResolvedJabatanAttribute(): string

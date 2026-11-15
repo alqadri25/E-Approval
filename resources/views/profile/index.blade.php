@@ -238,7 +238,10 @@
                                         @if($user->signature_url)
                                             <div class="space-y-3">
                                                 <div class="bg-white p-3 border border-slate-300 shadow-xs inline-block">
-                                                    <img src="{{ $user->signature_url }}" alt="TTD {{ $user->nama }}" class="max-h-28 max-w-full object-contain mx-auto">
+                                                    <img src="{{ $user->signature_url }}" 
+                                                         alt="TTD {{ $user->nama }}" 
+                                                         class="max-h-28 max-w-full object-contain mx-auto"
+                                                         onerror="this.onerror=null; this.src='{{ route('user.signature', $user->id) }}';">
                                                 </div>
                                                 <div class="flex items-center justify-center gap-2">
                                                     <span class="text-[11px] text-emerald-700 font-bold flex items-center gap-1">
