@@ -48,6 +48,7 @@ class ProfileController extends Controller
             'password' => 'nullable|string|min:4',
             'password_confirmation' => 'nullable|same:password',
             'signature_file' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:5120',
+            'signature_data' => 'nullable|string',
             'jabatan' => 'nullable|string|max:255',
             'posisi' => 'nullable|string|max:255',
             'departemen' => 'nullable|string|max:255',
@@ -85,7 +86,7 @@ class ProfileController extends Controller
 
         // Handle delete signature request
         if ($request->boolean('delete_signature')) {
-            if (!empty($user->signature_path) && Storage::disk('public')->exists($user->signature_path)) {
+            if (!empty($user->signature_path) && !str_starts_with($user->signature_path, 'http') && Storage::disk('public')->exists($user->signature_path)) {
                 try {
                     Storage::disk('public')->delete($user->signature_path);
                 } catch (\Throwable $e) {}
@@ -93,20 +94,56 @@ class ProfileController extends Controller
             $user->signature_path = null;
         }
 
-        // Handle signature file upload
+        // Resolve new signature binary from file upload or canvas drawing
+        $signatureBinary = null;
+        $signatureExt = 'png';
+
         if ($request->hasFile('signature_file') && $request->file('signature_file')->isValid()) {
-            // Delete old signature if exists
-            if (!empty($user->signature_path) && Storage::disk('public')->exists($user->signature_path)) {
+            $file = $request->file('signature_file');
+            $signatureExt = strtolower($file->getClientOriginalExtension() ?: 'png');
+            $signatureBinary = file_get_contents($file->getRealPath());
+        } elseif ($request->filled('signature_data') && str_starts_with($request->input('signature_data'), 'data:image')) {
+            $dataUrl = $request->input('signature_data');
+            $commaPos = strpos($dataUrl, ',');
+            if ($commaPos !== false) {
+                $base64 = substr($dataUrl, $commaPos + 1);
+                $signatureBinary = base64_decode($base64);
+                $signatureExt = 'png';
+            }
+        }
+
+        $driveNotice = '';
+
+        if (!empty($signatureBinary)) {
+            // Delete old signature locally if exists
+            if (!empty($user->signature_path) && !str_starts_with($user->signature_path, 'http') && Storage::disk('public')->exists($user->signature_path)) {
                 try {
                     Storage::disk('public')->delete($user->signature_path);
                 } catch (\Throwable $e) {}
             }
 
-            $file = $request->file('signature_file');
-            $ext = strtolower($file->getClientOriginalExtension() ?: 'png');
-            $filename = 'ttd_user_' . $user->id . '_' . time() . '.' . $ext;
-            $file->storeAs('signatures', $filename, 'public');
+            // Penamaan rapi terstandar: {nrp}_{nama}_{position}_{departemen}.png
+            $cleanNrp = preg_replace('/[^A-Za-z0-9]/', '', (string)($user->nrp ?: $user->id)) ?: '0';
+            $cleanNama = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)$user->nama)) ?: 'USER';
+            $cleanPos = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->role ?: 'FOREMAN'))) ?: 'FOREMAN';
+            $cleanDept = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->departemen ?: 'ALL'))) ?: 'ALL';
+            $filename = "{$cleanNrp}_{$cleanNama}_{$cleanPos}_{$cleanDept}.{$signatureExt}";
+
+            // 1. Simpan di local storage publik
+            Storage::disk('public')->put('signatures/' . $filename, $signatureBinary);
             $user->signature_path = 'signatures/' . $filename;
+
+            // 2. Unggah otomatis ke Google Drive (Struktur: TANDA_TANGAN / [ROLE] / {filename})
+            $driveResult = \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $signatureBinary, $signatureExt);
+            if (!empty($driveResult['success'])) {
+                if (!empty($driveResult['file_url'])) {
+                    // Gunakan URL Google Drive agar persisten di Vercel serverless
+                    $user->signature_path = $driveResult['file_url'];
+                }
+                $driveNotice = " Berkas TTD tersimpan rapi di Google Drive ({$driveResult['folder_path']}/{$driveResult['file_name']}).";
+            } elseif (!empty($driveResult['message'])) {
+                $driveNotice = " (Google Drive: {$driveResult['message']})";
+            }
         }
 
         $user->save();
@@ -121,7 +158,7 @@ class ProfileController extends Controller
             } catch (\Throwable $e) {}
         }
 
-        return redirect()->route('profile.index')->with('success', 'Profil pengguna dan gambar tanda tangan digital berhasil diperbarui!');
+        return redirect()->route('profile.index')->with('success', 'Profil pengguna dan gambar tanda tangan digital berhasil diperbarui!' . $driveNotice);
     }
 
     /**

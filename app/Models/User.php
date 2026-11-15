@@ -108,6 +108,10 @@ class User extends Authenticatable
     public function getSignatureUrlAttribute(): ?string
     {
         if (!empty($this->signature_path)) {
+            // Full URL (e.g. Google Drive uc view URL or web URL) or Data URL
+            if (str_starts_with($this->signature_path, 'http://') || str_starts_with($this->signature_path, 'https://') || str_starts_with($this->signature_path, 'data:image')) {
+                return $this->signature_path;
+            }
             if (\Illuminate\Support\Facades\Storage::disk('public')->exists($this->signature_path)) {
                 return asset('storage/' . $this->signature_path);
             }

@@ -788,6 +788,78 @@ class GoogleSyncService
     }
 
     /**
+     * Upload User Digital Signature to Google Drive with structured folders
+     * Folder: Root Folder -> TANDA_TANGAN -> [ROLE / POSITION] (e.g. FOREMAN, SECTION_HEAD, DEPT_HEAD, DIV_HEAD)
+     * File Name: {nrp}_{nama}_{position}_{departemen}.png
+     */
+    public static function uploadSignatureToGoogleDrive(User $user, string $imageBinary, ?string $ext = 'png'): array
+    {
+        $config = self::getConfig();
+        $appscriptUrl = $config['appscript_url'];
+
+        $nrp = preg_replace('/[^A-Za-z0-9]/', '', (string)($user->nrp ?: $user->id)) ?: '0';
+        $nama = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)$user->nama)) ?: 'USER';
+        $role = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->role ?: 'FOREMAN'))) ?: 'FOREMAN';
+        $dept = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->departemen ?: 'ALL'))) ?: 'ALL';
+        $pos = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->jabatan ?: $user->posisi ?: $role))) ?: $role;
+
+        $cleanFilename = "{$nrp}_{$nama}_{$role}_{$dept}.png";
+
+        if (empty($appscriptUrl) || !filter_var($appscriptUrl, FILTER_VALIDATE_URL)) {
+            return [
+                'success' => false,
+                'message' => 'URL Google Apps Script belum dikonfigurasi.',
+                'file_name' => $cleanFilename,
+            ];
+        }
+
+        try {
+            $response = Http::timeout(20)->withoutVerifying()->post($appscriptUrl, [
+                'action' => 'save_signature',
+                'signature_base64' => base64_encode($imageBinary),
+                'nrp' => $nrp,
+                'nama' => $nama,
+                'role' => $role,
+                'position' => $role,
+                'jabatan' => $pos,
+                'departemen' => $dept,
+                'filename' => $cleanFilename,
+            ]);
+
+            if ($response->successful()) {
+                $resData = $response->json();
+                if (isset($resData['status']) && $resData['status'] === 'success') {
+                    return [
+                        'success' => true,
+                        'file_id' => $resData['file_id'] ?? null,
+                        'file_url' => $resData['file_url'] ?? null,
+                        'file_name' => $resData['file_name'] ?? $cleanFilename,
+                        'folder_path' => $resData['folder_path'] ?? "TANDA_TANGAN / {$role}",
+                    ];
+                }
+                return [
+                    'success' => false,
+                    'message' => $resData['message'] ?? ($resData['status'] ?? 'Gagal menyimpan ke Google Drive.'),
+                    'file_name' => $cleanFilename,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Respons Google Apps Script HTTP ' . $response->status(),
+                'file_name' => $cleanFilename,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Upload Signature to Google Drive failed: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'file_name' => $cleanFilename,
+            ];
+        }
+    }
+
+    /**
      * Generate complete, production-ready Google Apps Script Code
      * Injects the active Spreadsheet ID & Drive Folder ID dynamically
      */
@@ -1239,6 +1311,55 @@ function doPost(e) {
         action: 'upsert_row',
         key_value: keyValue,
         updated_stats: updatedStats,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // E. SIMPAN TANDA TANGAN DIGITAL KE GOOGLE DRIVE DENGAN STRUKTUR RAPI
+    // File Name: {nrp}_{nama}_{position}_{departemen}.png
+    // Folder: Root Folder -> TANDA_TANGAN -> [ROLE / POSITION] (e.g. FOREMAN, SECTION_HEAD, DEPT_HEAD, DIV_HEAD)
+    if (action === 'save_signature' || action === 'upload_signature') {
+      var sigBase64 = String(postData.signature_base64 || postData.image_base64 || postData.base64 || '');
+      var nrp = String(postData.nrp || '0').trim();
+      var nama = String(postData.nama || postData.nama_lengkap || 'USER').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      var position = String(postData.position || postData.role || postData.jabatan || 'FOREMAN').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      var departemen = String(postData.departemen || 'PROD_2').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+
+      // Penamaan Rapi Sesuai Permintaan: {nrp}_{nama}_{position}_{departemen}.png
+      var filename = postData.filename || (nrp + '_' + nama + '_' + position + '_' + departemen + '.png');
+
+      var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+      var mainTtdFolder = getOrCreateSubfolder(rootFolder, 'TANDA_TANGAN');
+      var roleFolder = getOrCreateSubfolder(mainTtdFolder, position);
+
+      // Bersihkan prefix data:image/png;base64,... jika ada
+      if (sigBase64.indexOf(',') > -1) {
+        sigBase64 = sigBase64.split(',')[1];
+      }
+
+      var decodedBytes = Utilities.base64Decode(sigBase64);
+      var blob = Utilities.newBlob(decodedBytes, 'image/png', filename);
+
+      // Bersihkan / timpa berkas versi lama dengan nama sama agar tidak duplikat
+      var existingFiles = roleFolder.getFilesByName(filename);
+      while (existingFiles.hasNext()) {
+        existingFiles.next().setTrashed(true);
+      }
+
+      var file = roleFolder.createFile(blob);
+      try {
+        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (eShare) {}
+
+      var fileUrl = 'https://drive.google.com/uc?export=view&id=' + file.getId();
+      var folderPath = 'TANDA_TANGAN / ' + position;
+
+      return jsonResponse({
+        status: 'success',
+        file_id: file.getId(),
+        file_name: filename,
+        file_url: fileUrl,
+        folder_path: folderPath,
         timestamp: new Date().toISOString()
       });
     }

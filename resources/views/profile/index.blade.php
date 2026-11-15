@@ -261,23 +261,86 @@
                             </div>
                         </div>
 
-                        <!-- Upload File Input -->
-                        <div class="space-y-2">
-                            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                                Unggah / Ganti Gambar Tanda Tangan:
-                            </label>
-                            
-                            <div class="flex items-center gap-2">
-                                <input type="file" 
-                                       id="signature_file_field"
-                                       name="signature_file" 
-                                       accept="image/png,image/jpeg,image/webp" 
-                                       @change="handleFileSelect($event)"
-                                       class="w-full text-xs text-slate-700 file:mr-3 file:py-2 file:px-4 file:rounded-none file:border-0 file:text-xs file:font-bold file:bg-[#92302e] file:text-white hover:file:bg-[#7e2524] file:cursor-pointer border border-slate-300 bg-white cursor-pointer shadow-2xs">
+                        <!-- Google Drive Destination Indicator -->
+                        @php
+                            $driveNrp = preg_replace('/[^A-Za-z0-9]/', '', (string)($user->nrp ?: $user->id)) ?: '0';
+                            $driveNama = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)$user->nama)) ?: 'USER';
+                            $driveRole = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->role ?: 'FOREMAN'))) ?: 'FOREMAN';
+                            $driveDept = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->departemen ?: 'ALL'))) ?: 'ALL';
+                            $driveFilename = "{$driveNrp}_{$driveNama}_{$driveRole}_{$driveDept}.png";
+                        @endphp
+                        <div class="p-3 bg-blue-50/80 border border-blue-200 text-blue-950 text-xs space-y-1">
+                            <div class="font-bold flex items-center justify-between text-[11px]">
+                                <span class="flex items-center gap-1.5 text-blue-900">
+                                    <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
+                                    </svg>
+                                    Sinkronisasi Google Drive Rapi:
+                                </span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-100 text-blue-800">
+                                    TANDA_TANGAN / {{ $driveRole }}
+                                </span>
                             </div>
-                            <p class="text-[10.5px] text-slate-500">
-                                Format: <strong>PNG</strong> (sangat disarankan dengan background transparan), JPG, atau WebP (Maksimal 5MB).
+                            <p class="text-[10.5px] text-blue-800 leading-tight">
+                                Berkas otomatis tersimpan di folder per peran:
+                                <code class="font-mono bg-white px-1.5 py-0.5 border border-blue-200 text-blue-900 font-bold block mt-1 truncate">{{ $driveFilename }}</code>
                             </p>
+                        </div>
+
+                        <!-- Method Tabs: Unggah File vs Gambar Canvas -->
+                        <div class="space-y-3">
+                            <div class="flex items-center border-b border-slate-200 gap-1">
+                                <button type="button" @click="signTab = 'upload'"
+                                        :class="signTab === 'upload' ? 'border-[#92302e] text-[#92302e] font-black border-b-2' : 'text-slate-500 font-medium hover:text-slate-700'"
+                                        class="pb-2 px-3 text-xs transition cursor-pointer flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                    </svg>
+                                    <span>Unggah Berkas Gambar</span>
+                                </button>
+                                <button type="button" @click="signTab = 'canvas'; initCanvas();"
+                                        :class="signTab === 'canvas' ? 'border-[#92302e] text-[#92302e] font-black border-b-2' : 'text-slate-500 font-medium hover:text-slate-700'"
+                                        class="pb-2 px-3 text-xs transition cursor-pointer flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                    </svg>
+                                    <span>Gambar di Layar (Canvas Pad)</span>
+                                </button>
+                            </div>
+
+                            <!-- TAB 1: Upload File Input -->
+                            <div x-show="signTab === 'upload'" class="space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <input type="file" 
+                                           id="signature_file_field"
+                                           name="signature_file" 
+                                           accept="image/png,image/jpeg,image/webp" 
+                                           @change="handleFileSelect($event)"
+                                           class="w-full text-xs text-slate-700 file:mr-3 file:py-2 file:px-4 file:rounded-none file:border-0 file:text-xs file:font-bold file:bg-[#92302e] file:text-white hover:file:bg-[#7e2524] file:cursor-pointer border border-slate-300 bg-white cursor-pointer shadow-2xs">
+                                </div>
+                                <p class="text-[10.5px] text-slate-500">
+                                    Format: <strong>PNG</strong> (sangat disarankan transparan), JPG, atau WebP (Maksimal 5MB).
+                                </p>
+                            </div>
+
+                            <!-- TAB 2: Canvas Pad -->
+                            <div x-show="signTab === 'canvas'" x-cloak class="space-y-2">
+                                <div class="border border-slate-300 bg-white p-2">
+                                    <div class="relative w-full bg-slate-50 border border-dashed border-slate-300">
+                                        <canvas id="profileSignCanvas" width="450" height="150" class="w-full h-[150px] cursor-crosshair touch-none"></canvas>
+                                        <span class="absolute top-2 left-2 text-[10px] text-slate-400 select-none pointer-events-none font-medium">Goreskan tanda tangan di sini &uarr;</span>
+                                    </div>
+                                    <div class="mt-2 flex items-center justify-between">
+                                        <button type="button" @click="clearCanvas()" class="px-3 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition">
+                                            Hapus / Bersihkan
+                                        </button>
+                                        <button type="button" @click="saveCanvas()" class="px-3.5 py-1 bg-[#92302e] hover:bg-[#7e2524] text-white text-xs font-bold transition shadow-xs">
+                                            Gunakan Goresan Ini
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="signature_data" id="signature_data_field" :value="canvasData">
+                            </div>
                         </div>
 
                         <!-- Delete Existing Signature Option -->
@@ -330,8 +393,79 @@
 <script>
 function profileManager() {
     return {
+        signTab: 'upload',
         newSignaturePreview: null,
         newSignatureFileName: '',
+        canvasData: '',
+        canvasObj: null,
+        ctx: null,
+        isDrawing: false,
+
+        initCanvas() {
+            this.$nextTick(() => {
+                const canvas = document.getElementById('profileSignCanvas');
+                if (!canvas) return;
+                this.canvasObj = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.ctx.lineWidth = 2.5;
+                this.ctx.lineCap = 'round';
+                this.ctx.strokeStyle = '#1e293b';
+
+                // Mouse events
+                canvas.onmousedown = (e) => {
+                    this.isDrawing = true;
+                    this.ctx.beginPath();
+                    const rect = canvas.getBoundingClientRect();
+                    this.ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+                };
+                canvas.onmousemove = (e) => {
+                    if (!this.isDrawing) return;
+                    const rect = canvas.getBoundingClientRect();
+                    this.ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+                    this.ctx.stroke();
+                };
+                window.onmouseup = () => { this.isDrawing = false; };
+
+                // Touch events
+                canvas.ontouchstart = (e) => {
+                    e.preventDefault();
+                    this.isDrawing = true;
+                    this.ctx.beginPath();
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    this.ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
+                };
+                canvas.ontouchmove = (e) => {
+                    if (!this.isDrawing) return;
+                    e.preventDefault();
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    this.ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
+                    this.ctx.stroke();
+                };
+                canvas.ontouchend = () => { this.isDrawing = false; };
+            });
+        },
+        clearCanvas() {
+            if (this.canvasObj && this.ctx) {
+                this.ctx.clearRect(0, 0, this.canvasObj.width, this.canvasObj.height);
+            }
+            this.canvasData = '';
+            if (this.signTab === 'canvas') {
+                this.newSignaturePreview = null;
+                this.newSignatureFileName = '';
+            }
+        },
+        saveCanvas() {
+            if (!this.canvasObj) return;
+            const dataUrl = this.canvasObj.toDataURL('image/png');
+            this.canvasData = dataUrl;
+            this.newSignaturePreview = dataUrl;
+            this.newSignatureFileName = 'Tanda Tangan Layar (Canvas).png';
+            // Clear file input
+            const input = document.getElementById('signature_file_field');
+            if (input) input.value = '';
+        },
         handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) {
@@ -340,6 +474,7 @@ function profileManager() {
                 return;
             }
             this.newSignatureFileName = file.name;
+            this.canvasData = '';
             const reader = new FileReader();
             reader.onload = (e) => {
                 this.newSignaturePreview = e.target.result;
@@ -349,8 +484,10 @@ function profileManager() {
         cancelNewSignature() {
             this.newSignaturePreview = null;
             this.newSignatureFileName = '';
+            this.canvasData = '';
             const input = document.getElementById('signature_file_field');
             if (input) input.value = '';
+            this.clearCanvas();
         }
     };
 }
