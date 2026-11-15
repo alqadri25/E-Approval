@@ -1,12 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "container",
-  "env": {
-    "APP_NAME": "E-Approval",
-    "APP_ENV": "production",
-    "APP_DEBUG": "false",
-    "APP_KEY": "base64:iI/y07XaGJ1V1DZ4AEuy11Oa2HmBVQmMdcJSHvVMvcg=",
-    "LOG_CHANNEL": "stderr",
-    "DB_CONNECTION": "sqlite"
-  }
+  "framework": "container"
 }
