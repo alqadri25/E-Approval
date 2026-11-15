@@ -35,6 +35,7 @@ ENV PORT=80 \
     APP_ENV=production \
     APP_DEBUG=false \
     APP_KEY="base64:iI/y07XaGJ1V1DZ4AEuy11Oa2HmBVQmMdcJSHvVMvcg=" \
+    APP_URL="https://e-approvalmusashi.vercel.app" \
     LOG_CHANNEL=stderr \
     DB_CONNECTION=sqlite \
     DB_DATABASE=/app/database/database.sqlite \

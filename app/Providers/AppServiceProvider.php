@@ -30,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('production') || env('APP_ENV') === 'production' || request()->header('X-Forwarded-Proto') === 'https' || str_contains((string)request()->header('host'), 'vercel.app')) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // 1. superadmin gate
         Gate::define('superadmin', function (User $user) {
             return $user->role === 'superadmin';
