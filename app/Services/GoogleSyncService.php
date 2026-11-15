@@ -389,6 +389,23 @@ class GoogleSyncService
                 'grade_original', 'docking_final', 'drive_file_id', 'drive_url',
                 'hash_dokumen', 'kode_verifikasi', 'created_at'
             ],
+            'nilai' => [
+                'dokumen_id', 'level', 'aspek_kode', 'skor', 'catatan'
+            ],
+            'indikator' => [
+                'dokumen_id', 'pilihan_potensi', 'catatan_potensi', 'kelebihan', 'kekurangan'
+            ],
+            'tanda_tangan' => [
+                'dokumen_id', 'level', 'user_id', 'tgl_ttd', 'ip', 'user_agent',
+                'hash_snapshot', 'ttd_image', 'created_at'
+            ],
+            'kuota_departemen' => [
+                'id', 'departemen', 'kj', 'kuota_s', 'kuota_a', 'kuota_b',
+                'kuota_c', 'kuota_k', 'total_karyawan', 'created_at'
+            ],
+            'master_kriteria' => [
+                'aspek_kode', 'skor', 'deskripsi'
+            ],
             'users' => [
                 'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif'
             ],
@@ -463,7 +480,8 @@ class GoogleSyncService
                 foreach (array_unique($emptyTables) as $emptyTable) {
                     $keyCol = match($emptyTable) {
                         'Master Karyawan', 'karyawan' => 'nrp',
-                        'dokumen' => 'id',
+                        'dokumen', 'kuota_departemen' => 'id',
+                        'nilai', 'indikator', 'tanda_tangan' => 'dokumen_id',
                         'users' => 'email',
                         default => 'id',
                     };

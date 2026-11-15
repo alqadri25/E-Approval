@@ -1651,10 +1651,18 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
         \Illuminate\Support\Facades\Cache::flush();
 
-        // Sinkronisasi hapus ke Google Spreadsheet (karyawan, Master Karyawan, dokumen, users)
+        // Sinkronisasi hapus ke Google Spreadsheet (karyawan, Master Karyawan, dokumen, nilai, indikator, tanda_tangan, kuota_departemen, users)
         try {
-            \App\Services\GoogleSyncService::syncEmployeeRow('delete', $nrp);
-            \App\Services\GoogleSyncService::syncTables(['users']);
+            \App\Services\GoogleSyncService::syncTables([
+                'Master Karyawan',
+                'karyawan',
+                'dokumen',
+                'nilai',
+                'indikator',
+                'tanda_tangan',
+                'kuota_departemen',
+                'users'
+            ]);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Google delete sync notice: " . $e->getMessage());
         }
@@ -1779,7 +1787,7 @@ class KaryawanController extends Controller
         // Cascade delete related records and employees atomically in DB
         $deletedCount = 0;
         try {
-            DB::transaction(function () use ($targetNrps, &$deletedCount) {
+            DB::transaction(function () use ($targetNrps, $scope, &$deletedCount) {
                 $docIds = DB::table('dokumen')->whereIn('nrp', $targetNrps)->pluck('id')->toArray();
                 if (!empty($docIds)) {
                     if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $docIds)->delete();
@@ -1790,6 +1798,17 @@ class KaryawanController extends Controller
                     DB::table('dokumen')->whereIn('id', $docIds)->delete();
                 }
                 $deletedCount = DB::table('karyawan')->whereIn('nrp', $targetNrps)->delete();
+
+                // If deleting all employees, completely wipe out kuota_departemen and any remaining appraisal records
+                if ($scope === 'all') {
+                    if (Schema::hasTable('kuota_departemen')) DB::table('kuota_departemen')->delete();
+                    if (Schema::hasTable('nilai')) DB::table('nilai')->delete();
+                    if (Schema::hasTable('indikator')) DB::table('indikator')->delete();
+                    if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->delete();
+                    if (Schema::hasTable('signature')) DB::table('signature')->delete();
+                    if (Schema::hasTable('history_status')) DB::table('history_status')->delete();
+                    if (Schema::hasTable('dokumen')) DB::table('dokumen')->delete();
+                }
             });
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Notice on cascading bulk delete: " . $e->getMessage());
@@ -1814,9 +1833,18 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
         \Illuminate\Support\Facades\Cache::flush();
 
-        // Realtime sync to Google Spreadsheet (reliable sync for Master Karyawan, karyawan, dokumen, and users)
+        // Realtime sync to Google Spreadsheet (wipe all appraisal sheets: Master Karyawan, karyawan, dokumen, nilai, indikator, tanda_tangan, kuota_departemen, and users)
         try {
-            \App\Services\GoogleSyncService::syncTables(['Master Karyawan', 'karyawan', 'dokumen', 'users']);
+            \App\Services\GoogleSyncService::syncTables([
+                'Master Karyawan',
+                'karyawan',
+                'dokumen',
+                'nilai',
+                'indikator',
+                'tanda_tangan',
+                'kuota_departemen',
+                'users'
+            ]);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Google bulk delete sync notice: " . $e->getMessage());
         }
