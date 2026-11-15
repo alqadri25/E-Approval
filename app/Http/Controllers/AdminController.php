@@ -31,102 +31,101 @@ class AdminController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // Admin Stats matching Mockup Screen 1
+        $allKaryawan = $this->repository->all('karyawan');
+        $allDocs = $this->repository->all('dokumen');
+        $totalKaryawan = count($allKaryawan);
+
+        $deptSet = [];
+        $divisiGroups = [];
+        foreach ($allKaryawan as $k) {
+            $d = trim((string)($k['departemen'] ?? ''));
+            $div = trim((string)($k['division'] ?? ''));
+            if ($d !== '' && $d !== '-') {
+                $deptSet[$d] = true;
+            }
+            $groupKey = $div !== '' && $div !== '-' ? $div : ($d !== '' && $d !== '-' ? $d : 'Lainnya');
+            if (!isset($divisiGroups[$groupKey])) {
+                $divisiGroups[$groupKey] = ['target' => 0, 'dinilai' => 0];
+            }
+            $divisiGroups[$groupKey]['target']++;
+        }
+
+        $docsByNrp = [];
+        $totalDinilai = 0;
+        $gradeCounts = ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0];
+
+        foreach ($allDocs as $doc) {
+            $nrp = (string)($doc['nrp'] ?? '');
+            if ($nrp !== '') {
+                $docsByNrp[$nrp] = $doc;
+            }
+            $st = strtolower((string)($doc['status'] ?? ''));
+            $grade = strtoupper((string)($doc['grade_original'] ?? ($doc['docking_final'] ?? '')));
+            if (in_array($st, ['selesai', 'approved', 'disetujui', 'disetujui_hr']) || !empty($doc['total_nilai'])) {
+                $totalDinilai++;
+                if (isset($gradeCounts[$grade])) {
+                    $gradeCounts[$grade]++;
+                }
+            }
+        }
+
+        foreach ($allKaryawan as $k) {
+            $nrp = (string)($k['nrp'] ?? '');
+            $div = trim((string)($k['division'] ?? ''));
+            $d = trim((string)($k['departemen'] ?? ''));
+            $groupKey = $div !== '' && $div !== '-' ? $div : ($d !== '' && $d !== '-' ? $d : 'Lainnya');
+
+            if (isset($docsByNrp[$nrp])) {
+                $st = strtolower((string)($docsByNrp[$nrp]['status'] ?? ''));
+                if (in_array($st, ['selesai', 'approved', 'disetujui', 'disetujui_hr']) || !empty($docsByNrp[$nrp]['total_nilai'])) {
+                    if (isset($divisiGroups[$groupKey])) {
+                        $divisiGroups[$groupKey]['dinilai']++;
+                    }
+                }
+            }
+        }
+
+        $totalDept = count($deptSet);
+        $totalBelum = max(0, $totalKaryawan - $totalDinilai);
+        $pctDinilai = $totalKaryawan > 0 ? round(($totalDinilai / $totalKaryawan) * 100) : 0;
+        $pctBelum = $totalKaryawan > 0 ? (100 - $pctDinilai) : 0;
+
         $adminStats = [
-            'total_karyawan' => 1248,
-            'total_departemen' => 52,
-            'total_dinilai' => 748,
-            'pct_dinilai' => 60,
-            'total_belum' => 500,
-            'pct_belum' => 40,
+            'total_karyawan' => $totalKaryawan,
+            'total_departemen' => $totalDept,
+            'total_dinilai' => $totalDinilai,
+            'pct_dinilai' => $pctDinilai,
+            'total_belum' => $totalBelum,
+            'pct_belum' => $pctBelum,
         ];
 
-        // Aktivitas Penilaian (Per Divisi / Departemen)
-        $aktivitasDivisi = [
-            [
-                'kode' => 'PROD 1',
-                'nama' => 'Manufacturing 1 (PROD 1)',
-                'target' => 180,
-                'dinilai' => 145,
-                'persentase' => 80,
-            ],
-            [
-                'kode' => 'PROD 2',
-                'nama' => 'Manufacturing 2 (PROD 2)',
-                'target' => 182,
-                'dinilai' => 140,
-                'persentase' => 77,
-            ],
-            [
-                'kode' => 'QA/QC',
-                'nama' => 'Quality Assurance & QC',
-                'target' => 115,
-                'dinilai' => 95,
-                'persentase' => 82,
-            ],
-            [
-                'kode' => 'ENGINEERING',
-                'nama' => 'Engineering & Maintenance',
-                'target' => 155,
-                'dinilai' => 120,
-                'persentase' => 77,
-            ],
-            [
-                'kode' => 'HR & GA',
-                'nama' => 'HR, GA & Finance',
-                'target' => 180,
-                'dinilai' => 160,
-                'persentase' => 88,
-            ],
-        ];
+        $aktivitasDivisi = [];
+        $ringkasanDivisi = [];
 
-        // Total Penilaian Donut Chart (Company-wide Grade Distribution)
-        $totalPenilaianCompany = [
-            'S' => 75,
-            'A' => 225,
-            'B' => 290,
-            'C' => 118,
-            'K' => 40,
-        ];
+        foreach ($divisiGroups as $name => $stats) {
+            $tgt = $stats['target'];
+            $dn = $stats['dinilai'];
+            $pct = $tgt > 0 ? round(($dn / $tgt) * 100) : 0;
+            $kode = strtoupper(substr($name, 0, 10));
 
-        // Ringkasan Divisi & Departemen (Table bottom right)
-        $ringkasanDivisi = [
-            [
-                'divisi' => 'Manufacturing Division 1 (PROD 1)',
-                'total_karyawan' => 180,
-                'sudah_dinilai' => 145,
-                'target' => '80%',
-                'pct_val' => 80,
-            ],
-            [
-                'divisi' => 'Manufacturing Division 2 (PROD 2)',
-                'total_karyawan' => 182,
-                'sudah_dinilai' => 140,
-                'target' => '77%',
-                'pct_val' => 77,
-            ],
-            [
-                'divisi' => 'Quality Control & QA Division',
-                'total_karyawan' => 115,
-                'sudah_dinilai' => 95,
-                'target' => '82%',
-                'pct_val' => 82,
-            ],
-            [
-                'divisi' => 'Technical Engineering Division',
-                'total_karyawan' => 155,
-                'sudah_dinilai' => 120,
-                'target' => '77%',
-                'pct_val' => 77,
-            ],
-            [
-                'divisi' => 'General Affairs, HR & IR Division',
-                'total_karyawan' => 180,
-                'sudah_dinilai' => 160,
-                'target' => '88%',
-                'pct_val' => 88,
-            ],
-        ];
+            $aktivitasDivisi[] = [
+                'kode' => $kode,
+                'nama' => $name,
+                'target' => $tgt,
+                'dinilai' => $dn,
+                'persentase' => $pct,
+            ];
+
+            $ringkasanDivisi[] = [
+                'divisi' => $name,
+                'total_karyawan' => $tgt,
+                'sudah_dinilai' => $dn,
+                'target' => "{$pct}%",
+                'pct_val' => $pct,
+            ];
+        }
+
+        $totalPenilaianCompany = $gradeCounts;
 
         return view('dashboard.admin', compact(
             'user',
@@ -695,6 +694,55 @@ class AdminController extends Controller
         ));
         $totalPerusahaanKaryawan = count($allQuotaBoundKaryawan);
         $totalExempt07006 = count($exemptKaryawan);
+
+        // If no employees exist in Master Karyawan, return clean empty state without hardcoded dummy divisions/depts
+        if (empty($allKaryawan)) {
+            $divisiDefs = [];
+            $deptDefs = [];
+            $divisionCards = [];
+            $simulasiDepartemen = [];
+            $deptTargetsMap = [];
+            $tabelKuotaKj = [];
+            $summaryKjCards = [];
+            $topSummaryStats = [
+                'total_karyawan' => 0,
+                'kena_target' => 0,
+                'bebas_target' => 0,
+                'total_division' => 0,
+                'total_departemen' => 0,
+                'total_foreman' => 0,
+                'total_section_head' => 0,
+                'total_dept_head' => 0,
+                'total_leader' => 0,
+                'sum_s' => 0, 'sum_a' => 0, 'sum_b' => 0, 'sum_c' => 0, 'sum_k' => 0, 'sum_total' => 0
+            ];
+            $realDivisionsStats = [];
+            $rules = [];
+            $currentDept = '';
+            $selectedDivisi = '';
+            $displayKjList = [];
+            $targetPerusahaan = ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0];
+
+            return view('admin.target_kuota', compact(
+                'user',
+                'divisiDefs',
+                'deptDefs',
+                'divisionCards',
+                'simulasiDepartemen',
+                'deptTargetsMap',
+                'tabelKuotaKj',
+                'summaryKjCards',
+                'topSummaryStats',
+                'realDivisionsStats',
+                'rules',
+                'totalPerusahaanKaryawan',
+                'totalExempt07006',
+                'targetPerusahaan',
+                'displayKjList',
+                'currentDept',
+                'selectedDivisi'
+            ));
+        }
 
         // 1. Division definitions with connected departments
         $divisiDefs = [

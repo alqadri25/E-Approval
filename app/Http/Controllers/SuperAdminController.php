@@ -27,98 +27,96 @@ class SuperAdminController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // 4 Stat Cards matching Mockup Screen 1: 41, 1.248, 12, 8
+        $allKaryawan = $this->repository->all('karyawan');
+        $allDocs = $this->repository->all('dokumen');
+        $totalKaryawan = count($allKaryawan);
+        $totalUser = User::count();
+
+        $deptSet = [];
+        $divisiGroups = [];
+        foreach ($allKaryawan as $k) {
+            $d = trim((string)($k['departemen'] ?? ''));
+            $div = trim((string)($k['division'] ?? ''));
+            if ($d !== '' && $d !== '-') {
+                $deptSet[$d] = true;
+            }
+            $groupKey = $div !== '' && $div !== '-' ? $div : ($d !== '' && $d !== '-' ? $d : 'Lainnya');
+            if (!isset($divisiGroups[$groupKey])) {
+                $divisiGroups[$groupKey] = ['target' => 0, 'dinilai' => 0];
+            }
+            $divisiGroups[$groupKey]['target']++;
+        }
+
+        $docsByNrp = [];
+        foreach ($allDocs as $doc) {
+            $nrp = (string)($doc['nrp'] ?? '');
+            if ($nrp !== '') {
+                $docsByNrp[$nrp] = $doc;
+            }
+        }
+
+        foreach ($allKaryawan as $k) {
+            $nrp = (string)($k['nrp'] ?? '');
+            $div = trim((string)($k['division'] ?? ''));
+            $d = trim((string)($k['departemen'] ?? ''));
+            $groupKey = $div !== '' && $div !== '-' ? $div : ($d !== '' && $d !== '-' ? $d : 'Lainnya');
+
+            if (isset($docsByNrp[$nrp])) {
+                $st = strtolower((string)($docsByNrp[$nrp]['status'] ?? ''));
+                if (in_array($st, ['selesai', 'approved', 'disetujui', 'disetujui_hr']) || !empty($docsByNrp[$nrp]['total_nilai'])) {
+                    if (isset($divisiGroups[$groupKey])) {
+                        $divisiGroups[$groupKey]['dinilai']++;
+                    }
+                }
+            }
+        }
+
+        $aktivitasHariIni = Schema::hasTable('audit_log') ? DB::table('audit_log')->whereDate('created_at', today())->count() : 0;
+
         $stats = [
-            'total_user' => 41,
-            'total_karyawan' => 1248,
-            'total_departemen' => 12,
-            'aktivitas_hari_ini' => 8,
+            'total_user' => $totalUser,
+            'total_karyawan' => $totalKaryawan,
+            'total_departemen' => count($deptSet),
+            'aktivitas_hari_ini' => $aktivitasHariIni,
         ];
 
-        // Aktivitas Penilaian (Aktivitas per Divisi)
-        // PROD 1: 53, PROD 2: 140, QA/QC: 417, ENG: 330, HR & GA: 160
-        $aktivitasDivisi = [
-            [
-                'kode' => 'PROD 1',
-                'nama' => 'Manufacturing 1 (PROD 1)',
-                'target' => 180,
-                'dinilai' => 53,
-                'persentase' => 29,
-            ],
-            [
-                'kode' => 'PROD 2',
-                'nama' => 'Manufacturing 2 (PROD 2)',
-                'target' => 182,
-                'dinilai' => 140,
-                'persentase' => 77,
-            ],
-            [
-                'kode' => 'QA/QC',
-                'nama' => 'Quality Assurance & QC',
-                'target' => 500,
-                'dinilai' => 417,
-                'persentase' => 83,
-            ],
-            [
-                'kode' => 'ENGINEERING',
-                'nama' => 'Engineering & Maintenance',
-                'target' => 400,
-                'dinilai' => 330,
-                'persentase' => 82,
-            ],
-            [
-                'kode' => 'HR & GA',
-                'nama' => 'HR, GA & Finance',
-                'target' => 180,
-                'dinilai' => 160,
-                'persentase' => 88,
-            ],
-        ];
+        $aktivitasDivisi = [];
+        foreach ($divisiGroups as $name => $st) {
+            $tgt = $st['target'];
+            $dn = $st['dinilai'];
+            $pct = $tgt > 0 ? round(($dn / $tgt) * 100) : 0;
+            $kode = strtoupper(substr($name, 0, 10));
 
-        // Distribusi Role User (Donut Chart matching Screen 1)
-        // Total: 41 User (Foreman 18, Section Head 12, Dept Head 6, Div Head 2, Admin 2, Superadmin 1)
+            $aktivitasDivisi[] = [
+                'kode' => $kode,
+                'nama' => $name,
+                'target' => $tgt,
+                'dinilai' => $dn,
+                'persentase' => $pct,
+            ];
+        }
+
         $roleDistribution = [
-            'foreman' => 18,
-            'section_head' => 12,
-            'dept_head' => 6,
-            'div_head' => 2,
-            'admin' => 2,
-            'superadmin' => 1,
+            'foreman' => User::where('role', 'foreman')->count(),
+            'section_head' => User::where('role', 'section_head')->count(),
+            'dept_head' => User::whereIn('role', ['department_head', 'dept_head'])->count(),
+            'div_head' => User::whereIn('role', ['division_head', 'div_head'])->count(),
+            'admin' => User::where('role', 'admin')->count(),
+            'superadmin' => User::where('role', 'superadmin')->count(),
         ];
 
-        // Aktivitas Terbaru (Audit Log Feed)
-        $recentActivities = [
-            [
-                'user' => 'SARYANTA (Foreman F1 CAT 1)',
-                'aksi' => 'Menandatangani digital form penilaian NRP 39',
-                'waktu' => '2 menit yang lalu',
-                'tipe' => 'ttd',
-            ],
-            [
-                'user' => 'KRISTIYANTO (Section Head F1)',
-                'aksi' => 'Menyetujui dokumen penilaian NRP 40',
-                'waktu' => '15 menit yang lalu',
-                'tipe' => 'approve',
-            ],
-            [
-                'user' => 'SUPARDI (Dept Head PROD 2)',
-                'aksi' => 'Melakukan penyesuaian kuota docking PROD 2',
-                'waktu' => '1 jam yang lalu',
-                'tipe' => 'docking',
-            ],
-            [
-                'user' => 'Admin Penilaian Karya',
-                'aksi' => 'Mengubah batas target kuota nilai tahun 2025',
-                'waktu' => '3 jam yang lalu',
-                'tipe' => 'config',
-            ],
-            [
-                'user' => 'Super Administrator',
-                'aksi' => 'Memperbarui konfigurasi alur persetujuan sistem',
-                'waktu' => '5 jam yang lalu',
-                'tipe' => 'system',
-            ],
-        ];
+        $recentActivities = [];
+        if (Schema::hasTable('audit_log') && $totalKaryawan > 0) {
+            $logs = DB::table('audit_log')->latest('created_at')->limit(5)->get();
+            foreach ($logs as $l) {
+                $recentActivities[] = [
+                    'user' => $l->user_nama ?? 'User',
+                    'aksi' => $l->deskripsi ?? 'Aktivitas sistem',
+                    'waktu' => \Carbon\Carbon::parse($l->created_at)->diffForHumans(),
+                    'tipe' => $l->tipe ?? 'system',
+                ];
+            }
+        }
 
         return view('dashboard.superadmin', compact(
             'user',
