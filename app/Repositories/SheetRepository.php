@@ -53,6 +53,12 @@ class SheetRepository implements SheetRepositoryInterface
         'master_kriteria' => [
             'aspek_kode', 'skor', 'deskripsi'
         ],
+        'kuota_departemen' => [
+            'id', 'departemen', 'grade_s_max', 'grade_a_max', 'grade_b_max', 'grade_c_max', 'grade_k_max'
+        ],
+        'Dokumen_Dinilai' => [
+            'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
+        ],
         'audit_log' => [
             'waktu', 'user_id', 'aksi', 'dokumen_id', 'detail'
         ],
