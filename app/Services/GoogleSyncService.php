@@ -732,9 +732,11 @@ class GoogleSyncService
         $karyawan = DB::table('karyawan')->where('nrp', $dokumen->nrp)->first();
         $karyawanArr = $karyawan ? (array)$karyawan : [];
 
-        $tahun = (string)($dokumen->tahun ?? DB::table('pengaturan')->where('key', 'tahun_penilaian')->value('value') ?? '2026');
+        $periode = !empty($dokumen->periode_id) ? DB::table('periode')->where('id', $dokumen->periode_id)->first() : null;
+        $tahun = (string)($dokumen->tahun ?? ($periode->tahun ?? (DB::table('pengaturan')->where('key', 'tahun_penilaian')->value('value') ?? date('Y'))));
         $departemen = (string)($karyawanArr['departemen'] ?? $dokumen->departemen ?? 'PROD 2');
         $seksi = (string)($karyawanArr['seksi'] ?? '');
+        $division = (string)($karyawanArr['division'] ?? ($karyawanArr['divisi'] ?? 'MANUFACTURING DIVISION'));
 
         if (empty($pdfBinary)) {
             try {
@@ -763,6 +765,7 @@ class GoogleSyncService
                 'nama_lengkap' => (string)($karyawanArr['nama_lengkap'] ?? 'KARYAWAN'),
                 'jabatan' => (string)($karyawanArr['jabatan'] ?? 'OPERATOR'),
                 'golongan' => (string)($karyawanArr['golongan'] ?? ($karyawanArr['kj'] ?? 'KJ')),
+                'division' => $division,
                 'departemen' => $departemen,
                 'seksi' => $seksi,
                 'tahun' => $tahun,
@@ -894,7 +897,10 @@ class GoogleSyncService
 var CONFIG = {
   SPREADSHEET_ID: '{$ssId}',
   DRIVE_FOLDER_ID: '{$drId}',
-  DEFAULT_YEAR: '2026',
+  // Otomatis mengikuti tahun berjalan kalender (2026, 2027, 2028, dst)
+  get DEFAULT_YEAR() {
+    return String(new Date().getFullYear());
+  },
   COMPANY_NAME: 'PT MUSASHI AUTO PARTS INDONESIA'
 };
 
@@ -1010,13 +1016,40 @@ function setupDatabaseSheets() {
 /**
  * 3. STRUKTUR FOLDER GOOGLE DRIVE DINAMIS DARI MASTER KARYAWAN
  * Otomatis membaca Hirarki Tanpa Dobel: DIVISION -> DEPARTMENT -> SECTION -> (dan POSITION TTD)
+ * Otomatis mendeteksi tahun berjalan saat ini (misal 2026), tahun depan (2027), dan seluruh tahun di tabel periode!
  */
 function setupDriveFolders() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var empSheet = ss.getSheetByName('Master Karyawan') || ss.getSheetByName('karyawan');
   var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
-  var yearFolderName = 'TAHUN ' + CONFIG.DEFAULT_YEAR;
-  var yearFolder = getOrCreateSubfolder(rootFolder, yearFolderName);
+
+  // 1. Kumpulkan daftar tahun target secara otomatis (Tahun ini + Tahun depan + Sheet Periode)
+  var targetYears = {};
+  var currentYearNum = new Date().getFullYear();
+  targetYears[String(currentYearNum)] = true;       // Tahun berjalan saat ini (misal: 2026)
+  targetYears[String(currentYearNum + 1)] = true;   // Otomatis siapkan tahun depan (misal: 2027)
+
+  // Baca juga tahun yang terdaftar di sheet 'periode' jika ada
+  var periodeSheet = ss.getSheetByName('periode');
+  if (periodeSheet && periodeSheet.getLastRow() > 1) {
+    var pData = periodeSheet.getDataRange().getValues();
+    var pHeaders = pData[0];
+    var pYearIdx = -1;
+    for (var ph = 0; ph < pHeaders.length; ph++) {
+      if (String(pHeaders[ph] || '').trim().toLowerCase() === 'tahun') {
+        pYearIdx = ph;
+        break;
+      }
+    }
+    if (pYearIdx > -1) {
+      for (var pr = 1; pr < pData.length; pr++) {
+        var yrVal = String(pData[pr][pYearIdx] || '').trim();
+        if (yrVal && yrVal.length === 4) {
+          targetYears[yrVal] = true;
+        }
+      }
+    }
+  }
 
   // Buat folder induk tanda tangan
   var mainTtdFolder = getOrCreateSubfolder(rootFolder, 'TANDA_TANGAN');
@@ -1031,6 +1064,9 @@ function setupDriveFolders() {
   for (var r = 0; r < standardRoles.length; r++) {
     uniqueRoles[standardRoles[r]] = true;
   }
+
+  // Siapkan struktur hierarki unik dari data karyawan
+  var hierarchy = {}; // { division: { dept: { seksi: true } } }
 
   if (empSheet && empSheet.getLastRow() > 1) {
     var data = empSheet.getDataRange().getValues();
@@ -1053,9 +1089,6 @@ function setupDriveFolders() {
         if (idxJabatan === -1) idxJabatan = h;
       }
     }
-
-    // Peta hirarki unik tanpa dobel: division -> department -> sections
-    var hierarchy = {}; // { division: { dept: { seksi: true } } }
 
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
@@ -1091,19 +1124,6 @@ function setupDriveFolders() {
         }
       }
     }
-
-    // Bangun hirarki folder di Google Drive
-    for (var dName in hierarchy) {
-      var divFolder = getOrCreateSubfolder(yearFolder, dName);
-      var deptsObj = hierarchy[dName];
-      for (var dpName in deptsObj) {
-        var deptFolder = getOrCreateSubfolder(divFolder, dpName);
-        var seksisObj = deptsObj[dpName];
-        for (var sName in seksisObj) {
-          getOrCreateSubfolder(deptFolder, sName);
-        }
-      }
-    }
   } else {
     // Fallback jika belum ada data baris di sheet karyawan
     var defaultDepts = [
@@ -1113,9 +1133,26 @@ function setupDriveFolders() {
       'ENGINEERING DEPT',
       'HR GA FINANCE DEPT'
     ];
-    var defaultDivFolder = getOrCreateSubfolder(yearFolder, 'MANUFACTURING DIVISION');
+    hierarchy['MANUFACTURING DIVISION'] = {};
     for (var k = 0; k < defaultDepts.length; k++) {
-      getOrCreateSubfolder(defaultDivFolder, defaultDepts[k]);
+      hierarchy['MANUFACTURING DIVISION'][defaultDepts[k]] = {};
+    }
+  }
+
+  // Bangun hirarki folder di Google Drive untuk setiap tahun target (2026, 2027, dst)
+  var yearsList = Object.keys(targetYears).sort();
+  for (var y = 0; y < yearsList.length; y++) {
+    var yFolder = getOrCreateSubfolder(rootFolder, 'TAHUN ' + yearsList[y]);
+    for (var dName in hierarchy) {
+      var divFolder = getOrCreateSubfolder(yFolder, dName);
+      var deptsObj = hierarchy[dName];
+      for (var dpName in deptsObj) {
+        var deptFolder = getOrCreateSubfolder(divFolder, dpName);
+        var seksisObj = deptsObj[dpName];
+        for (var sName in seksisObj) {
+          getOrCreateSubfolder(deptFolder, sName);
+        }
+      }
     }
   }
 
@@ -1126,13 +1163,13 @@ function setupDriveFolders() {
   }
 
   showAlertSafely(
-    'Sukses! Struktur folder Google Drive otomatis dibuat dari Excel tanpa dobel:\n\n' +
-    '📁 ' + yearFolderName + '\n' +
+    'Sukses! Struktur folder Google Drive otomatis dibuat untuk tahun ' + yearsList.join(', ') + ':\n\n' +
+    '📁 Folder Arsip: ' + yearsList.map(function(yr) { return 'TAHUN ' + yr; }).join(', ') + '\n' +
     '   ├── Divisi: ' + divCount + ' Folder\n' +
     '   ├── Departemen: ' + deptCount + ' Folder\n' +
     '   └── Seksi: ' + seksiCount + ' Folder\n\n' +
     '📁 TANDA_TANGAN: ' + posCount + ' Posisi/Role\n\n' +
-    'Seluruh PDF penilaian dan file TTD akan otomatis tersimpan rapi.'
+    'Sistem otomatis menyesuaikan tahun kalender berjalan (2026, 2027, 2028, dst) tanpa perlu ubah script manual.'
   );
 }
 
@@ -1332,7 +1369,10 @@ function doPost(e) {
       var departemen = String(postData.departemen || '').toUpperCase().trim();
       var division = String(postData.division || postData.divisi || '').toUpperCase().trim();
       var seksi = String(postData.seksi || '').toUpperCase().trim();
-      var tahun = String(postData.tahun || CONFIG.DEFAULT_YEAR);
+      var tahun = String(postData.tahun || postData.periode_tahun || CONFIG.DEFAULT_YEAR || new Date().getFullYear()).trim();
+      if (!tahun || tahun === 'undefined' || tahun === 'null' || tahun.length < 4) {
+        tahun = String(new Date().getFullYear());
+      }
 
       // Jika division atau seksi belum dikirim, cari otomatis dari Master Karyawan berdasarkan NRP
       if ((!division || !seksi) && nrp) {
