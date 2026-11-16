@@ -435,9 +435,10 @@ class AuthController extends Controller
         }
 
         try {
-            Auth::login($user, $request->boolean('remember'));
+            $remember = $request->has('remember') ? $request->boolean('remember') : true;
+            Auth::login($user, $remember);
         } catch (\Throwable $e) {
-            Auth::login($user, false);
+            Auth::login($user, true);
         }
         $request->session()->regenerate();
 
@@ -462,7 +463,7 @@ class AuthController extends Controller
             return back()->with('error', 'Akun dinonaktifkan.');
         }
 
-        Auth::login($user);
+        Auth::login($user, true); // Keep session authenticated with remember token
         $request->session()->regenerate();
 
         return redirect()->route('dashboard')->with('success', "Berhasil masuk sebagai {$user->nama} ({$user->roleLabel()}) - Dept: {$user->departemen}");

@@ -1028,5 +1028,30 @@
   </script>
 
   @stack('scripts')
+  <script>
+    // 1. Session Keep-Alive Heartbeat: Ping server every 2 minutes so idle tabs never expire unexpectedly
+    setInterval(function() {
+      fetch('/up', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .catch(function() {});
+    }, 120000);
+
+    // 2. Instant Navigation Prefetch for Sidebar links on mouse hover / touch
+    document.addEventListener('DOMContentLoaded', function() {
+      const prefetchedUrls = new Set();
+      document.querySelectorAll('aside a[href^="/"], nav a[href^="/"]').forEach(function(link) {
+        link.addEventListener('mouseenter', function() {
+          const href = link.getAttribute('href');
+          if (href && !prefetchedUrls.has(href) && !href.includes('/logout') && !href.includes('/export')) {
+            prefetchedUrls.add(href);
+            const linkTag = document.createElement('link');
+            linkTag.rel = 'prefetch';
+            linkTag.href = href;
+            document.head.appendChild(linkTag);
+          }
+        }, { passive: true });
+      });
+    });
+  </script>
+
 </body>
 </html>

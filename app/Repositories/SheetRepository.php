@@ -119,9 +119,14 @@ class SheetRepository implements SheetRepositoryInterface
     public function all(string $table, ?int $cacheTtl = 60): array
     {
         $cacheKey = "sheet_all_{$table}";
-        $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 60);
+        $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 300);
 
         return Cache::remember($cacheKey, $cacheTtl, function () use ($table) {
+            // 1. FAST PATH: Check local SQLite database first (instant < 5ms response time)
+            $localRows = $this->getFromLocal($table);
+            if (!empty($localRows)) {
+                return $localRows;
+            }
             if ($this->googleService->isConfigured()) {
                 try {
                     $sheets = $this->googleService->getSheetsService();
@@ -201,18 +206,21 @@ class SheetRepository implements SheetRepositoryInterface
      */
     public function find(string $table, string $column, $value): ?array
     {
+        // 1. FAST PATH: Direct query to local database (indexed, sub-millisecond)
+        $localTable = $this->getLocalTableName($table);
+        if (Schema::hasTable($localTable)) {
+            $row = DB::table($localTable)->where($column, $value)->first();
+            if ($row) {
+                return (array)$row;
+            }
+        }
+
+        // 2. Secondary check via all()
         $records = $this->all($table);
         foreach ($records as $record) {
             if (isset($record[$column]) && (string)$record[$column] === (string)$value) {
                 return $record;
             }
-        }
-
-        // Secondary fallback to local DB directly
-        $localTable = $this->getLocalTableName($table);
-        if (Schema::hasTable($localTable)) {
-            $row = DB::table($localTable)->where($column, $value)->first();
-            return $row ? (array)$row : null;
         }
 
         return null;
@@ -223,6 +231,20 @@ class SheetRepository implements SheetRepositoryInterface
      */
     public function where(string $table, array $criteria): array
     {
+        // 1. FAST PATH: Direct query to local database with WHERE filters
+        $localTable = $this->getLocalTableName($table);
+        if (Schema::hasTable($localTable)) {
+            $query = DB::table($localTable);
+            foreach ($criteria as $col => $val) {
+                $query->where($col, $val);
+            }
+            $results = $query->get();
+            if ($results->isNotEmpty()) {
+                return $results->map(fn($r) => (array)$r)->toArray();
+            }
+        }
+
+        // 2. Fallback to all()
         $records = $this->all($table);
         return array_values(array_filter($records, function ($record) use ($criteria) {
             foreach ($criteria as $col => $val) {
