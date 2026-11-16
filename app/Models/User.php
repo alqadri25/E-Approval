@@ -105,8 +105,26 @@ class User extends Authenticatable
         return \Illuminate\Support\Facades\DB::table('karyawan')->where('nrp', $this->nrp)->first();
     }
 
+    public function getSignatureRecordAttribute()
+    {
+        if (empty($this->nrp)) return null;
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('master_tanda_tangan')) {
+                return \Illuminate\Support\Facades\DB::table('master_tanda_tangan')->where('nrp', (string)$this->nrp)->first();
+            }
+        } catch (\Throwable $e) {}
+        return null;
+    }
+
     public function getSignatureUrlAttribute(): ?string
     {
+        if (empty($this->signature_path)) {
+            $sigRec = $this->signature_record;
+            if ($sigRec) {
+                $this->signature_path = $sigRec->signature_base64 ?: $sigRec->signature_url;
+            }
+        }
+
         if (empty($this->signature_path)) {
             return null;
         }
@@ -126,7 +144,15 @@ class User extends Authenticatable
 
     public function hasSignature(): bool
     {
-        return !empty($this->signature_path);
+        if (!empty($this->signature_path)) {
+            return true;
+        }
+        $sigRec = $this->signature_record;
+        if ($sigRec && (!empty($sigRec->signature_base64) || !empty($sigRec->signature_url))) {
+            $this->signature_path = $sigRec->signature_base64 ?: $sigRec->signature_url;
+            return true;
+        }
+        return false;
     }
 
     public function getResolvedJabatanAttribute(): string

@@ -311,6 +311,39 @@ class GoogleSyncService
                             });
                         }
 
+                        // Also sync signatures from 'Master Tanda Tangan' sheet if present
+                        $ttdRows = $data['Master Tanda Tangan'] ?? ($data['master_tanda_tangan'] ?? []);
+                        if (!empty($ttdRows) && is_array($ttdRows)) {
+                            foreach ($ttdRows as $ttdRow) {
+                                $nrp = trim((string)($ttdRow['nrp'] ?? ''));
+                                if ($nrp === '') continue;
+                                $sigUrl = $ttdRow['signature_url'] ?? null;
+                                $fileId = $ttdRow['drive_file_id'] ?? null;
+                                if (Schema::hasTable('master_tanda_tangan')) {
+                                    DB::table('master_tanda_tangan')->updateOrInsert(['nrp' => $nrp], [
+                                        'nama' => $ttdRow['nama'] ?? null,
+                                        'position' => $ttdRow['position'] ?? null,
+                                        'department' => $ttdRow['department'] ?? null,
+                                        'division' => $ttdRow['division'] ?? null,
+                                        'signature_url' => $sigUrl,
+                                        'drive_file_id' => $fileId,
+                                        'updated_at' => now(),
+                                    ]);
+                                }
+                                if (!empty($sigUrl)) {
+                                    DB::table('app_users')->where('nrp', $nrp)
+                                        ->where(function($q) {
+                                            $q->whereNull('signature_path')
+                                              ->orWhere('signature_path', '')
+                                              ->orWhere('signature_path', 'not like', 'data:image%');
+                                        })
+                                        ->update([
+                                            'signature_path' => $sigUrl,
+                                        ]);
+                                }
+                            }
+                        }
+
                         // Auto-generate leadership accounts for the pulled employees
                         AccountSyncService::syncLeadershipAccountsFromKaryawan();
                     }
@@ -808,6 +841,7 @@ class GoogleSyncService
         $role = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->role ?: 'FOREMAN'))) ?: 'FOREMAN';
         $dept = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->departemen ?: 'ALL'))) ?: 'ALL';
         $pos = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->jabatan ?: $user->posisi ?: $role))) ?: $role;
+        $div = strtoupper(trim((string)($user->divisi ?: 'MANUFACTURING DIVISION')));
 
         $cleanFilename = "{$nrp}_{$nama}_{$role}_{$dept}.png";
 
@@ -829,16 +863,40 @@ class GoogleSyncService
                 'position' => $role,
                 'jabatan' => $pos,
                 'departemen' => $dept,
+                'department' => $dept,
+                'division' => $div,
                 'filename' => $cleanFilename,
             ]);
 
             if ($response->successful()) {
                 $resData = $response->json();
                 if (isset($resData['status']) && $resData['status'] === 'success') {
+                    $fileUrl = $resData['file_url'] ?? null;
+                    $fileId = $resData['file_id'] ?? null;
+
+                    // Automatically persist to master_tanda_tangan SQLite table as well
+                    try {
+                        if (Schema::hasTable('master_tanda_tangan')) {
+                            DB::table('master_tanda_tangan')->updateOrInsert(
+                                ['nrp' => $nrp],
+                                [
+                                    'nama' => $user->nama,
+                                    'position' => $role,
+                                    'department' => $dept,
+                                    'division' => $div,
+                                    'signature_url' => $fileUrl,
+                                    'drive_file_id' => $fileId,
+                                    'signature_base64' => 'data:image/png;base64,' . base64_encode($imageBinary),
+                                    'updated_at' => now(),
+                                ]
+                            );
+                        }
+                    } catch (\Throwable $e) {}
+
                     return [
                         'success' => true,
-                        'file_id' => $resData['file_id'] ?? null,
-                        'file_url' => $resData['file_url'] ?? null,
+                        'file_id' => $fileId,
+                        'file_url' => $fileUrl,
                         'file_name' => $resData['file_name'] ?? $cleanFilename,
                         'folder_path' => $resData['folder_path'] ?? "TANDA_TANGAN / {$role}",
                     ];
@@ -977,6 +1035,9 @@ var CONFIG_TABLES = {
   ],
   'pengaturan': [
     'key', 'value', 'updated_at'
+  ],
+  'Master Tanda Tangan': [
+    'nrp', 'nama', 'position', 'department', 'division', 'signature_url', 'drive_file_id', 'updated_at'
   ],
   'audit_log': [
     'id', 'waktu', 'user_id', 'aksi', 'dokumen_id', 'detail'
@@ -1163,12 +1224,12 @@ function setupDriveFolders() {
   }
 
   showAlertSafely(
-    'Sukses! Struktur folder Google Drive otomatis dibuat untuk tahun ' + yearsList.join(', ') + ':\n\n' +
-    '📁 Folder Arsip: ' + yearsList.map(function(yr) { return 'TAHUN ' + yr; }).join(', ') + '\n' +
-    '   ├── Divisi: ' + divCount + ' Folder\n' +
-    '   ├── Departemen: ' + deptCount + ' Folder\n' +
-    '   └── Seksi: ' + seksiCount + ' Folder\n\n' +
-    '📁 TANDA_TANGAN: ' + posCount + ' Posisi/Role\n\n' +
+    'Sukses! Struktur folder Google Drive otomatis dibuat untuk tahun ' + yearsList.join(', ') + ':\\n\\n' +
+    '📁 Folder Arsip: ' + yearsList.map(function(yr) { return 'TAHUN ' + yr; }).join(', ') + '\\n' +
+    '   ├── Divisi: ' + divCount + ' Folder\\n' +
+    '   ├── Departemen: ' + deptCount + ' Folder\\n' +
+    '   └── Seksi: ' + seksiCount + ' Folder\\n\\n' +
+    '📁 TANDA_TANGAN: ' + posCount + ' Posisi/Role\\n\\n' +
     'Sistem otomatis menyesuaikan tahun kalender berjalan (2026, 2027, 2028, dst) tanpa perlu ubah script manual.'
   );
 }
@@ -1186,9 +1247,9 @@ function testDriveAccess() {
       getOrCreateSubfolder(mainTtdFolder, subroles[i]);
     }
     showAlertSafely(
-      'Sukses! Izin Google Drive berhasil aktif.\n\n' +
-      'Folder Utama: ' + rootFolder.getName() + '\n' +
-      'Subfolder: TANDA_TANGAN / (FOREMAN, SECTION_HEAD, DEPT_HEAD, DIV_HEAD, ADMIN)\n\n' +
+      'Sukses! Izin Google Drive berhasil aktif.\\n\\n' +
+      'Folder Utama: ' + rootFolder.getName() + '\\n' +
+      'Subfolder: TANDA_TANGAN / (FOREMAN, SECTION_HEAD, DEPT_HEAD, DIV_HEAD, ADMIN)\\n\\n' +
       'Sistem siap menerima penyimpanan berkas tanda tangan otomatis.'
     );
   } catch (err) {
@@ -1204,15 +1265,18 @@ function showDatabaseStats() {
   var empSheet = ss.getSheetByName('Master Karyawan') || ss.getSheetByName('karyawan');
   var docSheet = ss.getSheetByName('dokumen');
   var userSheet = ss.getSheetByName('users');
+  var ttdSheet = ss.getSheetByName('Master Tanda Tangan');
   var totalKaryawan = empSheet ? Math.max(0, empSheet.getLastRow() - 1) : 0;
   var totalDokumen = docSheet ? Math.max(0, docSheet.getLastRow() - 1) : 0;
   var totalUsers = userSheet ? Math.max(0, userSheet.getLastRow() - 1) : 0;
+  var totalTtd = ttdSheet ? Math.max(0, ttdSheet.getLastRow() - 1) : 0;
 
   showAlertSafely(
-    'STATISTIK BASIS DATA MUSASHI E-APPROVAL:\n\n' +
-    '• Master Karyawan: ' + totalKaryawan + ' Orang\n' +
-    '• Dokumen Penilaian: ' + totalDokumen + ' Dokumen\n' +
-    '• Akun Pengguna: ' + totalUsers + ' Akun\n\n' +
+    'STATISTIK BASIS DATA MUSASHI E-APPROVAL:\\n\\n' +
+    '• Master Karyawan: ' + totalKaryawan + ' Orang\\n' +
+    '• Dokumen Penilaian: ' + totalDokumen + ' Dokumen\\n' +
+    '• Akun Pengguna: ' + totalUsers + ' Akun\\n' +
+    '• Master Tanda Tangan: ' + totalTtd + ' Berkas\\n\\n' +
     'Spreadsheet ID: ' + ss.getId()
   );
 }
@@ -1342,6 +1406,71 @@ function doPost(e) {
 
       var fileUrl = 'https://drive.google.com/uc?export=view&id=' + file.getId();
       var folderPath = 'TANDA_TANGAN / ' + position;
+      var nowFormatted = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+      var division = String(postData.division || postData.divisi || 'MANUFACTURING DIVISION').toUpperCase().trim();
+
+      // 1. Catat / Update ke Sheet 'Master Tanda Tangan' (Database Tanda Tangan Resmi)
+      try {
+        var ttdSheet = ss.getSheetByName('Master Tanda Tangan');
+        var ttdHeaders = CONFIG_TABLES['Master Tanda Tangan'] || ['nrp', 'nama', 'position', 'department', 'division', 'signature_url', 'drive_file_id', 'updated_at'];
+        if (!ttdSheet) {
+          ttdSheet = ss.insertSheet('Master Tanda Tangan');
+          ttdSheet.appendRow(ttdHeaders);
+          var hRange = ttdSheet.getRange(1, 1, 1, ttdHeaders.length);
+          hRange.setBackground('#92302e').setFontColor('#ffffff').setFontWeight('bold');
+          ttdSheet.setFrozenRows(1);
+        }
+
+        var ttdData = ttdSheet.getDataRange().getValues();
+        var rowUpdated = false;
+        for (var tr = 1; tr < ttdData.length; tr++) {
+          if (String(ttdData[tr][0]).trim() === nrp) {
+            ttdSheet.getRange(tr + 1, 2).setValue(nama);
+            ttdSheet.getRange(tr + 1, 3).setValue(position);
+            ttdSheet.getRange(tr + 1, 4).setValue(departemen);
+            ttdSheet.getRange(tr + 1, 5).setValue(division);
+            ttdSheet.getRange(tr + 1, 6).setValue(fileUrl);
+            ttdSheet.getRange(tr + 1, 7).setValue(file.getId());
+            ttdSheet.getRange(tr + 1, 8).setValue(nowFormatted);
+            rowUpdated = true;
+            break;
+          }
+        }
+        if (!rowUpdated) {
+          ttdSheet.appendRow([nrp, nama, position, departemen, division, fileUrl, file.getId(), nowFormatted]);
+        }
+      } catch (eSheetTtd) {
+        Logger.log('Gagal update sheet Master Tanda Tangan: ' + eSheetTtd);
+      }
+
+      // 2. Sinkronkan signature_path di Sheet 'users'
+      try {
+        var uSheet = ss.getSheetByName('users');
+        if (uSheet && uSheet.getLastRow() > 1) {
+          var uData = uSheet.getDataRange().getValues();
+          var uHeaders = uData[0];
+          var uNrpCol = -1, uSigCol = -1;
+          for (var uh = 0; uh < uHeaders.length; uh++) {
+            var colName = String(uHeaders[uh]).toLowerCase().trim();
+            if (colName === 'nrp') uNrpCol = uh;
+            if (colName === 'signature_path') uSigCol = uh;
+          }
+          if (uSigCol === -1) {
+            uSigCol = uHeaders.length;
+            uSheet.getRange(1, uSigCol + 1).setValue('signature_path');
+          }
+          if (uNrpCol > -1) {
+            for (var ur = 1; ur < uData.length; ur++) {
+              if (String(uData[ur][uNrpCol]).trim() === nrp) {
+                uSheet.getRange(ur + 1, uSigCol + 1).setValue(fileUrl);
+                break;
+              }
+            }
+          }
+        }
+      } catch (eUserSheet) {
+        Logger.log('Gagal update signature_path di sheet users: ' + eUserSheet);
+      }
 
       return jsonResponse({
         status: 'success',

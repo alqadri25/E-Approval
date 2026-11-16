@@ -24,6 +24,19 @@ class ProfileController extends Controller
             return redirect()->route('login');
         }
 
+        // Auto-hydrate signature if missing from master_tanda_tangan table
+        if (empty($user->signature_path) && !empty($user->nrp)) {
+            try {
+                if (Schema::hasTable('master_tanda_tangan')) {
+                    $sigRec = DB::table('master_tanda_tangan')->where('nrp', (string)$user->nrp)->first();
+                    if ($sigRec && (!empty($sigRec->signature_base64) || !empty($sigRec->signature_url))) {
+                        $user->signature_path = $sigRec->signature_base64 ?: $sigRec->signature_url;
+                        $user->save();
+                    }
+                }
+            } catch (\Throwable $e) {}
+        }
+
         $karyawan = $user->karyawan;
 
         return view('profile.index', [
@@ -94,6 +107,13 @@ class ProfileController extends Controller
                 } catch (\Throwable $e) {}
             }
             $user->signature_path = null;
+            if (!empty($user->nrp)) {
+                try {
+                    if (Schema::hasTable('master_tanda_tangan')) {
+                        DB::table('master_tanda_tangan')->where('nrp', (string)$user->nrp)->delete();
+                    }
+                } catch (\Throwable $e) {}
+            }
         }
 
         // Resolve new signature binary from file upload or canvas drawing
@@ -138,14 +158,35 @@ class ProfileController extends Controller
 
             // 2. Simpan Data URI Base64 ke $user->signature_path agar 100% tampil instan tanpa ketergantungan file lokal atau blokir Google Drive
             $mime = ($signatureExt === 'jpg' || $signatureExt === 'jpeg') ? 'image/jpeg' : 'image/png';
-            $user->signature_path = 'data:' . $mime . ';base64,' . base64_encode($signatureBinary);
+            $dataUri = 'data:' . $mime . ';base64,' . base64_encode($signatureBinary);
+            $user->signature_path = $dataUri;
 
-            // 3. Unggah otomatis ke Google Drive (Struktur Rapi: Root -> TANDA_TANGAN -> [ROLE] -> {filename})
+            // 3. Unggah otomatis ke Google Drive (Struktur Rapi: Root -> TANDA_TANGAN -> [ROLE] -> {filename}) dan catat ke Sheet 'Master Tanda Tangan'
             $driveResult = \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $signatureBinary, $signatureExt);
+
+            // 4. Catat ke tabel lokal master_tanda_tangan
+            try {
+                if (Schema::hasTable('master_tanda_tangan')) {
+                    DB::table('master_tanda_tangan')->updateOrInsert(
+                        ['nrp' => $cleanNrp],
+                        [
+                            'nama' => $user->nama,
+                            'position' => $cleanPos,
+                            'department' => $cleanDept,
+                            'division' => strtoupper(trim((string)($user->divisi ?: 'MANUFACTURING DIVISION'))),
+                            'signature_url' => $driveResult['file_url'] ?? null,
+                            'drive_file_id' => $driveResult['file_id'] ?? null,
+                            'signature_base64' => $dataUri,
+                            'updated_at' => now(),
+                        ]
+                    );
+                }
+            } catch (\Throwable $e) {}
+
             if (!empty($driveResult['success'])) {
-                $driveNotice = " Berkas TTD tersimpan rapi di Google Drive ({$driveResult['folder_path']}/{$driveResult['file_name']}).";
+                $driveNotice = " Berkas TTD tersimpan rapi di Google Drive ({$driveResult['folder_path']}/{$driveResult['file_name']}) & Sheet 'Master Tanda Tangan'.";
             } elseif (!empty($driveResult['message'])) {
-                $driveNotice = " (Google Drive: {$driveResult['message']})";
+                $driveNotice = " (Catatan Drive: {$driveResult['message']})";
             }
         }
 
@@ -328,6 +369,14 @@ class ProfileController extends Controller
         }
         $user->signature_path = null;
         $user->save();
+
+        if (!empty($user->nrp)) {
+            try {
+                if (Schema::hasTable('master_tanda_tangan')) {
+                    DB::table('master_tanda_tangan')->where('nrp', (string)$user->nrp)->delete();
+                }
+            } catch (\Throwable $e) {}
+        }
 
         return redirect()->route('profile.index')->with('success', 'Gambar tanda tangan digital berhasil dihapus.');
     }
