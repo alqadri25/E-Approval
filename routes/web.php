@@ -219,7 +219,17 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// Persistent session keepalive endpoint
+// Persistent session keepalive endpoint with quiet background operational sync
 Route::get('/session-keepalive', function () {
-    return response()->json(['status' => 'ok', 'authenticated' => \Illuminate\Support\Facades\Auth::check(), 'user_id' => \Illuminate\Support\Facades\Auth::id()]);
+    // Quietly sync operational tables from Google Sheets in background if needed
+    try {
+        \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle();
+    } catch (\Throwable $e) {}
+
+    return response()->json([
+        'status' => 'ok',
+        'authenticated' => \Illuminate\Support\Facades\Auth::check(),
+        'user_id' => \Illuminate\Support\Facades\Auth::id(),
+        'timestamp' => now()->toIso8601String()
+    ]);
 })->middleware('web')->name('session.keepalive');

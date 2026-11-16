@@ -2121,6 +2121,19 @@ class PenilaianController extends Controller
             abort(404, 'Dokumen penilaian tidak ditemukan.');
         }
 
+        // Live persistence check: if document locally is at waiting_foreman or has no signatures,
+        // ensure operational tables are fresh from Google Spreadsheet so signatures are never lost across container restarts
+        $localTtdCount = DB::table('tanda_tangan')->where('dokumen_id', $id)->count();
+        if ($localTtdCount === 0 || in_array($dokumen['status'] ?? '', ['draft', 'menunggu_foreman'])) {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+                $freshDoc = DB::table('dokumen')->where('id', $id)->first();
+                if ($freshDoc) {
+                    $dokumen = (array)$freshDoc;
+                }
+            } catch (\Throwable $e) {}
+        }
+
         // 2. Fetch employee details (fresh from DB)
         $karyawanRow = DB::table('karyawan')->where('nrp', $dokumen['nrp'])->first();
         $karyawan = $karyawanRow ? (array)$karyawanRow : $this->repository->find('karyawan', 'nrp', $dokumen['nrp']);

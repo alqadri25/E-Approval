@@ -1145,6 +1145,119 @@ class GoogleSyncService
     }
 
     /**
+     * Real-time 2-way sync: Synchronizes operational tables (tanda_tangan, dokumen, nilai, indikator)
+     * from Google Spreadsheet into local SQLite so signatures and document workflow states
+     * persist seamlessly across container restarts, deploys, and idle periods.
+     */
+    public static function syncOperationalTablesFromGoogle(bool $force = false): array
+    {
+        $cacheKey = 'last_google_operational_sync';
+        if (!$force && Cache::has($cacheKey)) {
+            return ['status' => 'skipped_cache_active'];
+        }
+
+        $config = self::getConfig();
+        $appscriptUrl = $config['appscript_url'] ?? '';
+        if (empty($appscriptUrl) || !filter_var($appscriptUrl, FILTER_VALIDATE_URL)) {
+            return ['status' => 'skipped_no_url'];
+        }
+
+        try {
+            $response = Http::timeout(6)->withoutVerifying()->get($appscriptUrl, [
+                'action' => 'pull_all',
+            ]);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                $data = $json['data'] ?? [];
+
+                // 1. Sync tanda_tangan (digital signatures from Google Sheets)
+                if (!empty($data['tanda_tangan']) && is_array($data['tanda_tangan'])) {
+                    DB::transaction(function () use ($data) {
+                        $existingTtd = DB::table('tanda_tangan')->get()->keyBy(fn($r) => $r->dokumen_id . '_' . $r->level);
+                        foreach ($data['tanda_tangan'] as $t) {
+                            $docId = $t['dokumen_id'] ?? null;
+                            $lvl = $t['level'] ?? null;
+                            if (!$docId || !$lvl) continue;
+
+                            $key = $docId . '_' . $lvl;
+                            $existing = $existingTtd->get($key);
+                            if (!$existing || (empty($existing->ttd_image) && !empty($t['ttd_image']))) {
+                                DB::table('tanda_tangan')->updateOrInsert(
+                                    ['dokumen_id' => $docId, 'level' => $lvl],
+                                    [
+                                        'user_id' => $t['user_id'] ?? 0,
+                                        'tgl_ttd' => $t['tgl_ttd'] ?? now()->toDateTimeString(),
+                                        'ip' => $t['ip'] ?? '',
+                                        'user_agent' => $t['user_agent'] ?? '',
+                                        'hash_snapshot' => $t['hash_snapshot'] ?? '',
+                                        'ttd_image' => $t['ttd_image'] ?? '',
+                                        'created_at' => $t['created_at'] ?? now()->toDateTimeString(),
+                                    ]
+                                );
+                            }
+                        }
+                    });
+                }
+
+                // 2. Sync dokumen (workflow statuses & scores)
+                if (!empty($data['dokumen']) && is_array($data['dokumen'])) {
+                    DB::transaction(function () use ($data) {
+                        $existingDocs = DB::table('dokumen')->get()->keyBy('id');
+                        foreach ($data['dokumen'] as $d) {
+                            $id = $d['id'] ?? null;
+                            if (!$id) continue;
+                            $existing = $existingDocs->get($id);
+                            if ($existing && ($existing->status !== $d['status'] || $existing->total_nilai != ($d['total_nilai'] ?? 0))) {
+                                DB::table('dokumen')->where('id', $id)->update([
+                                    'status' => $d['status'],
+                                    'total_nilai' => $d['total_nilai'] ?? $existing->total_nilai,
+                                    'grade_original' => $d['grade_original'] ?? $existing->grade_original,
+                                    'docking_final' => $d['docking_final'] ?? $existing->docking_final,
+                                    'updated_at' => $d['updated_at'] ?? now()->toDateTimeString(),
+                                ]);
+                            }
+                        }
+                    });
+                }
+
+                // 3. Sync nilai (scores)
+                if (!empty($data['nilai']) && is_array($data['nilai'])) {
+                    DB::transaction(function () use ($data) {
+                        $existingNilai = DB::table('nilai')->get()->keyBy(fn($r) => $r->dokumen_id . '_' . $r->level . '_' . $r->aspek_kode);
+                        foreach ($data['nilai'] as $n) {
+                            $docId = $n['dokumen_id'] ?? null;
+                            $lvl = $n['level'] ?? null;
+                            $aspek = $n['aspek_kode'] ?? null;
+                            if (!$docId || !$lvl || !$aspek) continue;
+
+                            $key = $docId . '_' . $lvl . '_' . $aspek;
+                            if (!$existingNilai->has($key)) {
+                                DB::table('nilai')->insert([
+                                    'dokumen_id' => $docId,
+                                    'level' => $lvl,
+                                    'aspek_kode' => $aspek,
+                                    'skor' => $n['skor'] ?? 0,
+                                    'catatan' => $n['catatan'] ?? '',
+                                    'created_at' => $n['created_at'] ?? now()->toDateTimeString(),
+                                    'updated_at' => $n['updated_at'] ?? now()->toDateTimeString(),
+                                ]);
+                            }
+                        }
+                    });
+                }
+
+                Cache::put($cacheKey, true, 45); // Active cache for 45 seconds
+                return ['status' => 'success', 'timestamp' => now()->toIso8601String()];
+            }
+        } catch (\Throwable $e) {
+            Log::info('syncOperationalTablesFromGoogle non-blocking notice: ' . $e->getMessage());
+        }
+
+        return ['status' => 'offline_or_failed'];
+    }
+
+    /**
      * Generate complete, production-ready Google Apps Script Code
      * Injects the active Spreadsheet ID & Drive Folder ID dynamically
      */
