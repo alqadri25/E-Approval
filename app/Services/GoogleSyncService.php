@@ -1033,6 +1033,7 @@ function onOpen() {
     .createMenu('🚀 Musashi E-Approval')
     .addItem('⚡ Inisialisasi Seluruh Sheet Database', 'setupDatabaseSheets')
     .addItem('📁 Buat Subfolder Drive PDF Otomatis', 'setupDriveFolders')
+    .addItem('📱 Sinkron Barcode TTD Users ke Drive & Tampil di Sheet', 'syncUserBarcodesToDriveAndSheet')
     .addItem('✍️ Uji & Buat Folder Tanda Tangan Drive', 'testDriveAccess')
     .addSeparator()
     .addItem('📊 Cek Status & Statistik Data', 'showDatabaseStats')
@@ -1306,6 +1307,115 @@ function testDriveAccess() {
     );
   } catch (err) {
     showAlertSafely('Gagal mengakses Google Drive: ' + err.toString());
+  }
+}
+
+/**
+ * 4B. GENERATE & SINKRONKAN BARCODE TTD SETIAP USER KE GOOGLE DRIVE & TAMPIL DI SHEET USERS
+ * - Membuat file gambar QR Code resmi untuk setiap user di sheet users
+ * - Menyimpan file di Google Drive: TANDA_TANGAN / [ROLE] / [NRP]_[NAMA].png
+ * - Di sheet users:
+ *     - Kolom 'barcodettd': rumus =IMAGE("url") agar gambar barcode langsung MUNCUL/TAMPIL di dalam sel!
+ *     - Kolom 'ttdbarcode': link Google Drive langsung ke file gambar
+ */
+function syncUserBarcodesToDriveAndSheet() {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var uSheet = ss.getSheetByName('users');
+    if (!uSheet || uSheet.getLastRow() < 2) {
+      showAlertSafely('Sheet users tidak ditemukan atau belum ada data user.');
+      return;
+    }
+
+    var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+    var mainTtdFolder = getOrCreateSubfolder(rootFolder, 'TANDA_TANGAN');
+
+    var uData = uSheet.getDataRange().getValues();
+    var headers = uData[0];
+
+    // Cari index kolom
+    var colNrp = -1, colNama = -1, colRole = -1, colBarcodeTtd = -1, colTtdBarcode = -1;
+    for (var h = 0; h < headers.length; h++) {
+      var hName = String(headers[h] || '').trim().toLowerCase();
+      if (hName === 'nrp') colNrp = h;
+      if (hName === 'nama') colNama = h;
+      if (hName === 'role') colRole = h;
+      if (hName === 'barcodettd') colBarcodeTtd = h;
+      if (hName === 'ttdbarcode') colTtdBarcode = h;
+    }
+
+    // Tambahkan kolom jika belum ada
+    if (colBarcodeTtd === -1) {
+      colBarcodeTtd = headers.length;
+      uSheet.getRange(1, colBarcodeTtd + 1).setValue('barcodettd');
+      headers.push('barcodettd');
+    }
+    if (colTtdBarcode === -1) {
+      colTtdBarcode = headers.length;
+      uSheet.getRange(1, colTtdBarcode + 1).setValue('ttdbarcode');
+      headers.push('ttdbarcode');
+    }
+
+    // Format header
+    var hRange = uSheet.getRange(1, 1, 1, headers.length);
+    hRange.setBackground('#92302e').setFontColor('#ffffff').setFontWeight('bold');
+
+    var processedCount = 0;
+
+    for (var r = 1; r < uData.length; r++) {
+      var nrp = String(uData[r][colNrp] || '').trim();
+      var nama = String(uData[r][colNama] || '').trim().toUpperCase();
+      var role = String(uData[r][colRole] || 'FOREMAN').trim().toUpperCase().replace(/[^A-Z0-9]/g, '_');
+
+      if (!nrp || !nama) continue;
+
+      var cleanNama = nama.replace(/[^A-Z0-9]/g, '_');
+      var filename = nrp + '_' + cleanNama + '_' + role + '.png';
+
+      // Folder tujuan di Drive: TANDA_TANGAN / [ROLE]
+      var roleFolder = getOrCreateSubfolder(mainTtdFolder, role);
+
+      // Buat QR Code melalui API resmi QR
+      var payload = "PT MUSASHI AUTO PARTS INDONESIA\\nE-APPROVAL DIGITAL SIGNATURE\\nNRP: " + nrp + "\\nNAMA: " + nama + "\\nROLE: " + role + "\\nSTATUS: VERIFIED";
+      var qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&data=" + encodeURIComponent(payload);
+
+      try {
+        var blob = UrlFetchApp.fetch(qrApiUrl).getBlob().setName(filename);
+
+        // Cek file duplikat lama
+        var existingFiles = roleFolder.getFilesByName(filename);
+        while (existingFiles.hasNext()) {
+          existingFiles.next().setTrashed(true);
+        }
+
+        var file = roleFolder.createFile(blob);
+        try {
+          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (eShare) {}
+
+        var directImgUrl = "https://drive.google.com/uc?export=view&id=" + file.getId();
+        var driveViewUrl = file.getUrl();
+
+        // 1. Tampilkan gambar Barcode di sheet users (menggunakan rumus =IMAGE)
+        uSheet.getRange(r + 1, colBarcodeTtd + 1).setValue('=IMAGE("' + directImgUrl + '")');
+        // 2. Tampilkan URL Drive di kolom ttdbarcode
+        uSheet.getRange(r + 1, colTtdBarcode + 1).setValue(driveViewUrl);
+
+        // Atur tinggi baris agar gambar QR terlihat besar & rapi
+        uSheet.setRowHeight(r + 1, 80);
+        processedCount++;
+      } catch (eErr) {
+        Logger.log("Error generating barcode for " + nama + ": " + eErr);
+      }
+    }
+
+    // Atur lebar kolom
+    uSheet.setColumnWidth(colBarcodeTtd + 1, 95);
+    uSheet.setColumnWidth(colTtdBarcode + 1, 260);
+
+    showAlertSafely("Sukses! " + processedCount + " Barcode TTD berhasil disimpan di Google Drive (folder TANDA_TANGAN) dan ditampilkan di sheet users.");
+  } catch (err) {
+    showAlertSafely("Gagal sinkron barcode: " + err.toString());
   }
 }
 

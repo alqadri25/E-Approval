@@ -149,8 +149,16 @@ class User extends Authenticatable
             ?? ($this->attributes['ttdbarcode'] 
             ?? ($this->attributes['signature_path'] ?? null));
 
-        if ($candidate && str_starts_with($candidate, 'data:image')) {
-            return $candidate;
+        if ($candidate) {
+            if (str_starts_with($candidate, 'data:image')) {
+                return $candidate;
+            }
+            if (preg_match('/=IMAGE\("([^"]+)"\)/i', $candidate, $m)) {
+                return $m[1];
+            }
+            if (str_starts_with($candidate, 'http://') || str_starts_with($candidate, 'https://')) {
+                return $candidate;
+            }
         }
 
         return self::generateBarcodeDataUri($this->nrp ?: (string)$this->id, $this->nama, $this->role);
