@@ -399,13 +399,13 @@
     <!-- Modal Dialog Revisi Form Penilaian (Zero Radius / Square matching Data Karyawan) -->
     <div x-show="showModal" 
          x-cloak 
-         class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+         class="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center animate-in fade-in duration-150">
         
-        <div class="bg-white border border-slate-300 shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-150"
+        <div class="bg-white border border-slate-300 shadow-2xl w-full max-w-lg my-auto flex flex-col max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-150"
              @click.away="showModal = false">
             
-            <!-- Modal Header -->
-            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <!-- Modal Header (Fixed / Sticky at Top) -->
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 flex-shrink-0">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 bg-rose-50 border border-rose-200 text-[#92302e] flex items-center justify-center flex-shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -420,170 +420,181 @@
                 <button type="button" @click="showModal = false" class="text-slate-400 hover:text-slate-700 text-xl font-bold cursor-pointer leading-none">&times;</button>
             </div>
 
-            <!-- Modal Body Form -->
-            <form :action="formActionUrl" method="POST" class="p-5 space-y-4">
+            <!-- Modal Body Form with Scrollable Content & Pinned Sticky Footer -->
+            <form :action="formActionUrl" method="POST" class="flex flex-col flex-1 overflow-hidden">
                 @csrf
+                <input type="hidden" name="target_level" :value="primaryTargetLevel">
 
-                <!-- Employee Snapshot Card in Modal -->
-                <div class="bg-slate-50 border border-slate-300 p-3 text-xs space-y-1">
-                    <div class="flex items-center justify-between">
-                        <span class="font-black text-slate-900 text-sm" x-text="activeDoc ? activeDoc.nama_lengkap : ''"></span>
-                        <span class="px-2 py-0.5 text-[10px] font-bold border border-slate-300 bg-white" x-text="activeDoc ? activeDoc.status.replace('_', ' ').toUpperCase() : ''"></span>
+                <!-- Scrollable Body Container -->
+                <div class="p-5 space-y-4 overflow-y-auto flex-1 max-h-[calc(92vh-140px)]">
+                    <!-- Employee Snapshot Card in Modal -->
+                    <div class="bg-slate-50 border border-slate-300 p-3 text-xs space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="font-black text-slate-900 text-sm" x-text="activeDoc ? activeDoc.nama_lengkap : ''"></span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold border border-slate-300 bg-white" x-text="activeDoc ? activeDoc.status.replace('_', ' ').toUpperCase() : ''"></span>
+                        </div>
+                        <div class="text-slate-600 font-mono text-[11px] flex items-center gap-2">
+                            <span>NRP: <strong class="text-[#92302e]" x-text="activeDoc ? activeDoc.nrp : ''"></strong></span>
+                            <span>&bull;</span>
+                            <span x-text="activeDoc ? ((activeDoc.division && activeDoc.division !== '-' ? activeDoc.division + ' &bull; ' : '') + activeDoc.departemen + ' / ' + (activeDoc.seksi || '-')) : ''"></span>
+                            <span>&bull;</span>
+                            <span>Form: <strong x-text="activeDoc ? activeDoc.kode_form : ''"></strong></span>
+                        </div>
                     </div>
-                    <div class="text-slate-600 font-mono text-[11px] flex items-center gap-2">
-                        <span>NRP: <strong class="text-[#92302e]" x-text="activeDoc ? activeDoc.nrp : ''"></strong></span>
-                        <span>&bull;</span>
-                        <span x-text="activeDoc ? ((activeDoc.division && activeDoc.division !== '-' ? activeDoc.division + ' &bull; ' : '') + activeDoc.departemen + ' / ' + (activeDoc.seksi || '-')) : ''"></span>
-                        <span>&bull;</span>
-                        <span>Form: <strong x-text="activeDoc ? activeDoc.kode_form : ''"></strong></span>
-                    </div>
-                </div>
 
-                <!-- Target Level Revision Selection (Radio Cards) -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider mb-2">
-                        Pilih Target Tingkat Revisi <span class="text-rose-600">*</span>
-                    </label>
-                    <div class="space-y-2">
+                    <!-- Target Level Revision Selection (Checkbox Cards - Can Pick Multiple) -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-xs font-bold text-slate-900 uppercase tracking-wider">
+                                Pilih Target Tingkat Revisi <span class="text-rose-600">*</span>
+                            </label>
+                            <span class="text-[11px] font-semibold text-[#92302e] bg-red-50 px-2 py-0.5 border border-red-200"
+                                  x-text="selectedTargets.length + ' dipilih'"></span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mb-2.5">
+                            Bisa memilih satu atau beberapa tingkat penilai sekaligus (checkbox).
+                        </p>
+                        <div class="space-y-2">
 
-                        <!-- 1. Option Foreman -->
-                        <label class="relative flex items-start gap-3 p-3 border cursor-pointer transition-all"
-                               :class="activeDoc && activeDoc.can_revisi_foreman ? (selectedTarget === 'foreman' ? 'border-[#92302e] bg-red-50/50 ring-1 ring-[#92302e]' : 'border-slate-300 hover:border-slate-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'">
-                            <input type="radio" 
-                                   name="target_level" 
-                                   value="foreman" 
-                                   x-model="selectedTarget"
-                                   :disabled="!activeDoc || !activeDoc.can_revisi_foreman" 
-                                   class="mt-1 text-[#92302e] focus:ring-[#92302e]">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-xs text-slate-900">Revisi ke Foreman</span>
-                                    <template x-if="!activeDoc || !activeDoc.can_revisi_foreman">
-                                        <span class="text-[10px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 border border-slate-300">
-                                            <span x-text="activeDoc && !activeDoc.needs_foreman ? 'Tanpa Foreman' : 'Belum Ada Nilai Foreman'"></span>
-                                        </span>
-                                    </template>
-                                </div>
-                                <p class="text-[11px] text-slate-500 mt-0.5">
-                                    Status dikembalikan ke <strong>Menunggu Foreman</strong>. Foreman dapat mengisi ulang seluruh aspek penilaian.
-                                </p>
-                            </div>
-                        </label>
-
-                        <!-- 2. Option Section Head (Strict user rule: cannot be chosen if section head hasn't evaluated yet) -->
-                        <label class="relative flex items-start gap-3 p-3 border cursor-pointer transition-all"
-                               :class="activeDoc && activeDoc.can_revisi_section ? (selectedTarget === 'section_head' ? 'border-[#92302e] bg-red-50/50 ring-1 ring-[#92302e]' : 'border-slate-300 hover:border-slate-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'">
-                            <input type="radio" 
-                                   name="target_level" 
-                                   value="section_head" 
-                                   x-model="selectedTarget"
-                                   :disabled="!activeDoc || !activeDoc.can_revisi_section" 
-                                   class="mt-1 text-[#92302e] focus:ring-[#92302e]">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-xs text-slate-900">Revisi ke Section Head</span>
-                                    <template x-if="!activeDoc || !activeDoc.can_revisi_section">
-                                        <span class="text-[10px] font-semibold text-rose-700 bg-rose-100 px-1.5 py-0.5 border border-rose-300">
-                                            Belum Ada Nilai Section Head (Tidak Bisa Dipilih)
-                                        </span>
-                                    </template>
-                                </div>
-                                <p class="text-[11px] text-slate-500 mt-0.5">
-                                    Status dikembalikan ke <strong>Menunggu Section Head</strong>. Section Head dapat mengisi ulang atau mengoreksi nilai.
-                                </p>
-                            </div>
-                        </label>
-
-                        <!-- 3. Option Department Head -->
-                        <label class="relative flex items-start gap-3 p-3 border cursor-pointer transition-all"
-                               :class="activeDoc && activeDoc.can_revisi_dept ? (selectedTarget === 'dept_head' ? 'border-[#92302e] bg-red-50/50 ring-1 ring-[#92302e]' : 'border-slate-300 hover:border-slate-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'">
-                            <input type="radio" 
-                                   name="target_level" 
-                                   value="dept_head" 
-                                   x-model="selectedTarget"
-                                   :disabled="!activeDoc || !activeDoc.can_revisi_dept" 
-                                   class="mt-1 text-[#92302e] focus:ring-[#92302e]">
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center justify-between">
-                                    <span class="font-bold text-xs text-slate-900">Revisi ke Department Head</span>
-                                    <template x-if="!activeDoc || !activeDoc.can_revisi_dept">
-                                        <span class="text-[10px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 border border-slate-300">
-                                            Belum Ada Nilai Dept Head
-                                        </span>
-                                    </template>
-                                </div>
-                                <p class="text-[11px] text-slate-500 mt-0.5">
-                                    Status dikembalikan ke <strong>Menunggu Dept Head</strong>. Dept Head dapat mengubah penyesuaian nilai atau docking.
-                                </p>
-                            </div>
-                        </label>
-
-                        <!-- 4. Option Division Head -->
-                        <template x-if="activeDoc && (activeDoc.has_div_value || activeDoc.kode_form.includes('07-006'))">
-                            <label class="relative flex items-start gap-3 p-3 border cursor-pointer transition-all"
-                                   :class="activeDoc && activeDoc.can_revisi_div ? (selectedTarget === 'div_head' ? 'border-[#92302e] bg-red-50/50 ring-1 ring-[#92302e]' : 'border-slate-300 hover:border-slate-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'">
-                                <input type="radio" 
-                                       name="target_level" 
-                                       value="div_head" 
-                                       x-model="selectedTarget"
-                                       :disabled="!activeDoc || !activeDoc.can_revisi_div" 
-                                       class="mt-1 text-[#92302e] focus:ring-[#92302e]">
+                            <!-- 1. Option Foreman -->
+                            <label class="relative flex items-start gap-3 p-3 border cursor-pointer transition-all select-none"
+                                   :class="activeDoc && activeDoc.can_revisi_foreman ? (selectedTargets.includes('foreman') ? 'border-[#92302e] bg-red-50/50 ring-1 ring-[#92302e]' : 'border-slate-300 hover:border-slate-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'">
+                                <input type="checkbox" 
+                                       name="target_levels[]" 
+                                       value="foreman" 
+                                       x-model="selectedTargets"
+                                       :disabled="!activeDoc || !activeDoc.can_revisi_foreman" 
+                                       class="mt-1 text-[#92302e] focus:ring-[#92302e] rounded-none border-slate-300">
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between">
-                                        <span class="font-bold text-xs text-slate-900">Revisi ke Division Head</span>
-                                        <template x-if="!activeDoc || !activeDoc.can_revisi_div">
+                                        <span class="font-bold text-xs text-slate-900">Revisi ke Foreman</span>
+                                        <template x-if="!activeDoc || !activeDoc.can_revisi_foreman">
                                             <span class="text-[10px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 border border-slate-300">
-                                                Belum Disahkan Div Head
+                                                <span x-text="activeDoc && !activeDoc.needs_foreman ? 'Tanpa Foreman' : 'Belum Ada Nilai Foreman'"></span>
                                             </span>
                                         </template>
                                     </div>
                                     <p class="text-[11px] text-slate-500 mt-0.5">
-                                        Status dikembalikan ke <strong>Menunggu Div Head</strong> untuk tinjauan dan pengesahan ulang.
+                                        Status dikembalikan ke <strong>Menunggu Foreman</strong>. Foreman dapat mengisi ulang seluruh aspek penilaian.
                                     </p>
                                 </div>
                             </label>
-                        </template>
 
+                            <!-- 2. Option Section Head (Strict rule: cannot be chosen if section head hasn't evaluated yet) -->
+                            <label class="relative flex items-start gap-3 p-3 border cursor-pointer transition-all select-none"
+                                   :class="activeDoc && activeDoc.can_revisi_section ? (selectedTargets.includes('section_head') ? 'border-[#92302e] bg-red-50/50 ring-1 ring-[#92302e]' : 'border-slate-300 hover:border-slate-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'">
+                                <input type="checkbox" 
+                                       name="target_levels[]" 
+                                       value="section_head" 
+                                       x-model="selectedTargets"
+                                       :disabled="!activeDoc || !activeDoc.can_revisi_section" 
+                                       class="mt-1 text-[#92302e] focus:ring-[#92302e] rounded-none border-slate-300">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-xs text-slate-900">Revisi ke Section Head</span>
+                                        <template x-if="!activeDoc || !activeDoc.can_revisi_section">
+                                            <span class="text-[10px] font-semibold text-rose-700 bg-rose-100 px-1.5 py-0.5 border border-rose-300">
+                                                Belum Ada Nilai Section Head (Tidak Bisa Dipilih)
+                                            </span>
+                                        </template>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">
+                                        Status dikembalikan ke <strong>Menunggu Section Head</strong>. Section Head dapat mengisi ulang atau mengoreksi nilai.
+                                    </p>
+                                </div>
+                            </label>
+
+                            <!-- 3. Option Department Head -->
+                            <label class="relative flex items-start gap-3 p-3 border cursor-pointer transition-all select-none"
+                                   :class="activeDoc && activeDoc.can_revisi_dept ? (selectedTargets.includes('dept_head') ? 'border-[#92302e] bg-red-50/50 ring-1 ring-[#92302e]' : 'border-slate-300 hover:border-slate-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'">
+                                <input type="checkbox" 
+                                       name="target_levels[]" 
+                                       value="dept_head" 
+                                       x-model="selectedTargets"
+                                       :disabled="!activeDoc || !activeDoc.can_revisi_dept" 
+                                       class="mt-1 text-[#92302e] focus:ring-[#92302e] rounded-none border-slate-300">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-xs text-slate-900">Revisi ke Department Head</span>
+                                        <template x-if="!activeDoc || !activeDoc.can_revisi_dept">
+                                            <span class="text-[10px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 border border-slate-300">
+                                                Belum Ada Nilai Dept Head
+                                            </span>
+                                        </template>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 mt-0.5">
+                                        Status dikembalikan ke <strong>Menunggu Dept Head</strong>. Dept Head dapat mengubah penyesuaian nilai atau docking.
+                                    </p>
+                                </div>
+                            </label>
+
+                            <!-- 4. Option Division Head -->
+                            <template x-if="activeDoc && (activeDoc.has_div_value || activeDoc.kode_form.includes('07-006'))">
+                                <label class="relative flex items-start gap-3 p-3 border cursor-pointer transition-all select-none"
+                                       :class="activeDoc && activeDoc.can_revisi_div ? (selectedTargets.includes('div_head') ? 'border-[#92302e] bg-red-50/50 ring-1 ring-[#92302e]' : 'border-slate-300 hover:border-slate-400 bg-white') : 'border-slate-200 bg-slate-100 opacity-60 cursor-not-allowed'">
+                                    <input type="checkbox" 
+                                           name="target_levels[]" 
+                                           value="div_head" 
+                                           x-model="selectedTargets"
+                                           :disabled="!activeDoc || !activeDoc.can_revisi_div" 
+                                           class="mt-1 text-[#92302e] focus:ring-[#92302e] rounded-none border-slate-300">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center justify-between">
+                                            <span class="font-bold text-xs text-slate-900">Revisi ke Division Head</span>
+                                            <template x-if="!activeDoc || !activeDoc.can_revisi_div">
+                                                <span class="text-[10px] font-semibold text-slate-500 bg-slate-200 px-1.5 py-0.5 border border-slate-300">
+                                                    Belum Disahkan Div Head
+                                                </span>
+                                            </template>
+                                        </div>
+                                        <p class="text-[11px] text-slate-500 mt-0.5">
+                                            Status dikembalikan ke <strong>Menunggu Div Head</strong> untuk tinjauan dan pengesahan ulang.
+                                        </p>
+                                    </div>
+                                </label>
+                            </template>
+
+                        </div>
+                    </div>
+
+                    <!-- Catatan / Alasan Revisi -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-900 mb-1">
+                            Catatan / Alasan Revisi <span class="text-slate-400 font-normal">(Disampaikan kepada penilai terkait)</span>
+                        </label>
+                        <textarea name="alasan" 
+                                  rows="2" 
+                                  x-model="alasanRevisi"
+                                  placeholder="Misal: Mohon koreksi kembali skor aspek hasil kerja atau kesesuaian target..." 
+                                  class="w-full p-2.5 text-xs border border-slate-300 hover:border-slate-400 focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] outline-none shadow-xs"></textarea>
+                    </div>
+
+                    <!-- Checkbox Opsi Reset Nilai -->
+                    <div class="pt-2 border-t border-slate-200">
+                        <label class="flex items-start gap-2.5 cursor-pointer select-none">
+                            <input type="checkbox" 
+                                   name="reset_nilai" 
+                                   value="1" 
+                                   class="mt-0.5 text-[#92302e] focus:ring-[#92302e] rounded-none border-slate-300">
+                            <div class="text-[11px] text-slate-600 leading-tight">
+                                <span class="font-bold text-slate-800">Kosongkan/Reset nilai pada tingkat revisi ke atas</span>
+                                <p class="text-slate-500 mt-0.5">
+                                    Jika tidak dicentang, nilai lama tetap disimpan sebagai draf sehingga penilai hanya perlu memperbaiki aspek yang salah tanpa mengisi dari awal.
+                                </p>
+                            </div>
+                        </label>
                     </div>
                 </div>
 
-                <!-- Catatan / Alasan Revisi -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-900 mb-1">
-                        Catatan / Alasan Revisi <span class="text-slate-400 font-normal">(Disampaikan kepada penilai terkait)</span>
-                    </label>
-                    <textarea name="alasan" 
-                              rows="2" 
-                              x-model="alasanRevisi"
-                              placeholder="Misal: Mohon koreksi kembali skor aspek hasil kerja atau kesesuaian target..." 
-                              class="w-full p-2.5 text-xs border border-slate-300 hover:border-slate-400 focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] outline-none shadow-xs"></textarea>
-                </div>
-
-                <!-- Checkbox Opsi Reset Nilai -->
-                <div class="pt-2 border-t border-slate-200">
-                    <label class="flex items-start gap-2.5 cursor-pointer">
-                        <input type="checkbox" 
-                               name="reset_nilai" 
-                               value="1" 
-                               class="mt-0.5 text-[#92302e] focus:ring-[#92302e] border-slate-300">
-                        <div class="text-[11px] text-slate-600 leading-tight">
-                            <span class="font-bold text-slate-800">Kosongkan/Reset nilai pada tingkat revisi ke atas</span>
-                            <p class="text-slate-500 mt-0.5">
-                                Jika tidak dicentang, nilai lama tetap disimpan sebagai draf sehingga penilai hanya perlu memperbaiki aspek yang salah tanpa mengisi dari awal.
-                            </p>
-                        </div>
-                    </label>
-                </div>
-
-                <!-- Modal Actions -->
-                <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                <!-- Modal Actions (Sticky Pinned Footer) -->
+                <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50 flex-shrink-0">
                     <button type="button" 
                             @click="showModal = false" 
-                            class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition shadow-xs cursor-pointer">
+                            class="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-bold transition shadow-xs cursor-pointer">
                         Batal
                     </button>
                     <button type="submit" 
-                            :disabled="!selectedTarget"
+                            :disabled="selectedTargets.length === 0"
                             class="px-4 py-2 bg-[#92302e] hover:bg-[#7e2524] disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-bold transition shadow-xs cursor-pointer">
                         Kembalikan Untuk Revisi
                     </button>
@@ -600,25 +611,32 @@ function revisiManager() {
     return {
         showModal: false,
         activeDoc: null,
-        selectedTarget: '',
+        selectedTargets: [],
         alasanRevisi: '',
         formActionUrl: '',
+
+        get primaryTargetLevel() {
+            if (this.selectedTargets.includes('foreman')) return 'foreman';
+            if (this.selectedTargets.includes('section_head')) return 'section_head';
+            if (this.selectedTargets.includes('dept_head')) return 'dept_head';
+            if (this.selectedTargets.includes('div_head')) return 'div_head';
+            return '';
+        },
 
         openRevisiModal(doc) {
             this.activeDoc = doc;
             this.alasanRevisi = '';
+            this.selectedTargets = [];
             
-            // Set default selected target intelligently
-            if (doc.can_revisi_section) {
-                this.selectedTarget = 'section_head';
-            } else if (doc.can_revisi_foreman) {
-                this.selectedTarget = 'foreman';
+            // Set default selected target based on the highest available level
+            if (doc.can_revisi_div) {
+                this.selectedTargets = ['div_head'];
             } else if (doc.can_revisi_dept) {
-                this.selectedTarget = 'dept_head';
-            } else if (doc.can_revisi_div) {
-                this.selectedTarget = 'div_head';
-            } else {
-                this.selectedTarget = '';
+                this.selectedTargets = ['dept_head'];
+            } else if (doc.can_revisi_section) {
+                this.selectedTargets = ['section_head'];
+            } else if (doc.can_revisi_foreman) {
+                this.selectedTargets = ['foreman'];
             }
 
             // Set form POST url dynamically based on current role

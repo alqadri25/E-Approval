@@ -3645,12 +3645,34 @@ class AdminController extends Controller
         }
 
         $request->validate([
-            'target_level' => 'required|in:foreman,section_head,dept_head,div_head',
+            'target_level' => 'nullable|string|in:foreman,section_head,dept_head,div_head',
+            'target_levels' => 'nullable|array',
+            'target_levels.*' => 'string|in:foreman,section_head,dept_head,div_head',
             'alasan' => 'nullable|string|max:500',
             'reset_nilai' => 'nullable|boolean',
         ]);
 
-        $targetLevel = $request->input('target_level');
+        $targetLevels = (array)$request->input('target_levels', []);
+        if (empty($targetLevels) && $request->filled('target_level')) {
+            $targetLevels = [$request->input('target_level')];
+        }
+        $targetLevels = array_values(array_unique(array_filter($targetLevels)));
+
+        if (empty($targetLevels)) {
+            return back()->with('error', 'Pilih minimal satu tingkat revisi.');
+        }
+
+        // Tentukan primary target level (level terendah / paling awal yang dipilih untuk menentukan status dokumen baru)
+        if (in_array('foreman', $targetLevels)) {
+            $primaryTarget = 'foreman';
+        } elseif (in_array('section_head', $targetLevels)) {
+            $primaryTarget = 'section_head';
+        } elseif (in_array('dept_head', $targetLevels)) {
+            $primaryTarget = 'dept_head';
+        } else {
+            $primaryTarget = 'div_head';
+        }
+
         $alasan = trim((string)$request->input('alasan', ''));
         if ($alasan === '') {
             $alasan = 'Revisi pengisian penilaian oleh ' . $user->nama;
@@ -3661,25 +3683,21 @@ class AdminController extends Controller
         $scoresByLevel = DB::table('nilai')->where('dokumen_id', $id)->pluck('level')->unique()->toArray();
         $ttdByLevel = DB::table('tanda_tangan')->where('dokumen_id', $id)->pluck('level')->unique()->toArray();
 
-        // 1. Validasi: Jika target adalah section_head, section_head harus sudah ada nilai/ttd
-        if ($targetLevel === 'section_head' && !in_array('section_head', $scoresByLevel) && !in_array('section_head', $ttdByLevel)) {
+        // Validasi setiap target yang dipilih
+        if (in_array('section_head', $targetLevels) && !in_array('section_head', $scoresByLevel) && !in_array('section_head', $ttdByLevel)) {
             return back()->with('error', 'Tidak dapat merevisi ke Section Head karena Section Head belum pernah mengisi penilaian untuk dokumen ini.');
         }
-
-        // 2. Validasi: Jika target adalah dept_head, dept_head harus sudah ada nilai/ttd
-        if ($targetLevel === 'dept_head' && !in_array('dept_head', $scoresByLevel) && !in_array('dept_head', $ttdByLevel)) {
+        if (in_array('dept_head', $targetLevels) && !in_array('dept_head', $scoresByLevel) && !in_array('dept_head', $ttdByLevel)) {
             return back()->with('error', 'Tidak dapat merevisi ke Department Head karena Department Head belum pernah mengisi penilaian untuk dokumen ini.');
         }
-
-        // 3. Validasi: Jika target adalah div_head, div_head harus sudah pernah ttd atau status selesai
-        if ($targetLevel === 'div_head' && !in_array('div_head', $scoresByLevel) && !in_array('div_head', $ttdByLevel) && $dokumen->status !== 'selesai') {
+        if (in_array('div_head', $targetLevels) && !in_array('div_head', $scoresByLevel) && !in_array('div_head', $ttdByLevel) && $dokumen->status !== 'selesai') {
             return back()->with('error', 'Tidak dapat merevisi ke Division Head karena Division Head belum menandatangani dokumen ini.');
         }
 
         $isGol4Up = in_array($dokumen->kode_form ?? '', ['07-006-SH', '07-006-DH', '07-006-DIV']);
 
-        // Tentukan status dokumen baru
-        $newStatus = match($targetLevel) {
+        // Tentukan status dokumen baru berdasarkan level paling awal yang dipilih
+        $newStatus = match($primaryTarget) {
             'foreman' => ($isGol4Up ? 'menunggu_section_head' : 'menunggu_foreman'),
             'section_head' => 'menunggu_section_head',
             'dept_head' => 'menunggu_dept_head',
@@ -3688,19 +3706,25 @@ class AdminController extends Controller
 
         // Level tanda tangan yang harus diinvalidasi
         if ($isGol4Up) {
-            $levelsToInvalidate = match($targetLevel) {
+            $levelsToInvalidate = match($primaryTarget) {
                 'foreman', 'section_head' => ['foreman', 'section_head', 'dept_head', 'div_head', 'division_head'],
                 'dept_head' => ['section_head', 'dept_head', 'div_head', 'division_head'],
                 'div_head' => ['dept_head', 'div_head', 'division_head'],
             };
         } else {
-            $levelsToInvalidate = match($targetLevel) {
+            $levelsToInvalidate = match($primaryTarget) {
                 'foreman' => ['foreman', 'section_head', 'dept_head', 'div_head', 'division_head'],
                 'section_head' => ['section_head', 'dept_head', 'div_head', 'division_head'],
                 'dept_head' => ['dept_head', 'div_head', 'division_head'],
                 'div_head' => ['div_head', 'division_head'],
             };
         }
+        foreach ($targetLevels as $tl) {
+            if (!in_array($tl, $levelsToInvalidate)) {
+                $levelsToInvalidate[] = $tl;
+            }
+        }
+        $levelsToInvalidate = array_values(array_unique($levelsToInvalidate));
 
         // Hapus berkas tanda tangan fisik & hapus record di tabel tanda_tangan
         $oldTtds = DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->get();
@@ -3719,11 +3743,15 @@ class AdminController extends Controller
         // Update status dokumen
         DB::table('dokumen')->where('id', $id)->update([
             'status' => $newStatus,
+            'docking_final' => null,
+            'hash_dokumen' => null,
             'updated_at' => now()->toDateTimeString(),
         ]);
 
         $this->repository->update('dokumen', 'id', $id, [
             'status' => $newStatus,
+            'docking_final' => null,
+            'hash_dokumen' => null,
             'updated_at' => now()->toDateTimeString(),
         ]);
 
@@ -3737,29 +3765,28 @@ class AdminController extends Controller
         Cache::forget("sheet_all_nilai");
         Cache::forget("sheet_all_indikator");
 
-        // Sync to Google Spreadsheet
-        \App\Services\GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'audit_log']);
-
         // Catat Audit Log
-        $targetLabel = match($targetLevel) {
+        $targetLabels = array_map(fn($t) => match($t) {
             'foreman' => 'Foreman',
             'section_head' => 'Section Head',
             'dept_head' => 'Department Head',
             'div_head' => 'Division Head',
-        };
+            default => strtoupper($t),
+        }, $targetLevels);
+        $targetLabelStr = implode(', ', $targetLabels);
 
         $this->repository->insert('audit_log', [
             'waktu' => now()->toDateTimeString(),
             'user_id' => $user->id,
             'aksi' => 'admin_revisi_penilaian',
             'dokumen_id' => $id,
-            'detail' => "{$user->nama} merevisi form penilaian {$karyawan->nama_lengkap} (NRP: {$karyawan->nrp}) kembali ke {$targetLabel}. Alasan: {$alasan}" . ($resetNilai ? ' (Nilai di-reset)' : ' (Nilai lama disimpan sebagai draf)'),
+            'detail' => "{$user->nama} merevisi form penilaian {$karyawan->nama_lengkap} (NRP: {$karyawan->nrp}) kembali ke {$targetLabelStr}. Alasan: {$alasan}" . ($resetNilai ? ' (Nilai di-reset)' : ' (Nilai lama disimpan sebagai draf)'),
             'created_at' => now()->toDateTimeString(),
         ]);
 
         // Realtime sync ke spreadsheet
         GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'audit_log']);
 
-        return back()->with('success', "Form penilaian {$karyawan->nama_lengkap} ({$karyawan->nrp}) berhasil dikembalikan untuk dinilai ulang oleh {$targetLabel}. Status saat ini: {$newStatus}.");
+        return back()->with('success', "Form penilaian {$karyawan->nama_lengkap} ({$karyawan->nrp}) berhasil dikembalikan untuk dinilai ulang oleh {$targetLabelStr}. Status saat ini: " . ucwords(str_replace('_', ' ', $newStatus)) . ".");
     }
 }
