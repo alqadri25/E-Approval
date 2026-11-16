@@ -351,7 +351,7 @@
                                             editKaryawan.nrp = '{{ $k['nrp'] }}';
                                             editKaryawan.nama_lengkap = '{{ addslashes($k['nama_lengkap']) }}';
                                             editKaryawan.jabatan = '{{ addslashes($k['jabatan']) }}';
-                                            editKaryawan.tgl_masuk = '{{ $k['tgl_masuk'] }}';
+                                            editKaryawan.tgl_masuk = '{{ \App\Services\GoogleSyncService::toYmd($k['tgl_masuk'] ?? '') }}';
                                             editKaryawan.golongan = '{{ $k['golongan'] ?? 'GOLONGAN II' }}';
                                             editKaryawan.sub_gol = '{{ $k['sub_gol'] }}';
                                             editKaryawan.kj = '{{ $k['kj'] }}';

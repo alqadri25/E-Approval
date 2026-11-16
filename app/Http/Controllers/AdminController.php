@@ -438,17 +438,9 @@ class AdminController extends Controller
                 $levelAtasan = '-';
             }
 
-            // Start Work formatted as Day-Month-Year (e.g. 20-Aug-01)
+            // Start Work formatted as Day-Month-Year (e.g. 07-May-96, 16-Jul-12, 20-Aug-01)
             $tglMasuk = $k['tgl_masuk'] ?? '';
-            $startWork = '-';
-            if (!empty($tglMasuk)) {
-                try {
-                    $ts = strtotime($tglMasuk);
-                    $startWork = $ts ? date('d-M-y', $ts) : $tglMasuk;
-                } catch (\Exception $e) {
-                    $startWork = $tglMasuk;
-                }
-            }
+            $startWork = \App\Services\GoogleSyncService::formatMusashiDate($tglMasuk);
 
             // Code Bagian, Nama Bagian, Nama Sect
             $seksiUpper = strtoupper($k['seksi'] ?? '');
@@ -3365,7 +3357,7 @@ class AdminController extends Controller
         $updateData = [
             'nama_lengkap' => strtoupper(trim($validated['nama_lengkap'])),
             'jabatan' => $jabatan,
-            'tgl_masuk' => (!empty($validated['tgl_masuk'])) ? $validated['tgl_masuk'] : ($karyawan['tgl_masuk'] ?? date('Y-m-d')),
+            'tgl_masuk' => (!empty($validated['tgl_masuk'])) ? \App\Services\GoogleSyncService::formatMusashiDate($validated['tgl_masuk']) : \App\Services\GoogleSyncService::formatMusashiDate($karyawan['tgl_masuk'] ?? '01-Jan-20'),
             'golongan' => $golongan,
             'sub_gol' => strtoupper($subGol),
             'kj' => strtoupper($kj),

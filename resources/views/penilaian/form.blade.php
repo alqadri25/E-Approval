@@ -985,7 +985,7 @@
                 </td>
                 <!-- Col 3: TANGGAL MASUK value -->
                 <td class="px-2 py-1 font-semibold text-slate-800 bg-[#e2efda] border-r-2 border-b-2 border-slate-900 align-middle">
-                    {{ $karyawan['tgl_masuk'] }}
+                    {{ \App\Services\GoogleSyncService::formatMusashiDate($karyawan['tgl_masuk'] ?? '') }}
                 </td>
                 <!-- Col 1, 4, 5, 6, 7, 8 all covered by rowspans spanning into row 5! -->
             </tr>

@@ -452,7 +452,7 @@
                 </td>
                 <!-- Col 3: TANGGAL MASUK value -->
                 <td class="bg-excel-green font-bold" style="border-right: 1.2px solid #000000; border-bottom: 1.5px solid #000000; padding: 1.5px 3px; font-size: 6.8pt; vertical-align: middle;">
-                    {{ $karyawan['tgl_masuk'] }}
+                    {{ \App\Services\GoogleSyncService::formatMusashiDate($karyawan['tgl_masuk'] ?? '') }}
                 </td>
                 <!-- Col 1, 4, 5, 6, 7, 8 all covered by rowspans spanning into row 5! -->
             </tr>

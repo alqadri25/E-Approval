@@ -428,16 +428,16 @@ class ExcelKaryawanReader
     public static function excelDateToYmd(string|int|float|null $value): string
     {
         if ($value === null || $value === '') {
-            return '2020-01-01';
+            return '01-Jan-20';
         }
         if (is_numeric($value)) {
             $serial = (int)$value;
             if ($serial > 20000 && $serial < 80000) {
-                return gmdate('Y-m-d', ($serial - 25569) * 86400);
+                $ymd = gmdate('Y-m-d', ($serial - 25569) * 86400);
+                return \App\Services\GoogleSyncService::formatMusashiDate($ymd);
             }
         }
-        $ts = strtotime((string)$value);
-        return $ts ? date('Y-m-d', $ts) : '2020-01-01';
+        return \App\Services\GoogleSyncService::formatMusashiDate((string)$value);
     }
 
     /**

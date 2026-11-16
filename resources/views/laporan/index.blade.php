@@ -1000,7 +1000,7 @@
 
                         <!-- START WORK -->
                         <td class="py-2.5 px-3.5 border-b border-r border-slate-300 text-center font-mono text-slate-700 whitespace-nowrap">
-                            {{ $row['start_work'] }}
+                            {{ \App\Services\GoogleSyncService::formatMusashiDate($row['start_work'] ?? '') }}
                         </td>
 
                         <!-- KJ -->

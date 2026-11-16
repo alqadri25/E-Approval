@@ -7387,12 +7387,7 @@ class PenilaianController extends Controller
             }
 
             $rawDate = $k['tgl_masuk'] ?? '';
-            $startWork = '-';
-            if (!empty($rawDate) && $rawDate !== '-' && strtotime($rawDate) !== false) {
-                $startWork = date('d-M-y', strtotime($rawDate));
-            } elseif (!empty($rawDate)) {
-                $startWork = $rawDate;
-            }
+            $startWork = \App\Services\GoogleSyncService::formatMusashiDate($rawDate);
 
             $division = trim((string)($k['division'] ?? ''));
             if (!$division) {

@@ -167,7 +167,7 @@ class SummaryPKController extends Controller
                 'seksi' => $k['seksi'] ?? '-',
                 'departemen' => $k['departemen'],
                 'jabatan' => $k['jabatan'] ?? '-',
-                'start_work' => $k['tgl_masuk'] ?? '-',
+                'start_work' => \App\Services\GoogleSyncService::formatMusashiDate($k['tgl_masuk'] ?? '-'),
                 'kj' => !empty($k['kj']) ? ExcelKaryawanReader::normalizeKj($k['kj']) : 'KJ 2',
                 'quota_kj' => $kjKey,
                 'sub_gol' => $k['sub_gol'] ?? '-',
@@ -466,7 +466,7 @@ class SummaryPKController extends Controller
                     $k['seksi'] ?? '-',
                     $k['departemen'],
                     $k['jabatan'] ?? '-',
-                    $k['tgl_masuk'] ?? '-',
+                    \App\Services\GoogleSyncService::formatMusashiDate($k['tgl_masuk'] ?? '-'),
                     $k['kj'] ?? 'KJ 2',
                     $k['sub_gol'] ?? '-',
                     0, 0, 0, 0, // aspect weights

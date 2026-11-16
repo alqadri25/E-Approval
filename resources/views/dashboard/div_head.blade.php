@@ -719,7 +719,7 @@
                             {{ $row['sub_gol'] ?? $row['golongan'] ?? '-' }}
                         </td>
                         <td class="py-3 px-4 text-slate-600 font-mono text-[11px] border border-slate-200">
-                            {{ $row['tgl_masuk'] ?? '-' }}
+                            {{ \App\Services\GoogleSyncService::formatMusashiDate($row['tgl_masuk'] ?? '') }}
                         </td>
                         <td class="py-3 px-4 border border-slate-200">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold border {{ $row['badge_class'] }}">

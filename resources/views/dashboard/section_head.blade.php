@@ -803,7 +803,7 @@
                             {{ $sub['sub_gol'] }}
                         </td>
                         <td class="py-3 px-4 text-slate-600 font-mono text-[11px] border border-slate-200">
-                            {{ $sub['tgl_masuk'] }}
+                            {{ \App\Services\GoogleSyncService::formatMusashiDate($sub['tgl_masuk'] ?? '') }}
                         </td>
                         <td class="py-3 px-4 border border-slate-200">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold border {{ $sub['action_type'] === 'sudah_dikirim' ? 'bg-blue-50 text-blue-800 border-blue-200' : ($sub['action_type'] === 'draft' ? 'bg-amber-50 text-amber-800 border-amber-200' : ($sub['action_type'] === 'revisi' ? 'bg-rose-50 text-rose-800 border-rose-200' : ($sub['action_type'] === 'todo' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-700 border-slate-200'))) }}">

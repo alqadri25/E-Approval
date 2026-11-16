@@ -81,6 +81,82 @@ class GoogleSyncService
     }
 
     /**
+     * Format tanggal ke format resmi Musashi: dd-Mmm-yy (contoh: 07-May-96, 16-Jul-12, 20-Aug-01, 30-Apr-12, 28-May-12, 07-Dec-12)
+     */
+    public static function formatMusashiDate(mixed $rawDate): string
+    {
+        if (empty($rawDate) || $rawDate === '-') {
+            return '-';
+        }
+        $str = trim((string)$rawDate);
+
+        // Jika sudah dalam format dd-Mmm-yy (e.g. 07-May-96, 16-Jul-12, 20-Aug-01)
+        if (preg_match('/^(\d{2})-([A-Za-z]{3})-(\d{2})$/', $str, $m)) {
+            return $m[1] . '-' . ucfirst(strtolower($m[2])) . '-' . $m[3];
+        }
+
+        $months = [
+            1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'May', 6 => 'Jun',
+            7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'
+        ];
+
+        // Jika format ISO YYYY-MM-DD... (e.g. 1996-05-07T17:00:00.000Z atau 1996-05-07)
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $str, $m)) {
+            $year = substr($m[1], -2);
+            $monthNum = (int)$m[2];
+            $day = str_pad($m[3], 2, '0', STR_PAD_LEFT);
+            $month = $months[$monthNum] ?? 'Jan';
+            return "{$day}-{$month}-{$year}";
+        }
+
+        // Jika format DD/MM/YYYY atau DD-MM-YYYY
+        if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/', $str, $m)) {
+            $day = str_pad($m[1], 2, '0', STR_PAD_LEFT);
+            $monthNum = (int)$m[2];
+            $year = substr($m[3], -2);
+            $month = $months[$monthNum] ?? 'Jan';
+            return "{$day}-{$month}-{$year}";
+        }
+
+        $ts = strtotime($str);
+        if ($ts !== false) {
+            return date('d-M-y', $ts);
+        }
+
+        return $str;
+    }
+
+    /**
+     * Konversi tanggal ke format input HTML5 date: YYYY-MM-DD
+     */
+    public static function toYmd(mixed $rawDate): string
+    {
+        if (empty($rawDate) || $rawDate === '-') {
+            return '';
+        }
+        $str = trim((string)$rawDate);
+
+        // Jika dd-Mmm-yy (e.g. 07-May-96, 16-Jul-12, 20-Aug-01)
+        if (preg_match('/^(\d{2})-([A-Za-z]{3})-(\d{2})$/', $str, $m)) {
+            $day = $m[1];
+            $monStr = strtolower($m[2]);
+            $yy = (int)$m[3];
+            $year = ($yy >= 50) ? (1900 + $yy) : (2000 + $yy);
+            $months = ['jan'=>'01','feb'=>'02','mar'=>'03','apr'=>'04','may'=>'05','jun'=>'06','jul'=>'07','aug'=>'08','sep'=>'09','oct'=>'10','nov'=>'11','dec'=>'12'];
+            $month = $months[$monStr] ?? '01';
+            return sprintf('%04d-%s-%s', $year, $month, $day);
+        }
+
+        // Jika YYYY-MM-DD
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $str, $m)) {
+            return "{$m[1]}-{$m[2]}-{$m[3]}";
+        }
+
+        $ts = strtotime($str);
+        return $ts ? date('Y-m-d', $ts) : '';
+    }
+
+    /**
      * Generate standard clean file name for appraisal PDF
      * Format: PK_[TAHUN]_[NRP]_[NAMA]_[JABATAN]_[GOLONGAN].pdf
      */
@@ -466,7 +542,6 @@ class GoogleSyncService
             'total_dokumen' => count($dokumenData),
             'total_users' => count($usersData),
             'karyawan' => $karyawanData,
-            'Master Karyawan' => $karyawanData,
             'dokumen' => $dokumenData,
             'users' => $usersData,
             'nilai' => $nilaiData,
@@ -518,7 +593,7 @@ class GoogleSyncService
     public static function getStandardHeaders(string $table): array
     {
         return match ($table) {
-            'Master Karyawan', 'karyawan' => [
+            'karyawan' => [
                 'id', 'nrp', 'nama_lengkap', 'role', 'jabatan', 'departemen', 'seksi', 'division',
                 'kj', 'sub_gol', 'golongan', 'tgl_masuk', 'tgl_lahir', 'pendidikan', 'status_kerja',
                 'lokasi_kerja', 'email', 'telepon', 'alamat', 'nrp_atasan', 'nrp_foreman',
@@ -572,7 +647,6 @@ class GoogleSyncService
         foreach ($tables as $table) {
             $localTable = match ($table) {
                 'users' => 'app_users',
-                'Master Karyawan' => 'karyawan',
                 default => $table,
             };
 
@@ -595,15 +669,8 @@ class GoogleSyncService
                 $emptyHeaders = self::getStandardHeaders($table);
                 $payload[$table] = [array_fill_keys($emptyHeaders, '')];
                 $emptyTables[] = $table;
-                if ($table === 'karyawan') {
-                    $payload['Master Karyawan'] = [array_fill_keys(self::getStandardHeaders('Master Karyawan'), '')];
-                    $emptyTables[] = 'Master Karyawan';
-                }
             } else {
                 $payload[$table] = $rows;
-                if ($table === 'karyawan') {
-                    $payload['Master Karyawan'] = $rows;
-                }
             }
         }
 
@@ -621,7 +688,7 @@ class GoogleSyncService
             if (!empty($emptyTables)) {
                 foreach (array_unique($emptyTables) as $emptyTable) {
                     $keyCol = match($emptyTable) {
-                        'Master Karyawan', 'karyawan' => 'nrp',
+                        'karyawan' => 'nrp',
                         'dokumen', 'kuota_departemen' => 'id',
                         'nilai', 'indikator', 'tanda_tangan' => 'dokumen_id',
                         'users' => 'email',
@@ -684,7 +751,7 @@ class GoogleSyncService
         $cleanAction = ($action === 'delete') ? 'delete_row' : 'upsert_row';
         $payload = [
             'action' => $cleanAction,
-            'tables' => ['Master Karyawan', 'karyawan', 'dokumen'],
+            'tables' => ['karyawan', 'dokumen'],
             'key_column' => 'nrp',
             'key_value' => (string)$nrp,
         ];
@@ -694,8 +761,12 @@ class GoogleSyncService
             if (!$emp) {
                 return ['success' => false, 'message' => "Karyawan NRP {$nrp} tidak ditemukan di database."];
             }
-            $payload['tables'] = ['Master Karyawan', 'karyawan'];
-            $payload['row_data'] = (array)$emp;
+            $payload['tables'] = ['karyawan'];
+            $empArr = (array)$emp;
+            if (isset($empArr['tgl_masuk'])) {
+                $empArr['tgl_masuk'] = self::formatMusashiDate($empArr['tgl_masuk']);
+            }
+            $payload['row_data'] = $empArr;
         }
 
         try {
@@ -1079,12 +1150,7 @@ class GoogleSyncService
             }
 
             $rawDate = $k->tgl_masuk ?? '';
-            $startWork = '-';
-            if (!empty($rawDate) && $rawDate !== '-' && strtotime($rawDate) !== false) {
-                $startWork = date('d-M-y', strtotime($rawDate));
-            } elseif (!empty($rawDate)) {
-                $startWork = $rawDate;
-            }
+            $startWork = self::formatMusashiDate($rawDate);
 
             $rows[] = [
                 'NRP' => $nrp,
@@ -1139,6 +1205,27 @@ class GoogleSyncService
                 'total_rows' => count($rows),
                 'response' => $response->json(),
             ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Panggil endpoint Apps Script untuk membersihkan sheet usang / duplikat (Master Karyawan, master_aspek, dll)
+     */
+    public static function cleanUnusedSheetsGoogle(?string $appscriptUrl = null): array
+    {
+        $config = self::getConfig();
+        $targetAppscript = $appscriptUrl ?: $config['appscript_url'];
+        if (empty($targetAppscript) || !filter_var($targetAppscript, FILTER_VALIDATE_URL)) {
+            return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
+        }
+
+        try {
+            $response = Http::timeout(15)->withoutVerifying()->post($targetAppscript, [
+                'action' => 'clean_unused_sheets',
+            ]);
+            return $response->json() ?? ['success' => true];
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
@@ -1308,7 +1395,8 @@ function onOpen() {
     .addItem('📁 Buat Subfolder Drive Otomatis (Dari Data Karyawan)', 'setupDriveFolders')
     .addItem('📱 Sinkron Barcode TTD Users ke Drive & Tampil di Sheet', 'syncUserBarcodesToDriveAndSheet')
     .addItem('📊 Format & Rapikan Sheet Dokumen_Dinilai', 'setupDokumenDinilaiSheet')
-    .addItem('🗑️ Hapus Sheet yang Tidak Diperlukan', 'cleanUnusedSheets')
+    .addItem('📅 Rapikan Format Tanggal Masuk (dd-Mmm-yy)', 'formatAllDatesInSheets')
+    .addItem('🗑️ Hapus Sheet yang Tidak Diperlukan (Termasuk Master Karyawan)', 'cleanUnusedSheets')
     .addItem('✍️ Uji & Buat Folder Tanda Tangan Drive', 'testDriveAccess')
     .addSeparator()
     .addItem('📈 Cek Status & Statistik Data', 'showDatabaseStats')
@@ -1317,6 +1405,8 @@ function onOpen() {
 
 /**
  * 2. DAFTAR NAMA SHEET & STRUKTUR KOLOM RESMI (BERSIH & TERHUBUNG KE WEB)
+ * CATATAN PENTING: Sheet 'Master Karyawan' ditiadakan agar tidak ada dobel database,
+ * hanya menggunakan sheet tunggal resmi 'karyawan'.
  */
 var CONFIG_TABLES = {
   'karyawan': [
@@ -1373,11 +1463,13 @@ var COLUMN_FORMATS = {
   },
   'karyawan': {
     widths: { 1: 90, 2: 230, 3: 90, 4: 80, 5: 80, 6: 220, 7: 110, 8: 180, 9: 180, 10: 100, 11: 110, 12: 130, 13: 120, 14: 110, 15: 110, 16: 220, 17: 180, 18: 120, 19: 190 },
-    alignCenter: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15, 18]
+    alignCenter: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15, 18],
+    textFormatCols: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15] // Kolom 7 (tgl_masuk) diformat Text (@)
   },
   'Dokumen_Dinilai': {
     widths: { 1: 90, 2: 230, 3: 220, 4: 160, 5: 160, 6: 190, 7: 190, 8: 110, 9: 80, 10: 90, 11: 90, 12: 90, 13: 90, 14: 110, 15: 90, 16: 170, 17: 120, 18: 120, 19: 120, 20: 130 },
-    alignCenter: [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+    alignCenter: [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+    textFormatCols: [1, 8, 9, 10] // Kolom 8 (START WORK) diformat Text (@)
   },
   'kuota_departemen': {
     widths: { 1: 60, 2: 220, 3: 110, 4: 110, 5: 110, 6: 110, 7: 110 },
@@ -1447,13 +1539,23 @@ function formatSheetColumns(sheet, sheetName) {
         }
       }
     }
-    if (cfg.alignCenter && sheet.getLastRow() > 1) {
-      for (var a = 0; a < cfg.alignCenter.length; a++) {
-        var colC = cfg.alignCenter[a];
-        if (colC <= colCount) {
-          sheet.getRange(2, colC, sheet.getLastRow() - 1, 1)
-            .setHorizontalAlignment('center')
-            .setVerticalAlignment('middle');
+    if (sheet.getLastRow() > 1) {
+      if (cfg.alignCenter) {
+        for (var a = 0; a < cfg.alignCenter.length; a++) {
+          var colC = cfg.alignCenter[a];
+          if (colC <= colCount) {
+            sheet.getRange(2, colC, sheet.getLastRow() - 1, 1)
+              .setHorizontalAlignment('center')
+              .setVerticalAlignment('middle');
+          }
+        }
+      }
+      if (cfg.textFormatCols) {
+        for (var t = 0; t < cfg.textFormatCols.length; t++) {
+          var colT = cfg.textFormatCols[t];
+          if (colT <= colCount) {
+            sheet.getRange(2, colT, sheet.getLastRow() - 1, 1).setNumberFormat('@');
+          }
         }
       }
     }
@@ -1478,10 +1580,13 @@ function setupDatabaseSheets() {
     formatSheetColumns(sheet, name);
   }
 
-  // Bersihkan sheet usang / duplikat
+  // Bersihkan sheet usang / duplikat (Master Karyawan, master_aspek, dll)
   cleanUnusedSheets(true);
 
-  showAlertSafely('✅ Sukses! Seluruh tabel database resmi telah dibuat dan diformat dengan lebar kolom yang rapi.');
+  // Format tanggal masuk di seluruh sheet agar seragam (dd-Mmm-yy)
+  formatAllDatesInSheets(true);
+
+  showAlertSafely('✅ Sukses! Seluruh tabel database resmi telah dibuat, dirapikan, dan sheet duplikat telah dibersihkan.');
 }
 
 /**
@@ -1498,11 +1603,14 @@ function setupDokumenDinilaiSheet() {
     sheet.appendRow(headers);
   }
   formatSheetColumns(sheet, 'Dokumen_Dinilai');
+  formatAllDatesInSheets(true);
   showAlertSafely('✅ Sheet Dokumen_Dinilai berhasil disiapkan dan dirapikan.');
 }
 
 /**
  * 2E. HAPUS & BERSIHKAN SHEET YANG TIDAK DIPERLUKAN / DUPLIKAT
+ * Secara spesifik menghapus 'Master Karyawan' agar database tidak ganda dengan 'karyawan',
+ * serta menghapus sheet usang lainnya ('master_aspek', 'master_kriteria', 'Sheet1').
  */
 function cleanUnusedSheets(silent) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1510,7 +1618,6 @@ function cleanUnusedSheets(silent) {
   var sheets = ss.getSheets();
   var deletedNames = [];
 
-  // Sheet usang/duplikat yang dihapus (Master Karyawan duplikat dari karyawan, master_aspek/kriteria sudah ada di sistem)
   var obsoleteTargets = ['Master Karyawan', 'master_aspek', 'master_kriteria', 'Sheet1', 'Sheet 1'];
 
   for (var i = 0; i < sheets.length; i++) {
@@ -1541,13 +1648,146 @@ function cleanUnusedSheets(silent) {
 }
 
 /**
+ * 2F. RAPIKAN FORMAT TANGGAL MASUK (dd-Mmm-yy) PADA SELURUH SHEET
+ * Mengubah tanggal mentah seperti 1996-05-07T17:00:00.000Z menjadi:
+ * 07-May-96, 16-Jul-12, 20-Aug-01, 30-Apr-12, 28-May-12, 07-Dec-12
+ */
+function formatAllDatesInSheets(silent) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var formattedCount = 0;
+
+  // 1. Format di sheet 'karyawan' (kolom tgl_masuk)
+  var kSheet = ss.getSheetByName('karyawan');
+  if (kSheet && kSheet.getLastRow() > 1) {
+    var kData = kSheet.getDataRange().getValues();
+    var kHeaders = kData[0];
+    var colTgl = -1;
+    for (var h = 0; h < kHeaders.length; h++) {
+      var hName = String(kHeaders[h] || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+      if (hName === 'tglmasuk' || hName === 'startwork' || hName === 'joindate') {
+        colTgl = h;
+        break;
+      }
+    }
+
+    if (colTgl > -1) {
+      var kUpdates = [];
+      for (var r = 1; r < kData.length; r++) {
+        var rawVal = kData[r][colTgl];
+        var formatted = formatMusashiDateGAS(rawVal);
+        kUpdates.push([formatted]);
+        if (formatted !== String(rawVal)) formattedCount++;
+      }
+      kSheet.getRange(2, colTgl + 1, kUpdates.length, 1).setNumberFormat('@').setValues(kUpdates);
+      kSheet.getRange(2, colTgl + 1, kUpdates.length, 1).setHorizontalAlignment('center');
+    }
+  }
+
+  // 2. Format di sheet 'Dokumen_Dinilai' (kolom START WORK)
+  var dSheet = ss.getSheetByName('Dokumen_Dinilai');
+  if (dSheet && dSheet.getLastRow() > 1) {
+    var dData = dSheet.getDataRange().getValues();
+    var dHeaders = dData[0];
+    var colSw = -1;
+    for (var dh = 0; dh < dHeaders.length; dh++) {
+      var dhName = String(dHeaders[dh] || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+      if (dhName === 'startwork' || dhName === 'tglmasuk') {
+        colSw = dh;
+        break;
+      }
+    }
+
+    if (colSw > -1) {
+      var dUpdates = [];
+      for (var dr = 1; dr < dData.length; dr++) {
+        var dRawVal = dData[dr][colSw];
+        var dFormatted = formatMusashiDateGAS(dRawVal);
+        dUpdates.push([dFormatted]);
+      }
+      dSheet.getRange(2, colSw + 1, dUpdates.length, 1).setNumberFormat('@').setValues(dUpdates);
+      dSheet.getRange(2, colSw + 1, dUpdates.length, 1).setHorizontalAlignment('center');
+    }
+  }
+
+  if (!silent) {
+    showAlertSafely(
+      '📅 Format Tanggal Masuk Berhasil Dirapikan!\n\n' +
+      'Format resmi Musashi (dd-Mmm-yy) telah diterapkan ke seluruh baris karyawan dan Dokumen_Dinilai.\n' +
+      'Contoh tampilan: 07-May-96, 16-Jul-12, 20-Aug-01, 30-Apr-12, 28-May-12, 07-Dec-12.'
+    );
+  }
+}
+
+/**
+ * HELPER RESMI: Memformat nilai tanggal ke format Musashi: dd-Mmm-yy
+ * Mendukung Date object, String ISO (1996-05-07T17:00:00.000Z), YYYY-MM-DD, dan DD/MM/YYYY
+ */
+function formatMusashiDateGAS(rawDate) {
+  if (!rawDate || rawDate === '-' || rawDate === 'null' || rawDate === 'undefined') {
+    return '-';
+  }
+
+  var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Jika berupa Object Date JavaScript
+  if (Object.prototype.toString.call(rawDate) === '[object Date]') {
+    if (isNaN(rawDate.getTime())) return '-';
+    var d = ('0' + rawDate.getDate()).slice(-2);
+    var m = months[rawDate.getMonth()];
+    var y = String(rawDate.getFullYear()).slice(-2);
+    return d + '-' + m + '-' + y;
+  }
+
+  var str = String(rawDate).trim();
+
+  // Jika sudah dalam format dd-Mmm-yy (contoh: 07-May-96, 16-Jul-12, 20-Aug-01)
+  var regexAlready = /^(\d{2})-([A-Za-z]{3})-(\d{2})$/;
+  var matchA = str.match(regexAlready);
+  if (matchA) {
+    return matchA[1] + '-' + matchA[2].charAt(0).toUpperCase() + matchA[2].slice(1).toLowerCase() + '-' + matchA[3];
+  }
+
+  // Jika format ISO YYYY-MM-DD... (contoh: 1996-05-07T17:00:00.000Z atau 1996-05-07)
+  var regexIso = /^(\d{4})-(\d{2})-(\d{2})/;
+  var matchIso = str.match(regexIso);
+  if (matchIso) {
+    var year = matchIso[1].slice(-2);
+    var monthNum = parseInt(matchIso[2], 10);
+    var day = matchIso[3];
+    var monthStr = months[monthNum - 1] || 'Jan';
+    return day + '-' + monthStr + '-' + year;
+  }
+
+  // Jika format DD/MM/YYYY atau DD-MM-YYYY
+  var regexDm = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/;
+  var matchDm = str.match(regexDm);
+  if (matchDm) {
+    var day2 = ('0' + matchDm[1]).slice(-2);
+    var monthNum2 = parseInt(matchDm[2], 10);
+    var year2 = matchDm[3].slice(-2);
+    var monthStr2 = months[monthNum2 - 1] || 'Jan';
+    return day2 + '-' + monthStr2 + '-' + year2;
+  }
+
+  // Fallback ke Date parser
+  var parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    var d3 = ('0' + parsed.getDate()).slice(-2);
+    var m3 = months[parsed.getMonth()];
+    var y3 = String(parsed.getFullYear()).slice(-2);
+    return d3 + '-' + m3 + '-' + y3;
+  }
+
+  return str;
+}
+
+/**
  * 3. STRUKTUR FOLDER GOOGLE DRIVE DINAMIS DARI DATA DEPARTEMEN KARYAWAN
- * Otomatis membaca Departemen, Divisi, dan Seksi langsung dari data karyawan asli tanpa dummy!
- * Otomatis mendeteksi tahun berjalan saat ini (misal 2026), tahun depan (2027), dan seluruh tahun di tabel periode!
+ * Membaca Departemen, Divisi, dan Seksi langsung dari data sheet 'karyawan' asli tanpa dummy!
  */
 function setupDriveFolders() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var empSheet = ss.getSheetByName('karyawan') || ss.getSheetByName('Master Karyawan');
+  var empSheet = ss.getSheetByName('karyawan');
   var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
 
   if (!empSheet || empSheet.getLastRow() <= 1) {
@@ -1599,7 +1839,7 @@ function setupDriveFolders() {
   }
 
   // 2. Kumpulkan struktur hierarki 100% DINAMIS dari data karyawan asli
-  var hierarchy = {}; // { division: { dept: { seksi: true } } }
+  var hierarchy = {};
   var deptList = {};
   var divCount = 0, deptCount = 0, seksiCount = 0, posCount = 0;
   var uniqueRoles = {};
@@ -1617,7 +1857,6 @@ function setupDriveFolders() {
 
     if (!dept && !div && !seksi) continue;
 
-    // Jika division kosong, kelompokkan otomatis berdasarkan kata kunci departemen karyawan
     if (!div) {
       if (dept.indexOf('QA') > -1 || dept.indexOf('QUALITY') > -1) div = 'QUALITY CONTROL DIV';
       else if (dept.indexOf('ENGINEERING') > -1) div = 'TECHNICAL DIV';
@@ -1823,7 +2062,7 @@ function syncUserBarcodesToDriveAndSheet() {
  */
 function showDatabaseStats() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var empSheet = ss.getSheetByName('karyawan') || ss.getSheetByName('Master Karyawan');
+  var empSheet = ss.getSheetByName('karyawan');
   var docSheet = ss.getSheetByName('dokumen');
   var userSheet = ss.getSheetByName('users');
   var dinilaiSheet = ss.getSheetByName('Dokumen_Dinilai');
@@ -1835,7 +2074,7 @@ function showDatabaseStats() {
   var totalTtd = ttdSheet ? Math.max(0, ttdSheet.getLastRow() - 1) : 0;
 
   var msg = '📊 STATISTIK BASIS DATA MUSASHI E-APPROVAL:\n\n' +
-            '• Master Karyawan: ' + totalKaryawan + ' Orang\n' +
+            '• Data Karyawan: ' + totalKaryawan + ' Orang\n' +
             '• Dokumen Penilaian: ' + totalDokumen + ' Dokumen\n' +
             '• Akun Pengguna: ' + totalUsers + ' Akun\n' +
             '• Dokumen Dinilai (Laporan): ' + totalDinilai + ' Baris\n' +
@@ -1884,6 +2123,15 @@ function doGet(e) {
         message: 'Sheet yang tidak diperlukan berhasil dibersihkan.',
         deleted_sheets: deleted,
         remaining_tables: Object.keys(CONFIG_TABLES),
+        time: new Date().toISOString()
+      });
+    }
+
+    if (action === 'format_dates') {
+      formatAllDatesInSheets(true);
+      return jsonResponse({
+        status: 'success',
+        message: 'Format tanggal tgl_masuk dan START WORK berhasil dirapikan menjadi dd-Mmm-yy.',
         time: new Date().toISOString()
       });
     }
@@ -1953,6 +2201,15 @@ function doPost(e) {
         message: 'Sheet yang tidak diperlukan berhasil dibersihkan.',
         deleted_sheets: deleted,
         remaining_tables: Object.keys(CONFIG_TABLES),
+        time: new Date().toISOString()
+      });
+    }
+
+    if (action === 'format_dates') {
+      formatAllDatesInSheets(true);
+      return jsonResponse({
+        status: 'success',
+        message: 'Format tanggal tgl_masuk dan START WORK berhasil dirapikan menjadi dd-Mmm-yy.',
         time: new Date().toISOString()
       });
     }
@@ -2081,7 +2338,7 @@ function doPost(e) {
       }
 
       if ((!division || !seksi) && nrp) {
-        var empSheet = ss.getSheetByName('karyawan') || ss.getSheetByName('Master Karyawan');
+        var empSheet = ss.getSheetByName('karyawan');
         if (empSheet && empSheet.getLastRow() > 1) {
           var eData = empSheet.getDataRange().getValues();
           var eHeaders = eData[0];
@@ -2165,7 +2422,6 @@ function doPost(e) {
     }
 
     // D. HAPUS 1 BARIS KILAT (DELETE ROW BY NRP)
-    // Menghapus data karyawan secara sinkron di seluruh sheet terkait
     if (action === 'delete_row') {
       var targetTables = postData.tables || ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'users'];
       var keyColumn = (postData.key_column || 'nrp').toLowerCase();
@@ -2241,6 +2497,12 @@ function doPost(e) {
           var val = (rowData[hName] !== undefined)
             ? rowData[hName]
             : ((rowData[hNameLower] !== undefined) ? rowData[hNameLower] : '');
+
+          // Khusus tanggal masuk: selalu format resmi Musashi dd-Mmm-yy
+          var hNorm = hNameLower.replace(/[^a-z]/g, '');
+          if (hNorm === 'tglmasuk' || hNorm === 'startwork') {
+            val = formatMusashiDateGAS(val);
+          }
           
           if (sName === 'users' && hNameLower === 'barcodettd' && (!val || !String(val).startsWith('='))) {
             var uNrp = String(rowData['nrp'] || rowData['id'] || '').trim();
@@ -2351,8 +2613,14 @@ function writeObjectsToSheet(ss, sheetName, items) {
         ? items[i][hKey]
         : (hKey === 'signature_path_link' ? (items[i]['ttdbarcode'] || items[i]['signature_path'] || '') : '');
 
+      // Format kolom tanggal tgl_masuk dan START WORK ke format resmi Musashi: dd-Mmm-yy
+      var hNorm = hKey.toLowerCase().replace(/[^a-z]/g, '');
+      if (hNorm === 'tglmasuk' || hNorm === 'startwork') {
+        val = formatMusashiDateGAS(val);
+      }
+
       // Khusus sheet users: jika barcodettd belum berisi rumus =IMAGE, buat otomatis rumus visualnya
-      if (targetName === 'users' && hKey.toLowerCase() === 'barcodettd' && (!val || !String(val).startsWith('='))) {
+      if (targetName === 'users' && hNorm === 'barcodettd' && (!val || !String(val).startsWith('='))) {
         var uNrp = String(items[i]['nrp'] || items[i]['id'] || '').trim();
         var uNama = String(items[i]['nama'] || items[i]['nama_lengkap'] || '').trim();
         var uRole = String(items[i]['role'] || '').trim();
@@ -2366,6 +2634,7 @@ function writeObjectsToSheet(ss, sheetName, items) {
     }
     rows.push(row);
   }
+
   if (rows.length > 0) {
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
 

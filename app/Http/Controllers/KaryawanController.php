@@ -727,7 +727,7 @@ class KaryawanController extends Controller
             'sub_gol' => $subGol,
             'kj' => $kj,
             'jabatan' => $jabatan,
-            'tgl_masuk' => $request->input('tgl_masuk'),
+            'tgl_masuk' => \App\Services\GoogleSyncService::formatMusashiDate($request->input('tgl_masuk')),
             'departemen' => $departemenVal,
             'seksi' => $seksiVal,
             'code_bagian' => $codeBagianVal,
@@ -1575,7 +1575,7 @@ class KaryawanController extends Controller
                 $resp->send();
                 fastcgi_finish_request();
                 try {
-                    \App\Services\GoogleSyncService::syncTables(['Master Karyawan', 'karyawan', 'dokumen', 'users']);
+                    \App\Services\GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users']);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning("Background syncTables failed: " . $e->getMessage());
                 }
@@ -1584,7 +1584,7 @@ class KaryawanController extends Controller
 
             // Sync to Google Spreadsheet with safe short timeout (< 2s)
             try {
-                \App\Services\GoogleSyncService::syncTables(['Master Karyawan', 'karyawan', 'dokumen', 'users']);
+                \App\Services\GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users']);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning("Google syncTables notice on import: " . $e->getMessage());
             }
@@ -1651,10 +1651,9 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
         \Illuminate\Support\Facades\Cache::flush();
 
-        // Sinkronisasi hapus ke Google Spreadsheet (karyawan, Master Karyawan, dokumen, nilai, indikator, tanda_tangan, kuota_departemen, users)
+        // Sinkronisasi hapus ke Google Spreadsheet (karyawan, dokumen, nilai, indikator, tanda_tangan, kuota_departemen, users)
         try {
             \App\Services\GoogleSyncService::syncTables([
-                'Master Karyawan',
                 'karyawan',
                 'dokumen',
                 'nilai',
@@ -1833,10 +1832,9 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
         \Illuminate\Support\Facades\Cache::flush();
 
-        // Realtime sync to Google Spreadsheet (wipe all appraisal sheets: Master Karyawan, karyawan, dokumen, nilai, indikator, tanda_tangan, kuota_departemen, and users)
+        // Realtime sync to Google Spreadsheet (wipe all appraisal sheets: karyawan, dokumen, nilai, indikator, tanda_tangan, kuota_departemen, and users)
         try {
             \App\Services\GoogleSyncService::syncTables([
-                'Master Karyawan',
                 'karyawan',
                 'dokumen',
                 'nilai',
