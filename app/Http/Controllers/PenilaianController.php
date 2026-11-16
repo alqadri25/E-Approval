@@ -1905,29 +1905,17 @@ class PenilaianController extends Controller
             $fileId = $src;
         }
 
+        // 3. Instant Barcode QR Generation (0ms latency, eliminates slow blocking Google Drive HTTP requests)
+        if ($fallbackNrp && $fallbackName) {
+            return \App\Models\User::generateBarcodeDataUri($fallbackNrp, $fallbackName, $fallbackRole);
+        }
+
         if ($fileId) {
             $cacheKey = 'gdrive_sig_data_uri_' . $fileId;
             $cached = Cache::get($cacheKey);
             if ($cached && str_starts_with($cached, 'data:image')) {
                 return $cached;
             }
-
-            try {
-                $res = \Illuminate\Support\Facades\Http::timeout(3)
-                    ->withOptions(['allow_redirects' => true])
-                    ->get("https://drive.google.com/uc?export=view&id={$fileId}");
-
-                if ($res->successful() && strlen($res->body()) > 100) {
-                    $body = $res->body();
-                    $isImg = str_starts_with($body, "\x89PNG") || str_starts_with($body, "\xFF\xD8\xFF") || str_starts_with($body, "GIF8") || (str_starts_with($body, "RIFF") && str_contains(substr($body, 8, 8), "WEBP"));
-                    if ($isImg) {
-                        $mime = str_starts_with($body, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($body, "RIFF") ? 'image/webp' : 'image/png');
-                        $dataUri = 'data:' . $mime . ';base64,' . base64_encode($body);
-                        Cache::put($cacheKey, $dataUri, 86400 * 30);
-                        return $dataUri;
-                    }
-                }
-            } catch (\Throwable $e) {}
         }
 
         // 4. Fallback to crisp Official SVG Badge

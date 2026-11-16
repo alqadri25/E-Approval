@@ -49,6 +49,18 @@ COPY . .
 # Copy compiled frontend assets from frontend stage
 COPY --from=frontend /app/public/build ./public/build
 
+# Configure optimal OPcache and PHP settings for production
+RUN echo "opcache.enable=1\n\
+opcache.enable_cli=1\n\
+opcache.memory_consumption=256\n\
+opcache.interned_strings_buffer=16\n\
+opcache.max_accelerated_files=30000\n\
+opcache.validate_timestamps=0\n\
+opcache.save_comments=1\n\
+opcache.fast_shutdown=1\n\
+max_execution_time=60\n\
+memory_limit=512M" > /usr/local/etc/php/conf.d/opcache-recommended.ini
+
 # Install PHP dependencies without dev dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
 
@@ -58,6 +70,11 @@ COPY Caddyfile /etc/frankenphp/Caddyfile
 # Ensure storage, cache, and database directories exist and have proper permissions
 RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chmod -R 777 storage bootstrap/cache database
+
+# Precompile Laravel configuration, routes, and views for instantaneous execution
+RUN php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
 
 EXPOSE 80
 

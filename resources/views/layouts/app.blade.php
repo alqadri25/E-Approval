@@ -1029,6 +1029,18 @@
 
   @stack('scripts')
   <script>
+        // Instant Top Loading Progress Bar on Navigation Click
+    document.addEventListener('click', function(e) {
+      const link = e.target.closest('a');
+      if (link && link.href && link.target !== '_blank' && !link.href.includes('#') && !link.href.includes('javascript') && !link.hasAttribute('download')) {
+        const bar = document.getElementById('page-progress-bar');
+        if (bar) {
+          bar.style.opacity = '1';
+          bar.style.width = '80%';
+        }
+      }
+    });
+
     // 1. Session Keep-Alive Heartbeat: Ping server every 2 minutes so idle tabs never expire unexpectedly
     setInterval(function() {
       fetch('/up', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
