@@ -257,17 +257,19 @@
                 <!-- Col 6: Foreman Signature (rowspan 2 for rows 2 & 3) -->
                 <td rowspan="2" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
-                        $foremanPdfImg = $ttdByLevel['foreman']['ttd_base64'] ?? null;
+                        $foremanPdfImg = $ttdByLevel['foreman']['ttd_base64'] ?? $ttdByLevel['foreman']['ttd_image'] ?? null;
                         if (empty($foremanPdfImg) && $subFormVariant === 'div_head') {
-                            $foremanPdfImg = $ttdByLevel['dept_head']['ttd_base64'] ?? null;
+                            $foremanPdfImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                        }
+                        $isForemanPdfSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && (in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcForeman['grand_total'] > 0)));
+                        if (empty($foremanPdfImg) && $isForemanPdfSigned) {
+                            $foremanPdfImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN', $karyawan['nrp_foreman'] ?? '');
                         }
                     @endphp
                     @if(!empty($foremanPdfImg))
                         <img src="{{ $foremanPdfImg }}" alt="TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" style="max-height: 22px; max-width: 42px; display: block; margin: 0 auto;">
                     @elseif($isTanpaForemanStd && !$showForemanData)
                         &nbsp;
-                    @elseif(!empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && (in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcForeman['grand_total'] > 0))))
-                        <div style="font-weight: bold; color: #059669; font-size: 5.5pt;">✓ SUDAH TTD</div>
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif
@@ -279,14 +281,17 @@
                 @else
                 <td rowspan="2" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
+                        $shPdfImg = $ttdByLevel['section_head']['ttd_base64'] ?? $ttdByLevel['section_head']['ttd_image'] ?? null;
                         $col7DoneStatuses = !empty($isGol4Up)
                             ? ['menunggu_div_head', 'selesai']
                             : ['menunggu_dept_head', 'menunggu_div_head', 'selesai'];
+                        $isShPdfSigned = !empty($ttdByLevel['section_head']) || in_array($dokumen['status'], $col7DoneStatuses) || ($calcSectionHead['grand_total'] > 0);
+                        if (empty($shPdfImg) && $isShPdfSigned) {
+                            $shPdfImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD', $karyawan['nrp_section_head'] ?? '');
+                        }
                     @endphp
-                    @if(!empty($ttdByLevel['section_head']['ttd_base64']))
-                        <img src="{{ $ttdByLevel['section_head']['ttd_base64'] }}" alt="TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 22px; max-width: 42px; display: block; margin: 0 auto;">
-                    @elseif(!empty($ttdByLevel['section_head']) || in_array($dokumen['status'], $col7DoneStatuses) || ($calcSectionHead['grand_total'] > 0))
-                        <div style="font-weight: bold; color: #059669; font-size: 5.5pt;">✓ SUDAH TTD</div>
+                    @if(!empty($shPdfImg))
+                        <img src="{{ $shPdfImg }}" alt="TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 22px; max-width: 42px; display: block; margin: 0 auto;">
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif
@@ -298,10 +303,15 @@
                 <td rowspan="2" class="bg-blocked-gray" style="border-right: none; border-bottom: 1px solid #000000;"></td>
                 @else
                 <td rowspan="2" style="border-right: none; border-bottom: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
-                    @if(!empty($ttdByLevel['dept_head']['ttd_base64']))
-                        <img src="{{ $ttdByLevel['dept_head']['ttd_base64'] }}" alt="TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 22px; max-width: 42px; display: block; margin: 0 auto;">
-                    @elseif(!empty($ttdByLevel['dept_head']) || $dokumen['status'] === 'selesai' || ($calcDeptHead['grand_total'] > 0))
-                        <div style="font-weight: bold; color: #059669; font-size: 5.5pt;">✓ SUDAH TTD</div>
+                    @php
+                        $dhPdfImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                        $isDhPdfSigned = !empty($ttdByLevel['dept_head']) || $dokumen['status'] === 'selesai' || ($calcDeptHead['grand_total'] > 0);
+                        if (empty($dhPdfImg) && $isDhPdfSigned) {
+                            $dhPdfImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD', $karyawan['nrp_dept_head'] ?? '');
+                        }
+                    @endphp
+                    @if(!empty($dhPdfImg))
+                        <img src="{{ $dhPdfImg }}" alt="TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 22px; max-width: 42px; display: block; margin: 0 auto;">
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif

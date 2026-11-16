@@ -42,7 +42,7 @@
     $showForemanData = !$isTanpaForemanStd || !empty($ttdByLevel['foreman']) || !empty($scoresByLevel['foreman']);
     $currentUserSignatureUrl = Auth::user()?->signature_url;
     $hasUserSignature = Auth::user()?->hasSignature() ?? false;
-    $officialFallbackSvg = 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 110" width="380" height="110"><rect x="2" y="2" width="376" height="106" rx="8" fill="#fdfbf7" stroke="#92302e" stroke-width="1.5" stroke-dasharray="4 3"/><g transform="translate(16, 20)"><circle cx="14" cy="14" r="14" fill="#92302e" fill-opacity="0.12"/><path d="M9 14 l3.5 3.5 l7 -7" fill="none" stroke="#92302e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><text x="36" y="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8.5" font-weight="800" fill="#92302e" letter-spacing="1">PT MUSASHI AUTO PARTS INDONESIA</text><text x="36" y="22" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8" font-weight="600" fill="#64748b">E-APPROVAL DIGITAL SIGNATURE</text></g><text x="190" y="66" text-anchor="middle" font-family="Brush Script MT, cursive" font-size="28" font-weight="bold" fill="#0f172a">' . htmlspecialchars(Auth::user()->nama, ENT_XML1) . '</text><line x1="24" y1="76" x2="356" y2="76" stroke="#e2e8f0" stroke-width="1"/><text x="190" y="92" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8" font-weight="700" fill="#475569">VALIDATED DIGITAL SIGNATURE • ' . htmlspecialchars(strtoupper(Auth::user()->role), ENT_XML1) . ' • NRP: ' . htmlspecialchars(Auth::user()->nrp, ENT_XML1) . '</text></svg>');
+    $officialFallbackSvg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri(Auth::user()->nama, Auth::user()->role, Auth::user()->nrp);
 @endphp
 
 <div x-data="penilaianApp()" class="max-w-[1300px] mx-auto space-y-5">
@@ -772,21 +772,19 @@
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
                         @php
-                            $foremanImg = !empty($ttdByLevel['foreman']['ttd_base64']) 
-                                ? $ttdByLevel['foreman']['ttd_base64'] 
-                                : (!empty($ttdByLevel['foreman']['ttd_image']) ? asset('storage/' . $ttdByLevel['foreman']['ttd_image']) : null);
+                            $foremanImg = $ttdByLevel['foreman']['ttd_base64'] ?? $ttdByLevel['foreman']['ttd_image'] ?? null;
                             if (empty($foremanImg) && $subFormVariant === 'div_head') {
-                                $foremanImg = !empty($ttdByLevel['dept_head']['ttd_base64']) 
-                                    ? $ttdByLevel['dept_head']['ttd_base64'] 
-                                    : (!empty($ttdByLevel['dept_head']['ttd_image']) ? asset('storage/' . $ttdByLevel['dept_head']['ttd_image']) : null);
+                                $foremanImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                            }
+                            $isForemanSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && (in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcForeman['grand_total'] > 0)));
+                            if (empty($foremanImg) && $isForemanSigned) {
+                                $foremanImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN', $karyawan['nrp_foreman'] ?? '');
                             }
                         @endphp
                         @if($foremanImg)
-                            <img src="{{ $foremanImg }}" alt="TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" class="max-h-12 max-w-full object-contain mx-auto">
+                            <img src="{{ $foremanImg }}" alt="TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" class="max-h-12 max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN', $karyawan['nrp_foreman'] ?? '') }}';">
                         @elseif($isTanpaForemanStd && !$showForemanData)
                             &nbsp;
-                        @elseif(!empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && (in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcForeman['grand_total'] > 0))))
-                            <span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">✓ Sudah TTD</span>
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
                         @endif
@@ -800,14 +798,14 @@
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
                         @php
-                            $shImg = !empty($ttdByLevel['section_head']['ttd_base64']) 
-                                ? $ttdByLevel['section_head']['ttd_base64'] 
-                                : (!empty($ttdByLevel['section_head']['ttd_image']) ? asset('storage/' . $ttdByLevel['section_head']['ttd_image']) : null);
+                            $shImg = $ttdByLevel['section_head']['ttd_base64'] ?? $ttdByLevel['section_head']['ttd_image'] ?? null;
+                            $isShSigned = !empty($ttdByLevel['section_head']) || in_array($dokumen['status'], ['menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcSectionHead['grand_total'] > 0);
+                            if (empty($shImg) && $isShSigned) {
+                                $shImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD', $karyawan['nrp_section_head'] ?? '');
+                            }
                         @endphp
                         @if($shImg)
-                            <img src="{{ $shImg }}" alt="TTD {{ $isGol4Up ? 'Atasan Langsung' : 'Section Head' }}" class="max-h-12 max-w-full object-contain mx-auto">
-                        @elseif(!empty($ttdByLevel['section_head']) || in_array($dokumen['status'], ['menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcSectionHead['grand_total'] > 0))
-                            <span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">✓ Sudah TTD</span>
+                            <img src="{{ $shImg }}" alt="TTD {{ $isGol4Up ? 'Atasan Langsung' : 'Section Head' }}" class="max-h-12 max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD', $karyawan['nrp_section_head'] ?? '') }}';">
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
                         @endif
@@ -822,14 +820,14 @@
                 <td rowspan="2" class="p-1 border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
                         @php
-                            $dhImg = !empty($ttdByLevel['dept_head']['ttd_base64']) 
-                                ? $ttdByLevel['dept_head']['ttd_base64'] 
-                                : (!empty($ttdByLevel['dept_head']['ttd_image']) ? asset('storage/' . $ttdByLevel['dept_head']['ttd_image']) : null);
+                            $dhImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                            $isDhSigned = !empty($ttdByLevel['dept_head']) || $dokumen['status'] === 'selesai' || ($calcDeptHead['grand_total'] > 0);
+                            if (empty($dhImg) && $isDhSigned) {
+                                $dhImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD', $karyawan['nrp_dept_head'] ?? '');
+                            }
                         @endphp
                         @if($dhImg)
-                            <img src="{{ $dhImg }}" alt="TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" class="max-h-12 max-w-full object-contain mx-auto">
-                        @elseif(!empty($ttdByLevel['dept_head']) || $dokumen['status'] === 'selesai' || ($calcDeptHead['grand_total'] > 0))
-                            <span class="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">✓ Sudah TTD</span>
+                            <img src="{{ $dhImg }}" alt="TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" class="max-h-12 max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD', $karyawan['nrp_dept_head'] ?? '') }}';">
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
                         @endif
@@ -2001,7 +1999,7 @@
                                             <img src="{{ $currentUserSignatureUrl ?: route('user.signature', Auth::id()) }}" 
                                                  alt="TTD {{ Auth::user()->nama }}" 
                                                  class="max-h-24 max-w-full mx-auto object-contain transition-all"
-                                                 onerror="if (this.src !== '{{ route('user.signature', Auth::id()) }}') { this.src='{{ route('user.signature', Auth::id()) }}'; } else { this.onerror=null; this.src='{{ $officialFallbackSvg }}'; }">
+                                                 onerror="this.onerror=null; this.src='{{ $officialFallbackSvg }}';">
                                         </div>
                                     </template>
                                 </div>

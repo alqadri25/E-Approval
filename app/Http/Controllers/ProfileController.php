@@ -253,8 +253,8 @@ class ProfileController extends Controller
                 if ($cached === 'FALLBACK_SVG') {
                     return $this->fallbackOfficialSvgSignature($user);
                 }
-                // Ensure cached is not HTML error page
-                if (!str_starts_with($cached, '<!DOCTYPE') && !str_starts_with($cached, '<html')) {
+                // Ensure cached is a real binary image
+                if (strlen($cached) > 100 && !str_starts_with($cached, '<!DOCTYPE') && !str_starts_with($cached, '<html')) {
                     $mime = str_starts_with($cached, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($cached, "RIFF") ? 'image/webp' : 'image/png');
                     return response($cached, 200, [
                         'Content-Type' => $mime,
@@ -263,18 +263,16 @@ class ProfileController extends Controller
                 }
             }
 
-            // Fast fetch: attempt single thumbnail fetch with 1.5s timeout
+            // Fetch via direct Google Drive export stream with redirect
             try {
-                $res = Http::timeout(1.5)->withHeaders([
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                ])->get("https://drive.google.com/thumbnail?id={$fileId}&sz=w800");
+                $res = Http::timeout(3)->withOptions(['allow_redirects' => true])->get("https://drive.google.com/uc?export=view&id={$fileId}");
 
                 if ($res->successful() && strlen($res->body()) > 100) {
                     $body = $res->body();
                     $isImg = str_starts_with($body, "\x89PNG") || str_starts_with($body, "\xFF\xD8\xFF") || str_starts_with($body, "GIF8") || (str_starts_with($body, "RIFF") && str_contains(substr($body, 8, 8), "WEBP"));
                     if ($isImg) {
                         $mime = str_starts_with($body, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($body, "RIFF") ? 'image/webp' : 'image/png');
-                        Cache::put($cacheKey, $body, 86400);
+                        Cache::put($cacheKey, $body, 86400 * 30);
                         return response($body, 200, [
                             'Content-Type' => $mime,
                             'Cache-Control' => 'public, max-age=86400',
@@ -283,7 +281,7 @@ class ProfileController extends Controller
                 }
             } catch (\Throwable $e) {}
 
-            // Cache negative result so subsequent requests don't hang and return immediately
+            // Cache negative result so subsequent requests don't hang
             Cache::put($cacheKey, 'FALLBACK_SVG', 3600);
             return $this->fallbackOfficialSvgSignature($user);
         }
@@ -313,28 +311,29 @@ class ProfileController extends Controller
      */
     private function fallbackOfficialSvgSignature(User $user)
     {
-        $nama = htmlspecialchars($user->nama ?: 'KARYAWAN MUSASHI', ENT_XML1);
-        $role = htmlspecialchars(strtoupper($user->role ?: 'PENILAI'), ENT_XML1);
-        $nrp = htmlspecialchars($user->nrp ?: '-', ENT_XML1);
+        $nama = htmlspecialchars(strtoupper(trim($user->nama ?: 'KARYAWAN MUSASHI')), ENT_XML1, 'UTF-8');
+        $role = htmlspecialchars(strtoupper(trim($user->role ?: 'PENILAI')), ENT_XML1, 'UTF-8');
+        $nrp = htmlspecialchars(trim($user->nrp ?: '-'), ENT_XML1, 'UTF-8');
         $id = str_pad($user->id, 5, '0', STR_PAD_LEFT);
 
-        $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 110" width="380" height="110">'
+        $svg = '<?xml version="1.0" encoding="UTF-8"?>'
+            . '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 110" width="380" height="110">'
             . '<rect x="2" y="2" width="376" height="106" rx="8" fill="#fdfbf7" stroke="#92302e" stroke-width="1.5" stroke-dasharray="4 3"/>'
             . '<g transform="translate(16, 20)">'
             . '<circle cx="14" cy="14" r="14" fill="#92302e" fill-opacity="0.12"/>'
             . '<path d="M9 14 l3.5 3.5 l7 -7" fill="none" stroke="#92302e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
-            . '<text x="36" y="10" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8.5" font-weight="800" fill="#92302e" letter-spacing="1">PT MUSASHI AUTO PARTS INDONESIA</text>'
-            . '<text x="36" y="22" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8" font-weight="600" fill="#64748b">E-APPROVAL DIGITAL SIGNATURE</text>'
+            . '<text x="36" y="10" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#92302e">PT MUSASHI AUTO PARTS INDONESIA</text>'
+            . '<text x="36" y="22" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#64748b">E-APPROVAL DIGITAL SIGNATURE</text>'
             . '</g>'
-            . '<text x="190" y="66" text-anchor="middle" font-family="Brush Script MT, Segoe Script, cursive, Georgia, serif" font-size="28" font-weight="bold" fill="#0f172a">' . $nama . '</text>'
+            . '<text x="190" y="66" text-anchor="middle" font-family="Georgia, serif" font-size="24" font-weight="bold" fill="#0f172a">' . $nama . '</text>'
             . '<line x1="24" y1="76" x2="356" y2="76" stroke="#e2e8f0" stroke-width="1"/>'
-            . '<text x="190" y="92" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif" font-size="8" font-weight="700" fill="#475569">'
-            . 'VALIDATED DIGITAL SIGNATURE • ' . $role . ' • NRP: ' . $nrp . ' • ID: #' . $id
+            . '<text x="190" y="92" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="bold" fill="#475569">'
+            . 'VALIDATED DIGITAL SIGNATURE &#8226; ' . $role . ' &#8226; NRP: ' . $nrp . ' &#8226; ID: #' . $id
             . '</text>'
             . '</svg>';
 
         return response($svg, 200, [
-            'Content-Type' => 'image/svg+xml',
+            'Content-Type' => 'image/svg+xml; charset=utf-8',
             'Cache-Control' => 'public, max-age=3600',
         ]);
     }
