@@ -1857,27 +1857,7 @@ class PenilaianController extends Controller
      */
     public static function makeOfficialSvgDataUri(string $name, ?string $role = null, ?string $nrp = null): string
     {
-        $cleanName = htmlspecialchars(strtoupper(trim($name ?: 'KARYAWAN MUSASHI')), ENT_XML1, 'UTF-8');
-        $cleanRole = htmlspecialchars(strtoupper(trim($role ?: 'PENILAI')), ENT_XML1, 'UTF-8');
-        $cleanNrp = htmlspecialchars(trim($nrp ?: '-'), ENT_XML1, 'UTF-8');
-
-        $svg = '<?xml version="1.0" encoding="UTF-8"?>'
-            . '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 110" width="380" height="110">'
-            . '<rect x="2" y="2" width="376" height="106" rx="8" fill="#fdfbf7" stroke="#92302e" stroke-width="1.5" stroke-dasharray="4 3"/>'
-            . '<g transform="translate(16, 20)">'
-            . '<circle cx="14" cy="14" r="14" fill="#92302e" fill-opacity="0.12"/>'
-            . '<path d="M9 14 l3.5 3.5 l7 -7" fill="none" stroke="#92302e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
-            . '<text x="36" y="10" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#92302e">PT MUSASHI AUTO PARTS INDONESIA</text>'
-            . '<text x="36" y="22" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#64748b">E-APPROVAL DIGITAL SIGNATURE</text>'
-            . '</g>'
-            . '<text x="190" y="66" text-anchor="middle" font-family="Georgia, serif" font-size="24" font-weight="bold" fill="#0f172a">' . $cleanName . '</text>'
-            . '<line x1="24" y1="76" x2="356" y2="76" stroke="#e2e8f0" stroke-width="1"/>'
-            . '<text x="190" y="92" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="bold" fill="#475569">'
-            . 'VALIDATED DIGITAL SIGNATURE &#8226; ' . $cleanRole . ' &#8226; NRP: ' . $cleanNrp
-            . '</text>'
-            . '</svg>';
-
-        return 'data:image/svg+xml;base64,' . base64_encode($svg);
+        return \App\Models\User::generateBarcodeDataUri($nrp ?: '-', $name ?: 'KARYAWAN MUSASHI', $role ?: 'PENILAI');
     }
 
     /**
@@ -2060,24 +2040,6 @@ class PenilaianController extends Controller
                 $signerRole = $userObj->role ?? $level;
             }
 
-            // Resolve signature image candidate
-            $candidateImg = $t['ttd_image'] ?? null;
-
-            if (empty($candidateImg) && $userObj) {
-                $candidateImg = $userObj->signature_path ?? null;
-            }
-
-            if (empty($candidateImg) && $signerNrp) {
-                try {
-                    if (Schema::hasTable('master_tanda_tangan')) {
-                        $mRow = DB::table('master_tanda_tangan')->where('nrp', (string)$signerNrp)->first();
-                        if ($mRow) {
-                            $candidateImg = $mRow->signature_base64 ?: $mRow->signature_url;
-                        }
-                    }
-                } catch (\Throwable $e) {}
-            }
-
             // Fallback display names if still blank
             $defaultRoleLabels = [
                 'foreman' => 'Foreman (Penilai 1)',
@@ -2089,11 +2051,25 @@ class PenilaianController extends Controller
             $displayRole = strtoupper($signerRole ?: $level);
             $displayNrp = $signerNrp ?: '-';
 
-            // Resolve to 100% reliable Data URI
-            $finalDataUri = self::resolveImageToDataUri($candidateImg, $displayName, $displayRole, $displayNrp);
+            // Resolve Barcode / QR Code TTD:
+            // 1) From userObj's barcodettd / ttdbarcode (direct from sheet users)
+            // 2) From ttd_image in tanda_tangan table
+            // 3) Dynamically generated QR Code Data URI of NRP & Nama
+            $candidateBarcode = null;
+            if ($userObj) {
+                $candidateBarcode = $userObj->barcodettd ?? ($userObj->ttdbarcode ?? null);
+            }
+            if (empty($candidateBarcode) && $t && !empty($t['ttd_image'])) {
+                $candidateBarcode = $t['ttd_image'];
+            }
+            if (empty($candidateBarcode) && $userObj && !empty($userObj->signature_path)) {
+                $candidateBarcode = $userObj->signature_path;
+            }
 
-            if (!$finalDataUri) {
-                $finalDataUri = self::makeOfficialSvgDataUri($displayName, $displayRole, $displayNrp);
+            if ($candidateBarcode && str_starts_with($candidateBarcode, 'data:image')) {
+                $finalDataUri = $candidateBarcode;
+            } else {
+                $finalDataUri = \App\Models\User::generateBarcodeDataUri($displayNrp, $displayName, $displayRole);
             }
 
             $entry = $t ?: [
@@ -3484,88 +3460,13 @@ class PenilaianController extends Controller
             }
         }
 
-        // 3. Process Signature Image (File Upload, User Profile Signature, or Canvas base64)
-        $signatureData = $request->input('signature_base64');
-        $signaturePath = null;
-
-        if ($request->hasFile('signature_file') && $request->file('signature_file')->isValid()) {
-            $file = $request->file('signature_file');
-            $ext = strtolower($file->getClientOriginalExtension() ?: 'png');
-            if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'svg'])) {
-                $ext = 'png';
-            }
-            $binary = file_get_contents($file->getRealPath());
-            $mime = ($ext === 'jpg' || $ext === 'jpeg') ? 'image/jpeg' : 'image/png';
-            $dataUri = 'data:' . $mime . ';base64,' . base64_encode($binary);
-
-            $filename = 'ttd_' . $id . '_' . $level . '_' . time() . '.' . $ext;
-            try {
-                Storage::disk('public')->put('signatures/' . $filename, $binary);
-            } catch (\Throwable $e) {}
-
-            $signaturePath = $dataUri;
-
-            // Automatically persist newly uploaded signature to user profile as Data URI
-            $user->signature_path = $dataUri;
+        // 3. Process Barcode / QR Code Digital Signature (from sheet users or auto-generated from NRP & Nama)
+        $signaturePath = $user->barcode_ttd ?: \App\Models\User::generateBarcodeDataUri($user->nrp ?: (string)$user->id, $user->nama, $user->role);
+        $user->signature_path = $signaturePath;
+        if (empty($user->barcodettd) || empty($user->ttdbarcode)) {
+            $user->barcodettd = $signaturePath;
+            $user->ttdbarcode = $signaturePath;
             $user->save();
-
-            // Also upload to Google Drive in background
-            try {
-                \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $binary, $ext);
-            } catch (\Throwable $e) {}
-        } elseif (!empty($signatureData) && str_starts_with($signatureData, 'data:image')) {
-            $commaPos = strpos($signatureData, ',');
-            $binary = ($commaPos !== false) ? base64_decode(substr($signatureData, $commaPos + 1)) : base64_decode($signatureData);
-            $filename = 'ttd_' . $id . '_' . $level . '_' . time() . '.png';
-            try {
-                Storage::disk('public')->put('signatures/' . $filename, $binary);
-            } catch (\Throwable $e) {}
-
-            $signaturePath = $signatureData;
-
-            // Automatically persist newly drawn signature to user profile as Data URI
-            $user->signature_path = $signatureData;
-            $user->save();
-
-            // Also upload to Google Drive in background
-            try {
-                \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $binary, 'png');
-            } catch (\Throwable $e) {}
-        } elseif (!empty($user->signature_path)) {
-            // Automatically use user's saved profile signature (Data URI, local file, or Drive link)
-            $signaturePath = $user->signature_path;
-
-            // Pastikan tanda tangan tersimpan ini juga otomatis terunggah ke Google Drive (TANDA_TANGAN / [ROLE])
-            if (str_starts_with($user->signature_path, 'data:image')) {
-                try {
-                    $commaPos = strpos($user->signature_path, ',');
-                    if ($commaPos !== false) {
-                        $binary = base64_decode(substr($user->signature_path, $commaPos + 1));
-                        \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $binary, 'png');
-                    }
-                } catch (\Throwable $e) {}
-            }
-        }
-
-        // Check master_tanda_tangan if $signaturePath still empty
-        if (empty($signaturePath) && !empty($user->nrp)) {
-            try {
-                if (Schema::hasTable('master_tanda_tangan')) {
-                    $mttd = DB::table('master_tanda_tangan')->where('nrp', (string)$user->nrp)->first();
-                    if ($mttd) {
-                        $signaturePath = $mttd->signature_base64 ?: $mttd->signature_url;
-                    }
-                }
-            } catch (\Throwable $e) {}
-        }
-
-        // If user has no saved signature uploaded yet, generate official digital signature SVG badge
-        if (empty($signaturePath)) {
-            $signaturePath = self::makeOfficialSvgDataUri($user->nama, $user->role, $user->nrp);
-            $user->signature_path = $signaturePath;
-            $user->save();
-        } else {
-            $signaturePath = self::resolveImageToDataUri($signaturePath, $user->nama, $user->role, $user->nrp);
         }
 
         // 4. Save Scores to 'nilai'

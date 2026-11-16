@@ -27,7 +27,7 @@ class SheetRepository implements SheetRepositoryInterface
      */
     public const SCHEMAS = [
         'users' => [
-            'id', 'nama', 'email', 'password_hash', 'role', 'nrp', 'departemen', 'aktif', 'created_at'
+            'id', 'nama', 'email', 'password_hash', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode', 'created_at'
         ],
         'karyawan' => [
             'nrp', 'nama_lengkap', 'golongan', 'sub_gol', 'kj', 'jabatan', 'tgl_masuk', 'seksi', 'departemen', 'level_form', 'nrp_foreman', 'nrp_section_head', 'nrp_dept_head', 'nrp_div_head', 'code_bagian', 'nama_bagian', 'nama_sect', 'line_category', 'division'

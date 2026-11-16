@@ -97,7 +97,64 @@ class User extends Authenticatable
         'jabatan',
         'posisi',
         'divisi',
+        'barcodettd',
+        'ttdbarcode',
     ];
+
+    /**
+     * Generate standard QR Code SVG Data URI from employee NRP, Name, and Role.
+     * Encodes official Musashi digital signature verification payload.
+     */
+    public static function generateBarcodeDataUri(string $nrp, string $nama, ?string $role = null): string
+    {
+        $cleanNrp = trim($nrp ?: '-');
+        $cleanNama = strtoupper(trim($nama ?: 'KARYAWAN MUSASHI'));
+        $cleanRole = strtoupper(trim($role ?: 'PENILAI'));
+
+        $payload = "PT MUSASHI AUTO PARTS INDONESIA\n"
+            . "E-APPROVAL DIGITAL SIGNATURE\n"
+            . "NRP: {$cleanNrp}\n"
+            . "NAMA: {$cleanNama}\n"
+            . "ROLE: {$cleanRole}\n"
+            . "STATUS: VERIFIED";
+
+        try {
+            $svg = (string)\SimpleSoftwareIO\QrCode\Facades\QrCode::size(120)
+                ->margin(1)
+                ->errorCorrection('M')
+                ->generate($payload);
+
+            return 'data:image/svg+xml;base64,' . base64_encode($svg);
+        } catch (\Throwable $e) {
+            $fallbackSvg = '<?xml version="1.0" encoding="UTF-8"?>'
+                . '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">'
+                . '<rect x="2" y="2" width="116" height="116" rx="6" fill="#f8fafc" stroke="#92302e" stroke-width="2"/>'
+                . '<text x="60" y="32" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#92302e">MUSASHI</text>'
+                . '<text x="60" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#0f172a">TTD QR</text>'
+                . '<text x="60" y="78" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#475569">' . htmlspecialchars($cleanNrp, ENT_XML1, 'UTF-8') . '</text>'
+                . '<text x="60" y="98" text-anchor="middle" font-family="Arial, sans-serif" font-size="7.5" fill="#64748b">' . htmlspecialchars(substr($cleanNama, 0, 16), ENT_XML1, 'UTF-8') . '</text>'
+                . '</svg>';
+
+            return 'data:image/svg+xml;base64,' . base64_encode($fallbackSvg);
+        }
+    }
+
+    /**
+     * Get the Barcode / QR Code TTD Data URI for this user.
+     * Takes from sheet 'users' columns (barcodettd / ttdbarcode) or generates automatically.
+     */
+    public function getBarcodeTtdAttribute(): string
+    {
+        $candidate = $this->attributes['barcodettd'] 
+            ?? ($this->attributes['ttdbarcode'] 
+            ?? ($this->attributes['signature_path'] ?? null));
+
+        if ($candidate && str_starts_with($candidate, 'data:image')) {
+            return $candidate;
+        }
+
+        return self::generateBarcodeDataUri($this->nrp ?: (string)$this->id, $this->nama, $this->role);
+    }
 
     public function getKaryawanAttribute()
     {
@@ -118,41 +175,12 @@ class User extends Authenticatable
 
     public function getSignatureUrlAttribute(): ?string
     {
-        if (empty($this->signature_path)) {
-            $sigRec = $this->signature_record;
-            if ($sigRec) {
-                $this->signature_path = $sigRec->signature_base64 ?: $sigRec->signature_url;
-            }
-        }
-
-        if (empty($this->signature_path)) {
-            return null;
-        }
-
-        // 1. Full Data URI (Direct base64 image - instant render with zero network requests)
-        if (str_starts_with($this->signature_path, 'data:image')) {
-            return $this->signature_path;
-        }
-
-        // 2. Stream through reliable backend proxy route (handles Google Drive URLs and local files with proper image/png MIME and CORS)
-        try {
-            return route('user.signature', $this->id);
-        } catch (\Throwable $e) {
-            return $this->signature_path;
-        }
+        return $this->barcode_ttd;
     }
 
     public function hasSignature(): bool
     {
-        if (!empty($this->signature_path)) {
-            return true;
-        }
-        $sigRec = $this->signature_record;
-        if ($sigRec && (!empty($sigRec->signature_base64) || !empty($sigRec->signature_url))) {
-            $this->signature_path = $sigRec->signature_base64 ?: $sigRec->signature_url;
-            return true;
-        }
-        return false;
+        return true;
     }
 
     public function getResolvedJabatanAttribute(): string

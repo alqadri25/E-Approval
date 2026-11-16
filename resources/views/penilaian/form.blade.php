@@ -778,11 +778,14 @@
                             }
                             $isForemanSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && (in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcForeman['grand_total'] > 0)));
                             if (empty($foremanImg) && $isForemanSigned) {
-                                $foremanImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN', $karyawan['nrp_foreman'] ?? '');
+                                $foremanImg = \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN');
                             }
                         @endphp
                         @if($foremanImg)
-                            <img src="{{ $foremanImg }}" alt="TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" class="max-h-12 max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN', $karyawan['nrp_foreman'] ?? '') }}';">
+                            <div class="py-1 flex flex-col items-center justify-center">
+                                <img src="{{ $foremanImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" class="h-12 w-12 object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN') }}';">
+                                <span class="text-[8px] font-bold text-emerald-700 block mt-0.5 leading-none">✓ Sudah TTD</span>
+                            </div>
                         @elseif($isTanpaForemanStd && !$showForemanData)
                             &nbsp;
                         @else
@@ -801,11 +804,14 @@
                             $shImg = $ttdByLevel['section_head']['ttd_base64'] ?? $ttdByLevel['section_head']['ttd_image'] ?? null;
                             $isShSigned = !empty($ttdByLevel['section_head']) || in_array($dokumen['status'], ['menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcSectionHead['grand_total'] > 0);
                             if (empty($shImg) && $isShSigned) {
-                                $shImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD', $karyawan['nrp_section_head'] ?? '');
+                                $shImg = \App\Models\User::generateBarcodeDataUri($karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD', $karyawan['nrp_section_head'] ?? '');
                             }
                         @endphp
                         @if($shImg)
-                            <img src="{{ $shImg }}" alt="TTD {{ $isGol4Up ? 'Atasan Langsung' : 'Section Head' }}" class="max-h-12 max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD', $karyawan['nrp_section_head'] ?? '') }}';">
+                            <div class="py-1 flex flex-col items-center justify-center">
+                                <img src="{{ $shImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan Langsung' : 'Section Head' }}" class="h-12 w-12 object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_section_head'] ?? '', $karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD') }}';">
+                                <span class="text-[8px] font-bold text-emerald-700 block mt-0.5 leading-none">✓ Sudah TTD</span>
+                            </div>
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
                         @endif
@@ -823,11 +829,14 @@
                             $dhImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
                             $isDhSigned = !empty($ttdByLevel['dept_head']) || $dokumen['status'] === 'selesai' || ($calcDeptHead['grand_total'] > 0);
                             if (empty($dhImg) && $isDhSigned) {
-                                $dhImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD', $karyawan['nrp_dept_head'] ?? '');
+                                $dhImg = \App\Models\User::generateBarcodeDataUri($karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD', $karyawan['nrp_dept_head'] ?? '');
                             }
                         @endphp
                         @if($dhImg)
-                            <img src="{{ $dhImg }}" alt="TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" class="max-h-12 max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD', $karyawan['nrp_dept_head'] ?? '') }}';">
+                            <div class="py-1 flex flex-col items-center justify-center">
+                                <img src="{{ $dhImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" class="h-12 w-12 object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_dept_head'] ?? '', $karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD') }}';">
+                                <span class="text-[8px] font-bold text-emerald-700 block mt-0.5 leading-none">✓ Sudah TTD</span>
+                            </div>
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
                         @endif
@@ -1967,156 +1976,36 @@
                         </div>
                     </div>
 
-                    <!-- Tanda Tangan Digital Section (Otomatis dari Profil Pengguna) -->
+                    <!-- Barcode Tanda Tangan Digital Section (Otomatis dari Sheet Users) -->
                     <div class="space-y-3">
-                        @if($hasUserSignature)
-                            <!-- Tanda Tangan Tersimpan di Profil Pengguna -->
-                            <div class="p-3.5 bg-slate-50 border border-slate-300 rounded-xl space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                                        <span class="text-emerald-600 font-black">✓</span> Gambar Tanda Tangan Anda Siap
-                                    </span>
-                                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded">
-                                        Tersimpan di Profil
-                                    </span>
+                        <div class="p-3.5 bg-slate-50 border border-slate-300 rounded-xl space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                    <span class="text-emerald-600 font-black">✓</span> Barcode Tanda Tangan Anda Siap
+                                </span>
+                                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded">
+                                    Tersinkronisasi dari Sheet Users
+                                </span>
+                            </div>
+
+                            <div class="bg-white p-4 border border-slate-300 rounded-lg text-center shadow-2xs">
+                                <div class="p-2 bg-white border border-slate-200 shadow-xs inline-block rounded">
+                                    <img src="{{ Auth::user()->barcode_ttd }}" 
+                                         alt="Barcode TTD {{ Auth::user()->nama }}" 
+                                         class="w-28 h-28 mx-auto object-contain">
                                 </div>
-
-                                <div class="bg-white p-3 border border-slate-300 rounded-lg text-center shadow-2xs">
-                                    <template x-if="uploadedPreview">
-                                        <div class="space-y-1.5">
-                                            <div class="text-[9.5px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 inline-block">
-                                                Preview Gambar TTD Baru (Akan Disimpan)
-                                            </div>
-                                            <img :src="uploadedPreview" alt="Preview TTD Baru" class="max-h-24 max-w-full mx-auto object-contain">
-                                            <p class="text-[10px] font-mono text-slate-500 truncate" x-text="uploadedFileName"></p>
-                                            <button type="button" @click="clearUploadedFile(); clearSignaturePad();" class="text-[11px] text-rose-600 hover:underline font-bold">
-                                                Batal / Gunakan TTD Profil Semula
-                                            </button>
-                                        </div>
-                                    </template>
-                                    <template x-if="!uploadedPreview">
-                                        <div class="py-1">
-                                            <img src="{{ $currentUserSignatureUrl ?: route('user.signature', Auth::id()) }}" 
-                                                 alt="TTD {{ Auth::user()->nama }}" 
-                                                 class="max-h-24 max-w-full mx-auto object-contain transition-all"
-                                                 onerror="this.onerror=null; this.src='{{ $officialFallbackSvg }}';">
-                                        </div>
-                                    </template>
-                                </div>
-
-                                <!-- Opsi Ganti Gambar Tanda Tangan -->
-                                <div class="pt-2 border-t border-slate-200">
-                                    <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold text-[#92302e] hover:text-[#781b1f]">
-                                        <input type="checkbox" x-model="wantChangeSignature" class="rounded text-[#92302e] focus:ring-[#92302e]" @change="if(wantChangeSignature) { $nextTick(() => initCanvas()); }">
-                                        <span>Ingin mengganti / memperbarui tanda tangan?</span>
-                                    </label>
-                                    
-                                    <div x-show="wantChangeSignature" x-cloak class="mt-2.5 space-y-2.5 bg-white p-3 border border-slate-200 rounded-lg">
-                                        <!-- Mode Switcher -->
-                                        <div class="flex items-center gap-2 border-b border-slate-100 pb-2">
-                                            <button type="button" 
-                                                    @click="signMode = 'upload'" 
-                                                    :class="signMode === 'upload' ? 'bg-[#92302e] text-white font-bold' : 'bg-slate-100 text-slate-700'"
-                                                    class="px-3 py-1 text-xs rounded transition-colors">
-                                                📁 Unggah Berkas (PNG/JPG)
-                                            </button>
-                                            <button type="button" 
-                                                    @click="signMode = 'canvas'; $nextTick(() => initCanvas());" 
-                                                    :class="signMode === 'canvas' ? 'bg-[#92302e] text-white font-bold' : 'bg-slate-100 text-slate-700'"
-                                                    class="px-3 py-1 text-xs rounded transition-colors">
-                                                ✍️ Tulis di Layar (Canvas)
-                                            </button>
-                                        </div>
-
-                                        <!-- Upload File Option -->
-                                        <div x-show="signMode === 'upload'" class="space-y-1.5">
-                                            <input type="file" 
-                                                   id="signature_file_input"
-                                                   name="signature_file" 
-                                                   accept="image/png,image/jpeg,image/webp"
-                                                   @change="handleSignatureFileUpload($event)"
-                                                   class="w-full text-xs text-slate-700 file:mr-2.5 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-bold file:bg-[#92302e] file:text-white hover:file:bg-[#7e2524] file:cursor-pointer border border-slate-300 bg-white cursor-pointer shadow-2xs">
-                                            <p class="text-[10px] text-slate-400">Pilih berkas PNG transparan atau JPG (Maks. 5MB). Otomatis tersimpan ke profil Anda dan Google Drive.</p>
-                                        </div>
-
-                                        <!-- Canvas Drawing Option -->
-                                        <div x-show="signMode === 'canvas'" class="space-y-1.5">
-                                            <div class="border-2 border-dashed border-slate-300 rounded bg-slate-50 relative">
-                                                <canvas id="signaturePad" width="380" height="130" class="w-full h-32 cursor-crosshair touch-none bg-white rounded"></canvas>
-                                                <button type="button" @click="clearSignaturePad()" class="absolute top-2 right-2 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-0.5 rounded font-bold shadow-xs">
-                                                    Hapus Coretan
-                                                </button>
-                                            </div>
-                                            <p class="text-[10px] text-slate-400">Gunakan mouse, touchpad, atau jari Anda di atas area kotak.</p>
-                                        </div>
+                                <div class="mt-2.5 space-y-0.5 text-xs">
+                                    <div class="font-bold text-slate-900">{{ Auth::user()->nama }}</div>
+                                    <div class="font-mono text-slate-600 text-[11px]">NRP: {{ Auth::user()->nrp ?: '-' }} &bull; {{ Auth::user()->roleLabel() }}</div>
+                                    <div class="text-[10px] text-emerald-700 font-semibold mt-1">
+                                        ✓ QR Barcode Digital Resmi Musashi (Siap Dibubuhkan)
                                     </div>
                                 </div>
                             </div>
-                        @else
-                            <!-- Belum Ada Tanda Tangan: Unggah Gambar TTD Sekali -->
-                            <div class="p-3.5 bg-amber-50 border border-amber-300 rounded-xl space-y-3">
-                                <div class="flex items-start gap-2.5">
-                                    <span class="text-amber-600 text-base">⚠️</span>
-                                    <div>
-                                        <strong class="text-xs font-bold text-amber-900 block">Belum Ada Tanda Tangan Tersimpan:</strong>
-                                        <p class="text-[11px] text-amber-800 mt-0.5">
-                                            Silakan unggah berkas gambar tanda tangan atau buat tanda tangan langsung di layar. Tanda tangan ini otomatis tersimpan ke profil Anda untuk approval berikutnya.
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <!-- Mode Switcher -->
-                                <div class="flex items-center gap-2 border-b border-amber-200 pb-2">
-                                    <button type="button" 
-                                            @click="signMode = 'upload'" 
-                                            :class="signMode === 'upload' ? 'bg-[#92302e] text-white font-bold' : 'bg-white text-slate-700 border border-slate-200'"
-                                            class="px-3 py-1 text-xs rounded transition-colors">
-                                        📁 Unggah Berkas
-                                    </button>
-                                    <button type="button" 
-                                            @click="signMode = 'canvas'; $nextTick(() => initCanvas());" 
-                                            :class="signMode === 'canvas' ? 'bg-[#92302e] text-white font-bold' : 'bg-white text-slate-700 border border-slate-200'"
-                                            class="px-3 py-1 text-xs rounded transition-colors">
-                                        ✍️ Tulis di Layar
-                                    </button>
-                                </div>
-
-                                <div x-show="signMode === 'upload'" class="border-2 border-dashed border-amber-300 rounded-lg p-3 bg-white text-center">
-                                    <template x-if="uploadedPreview && !hasDrawn">
-                                        <div class="space-y-1.5">
-                                            <img :src="uploadedPreview" alt="Preview TTD" class="max-h-20 mx-auto object-contain">
-                                            <p class="text-[10px] font-mono text-slate-600" x-text="uploadedFileName"></p>
-                                            <button type="button" @click="clearUploadedFile()" class="text-xs text-rose-600 hover:underline font-bold">
-                                                Ganti Berkas
-                                            </button>
-                                        </div>
-                                    </template>
-                                    <template x-if="!uploadedPreview || hasDrawn">
-                                        <div class="cursor-pointer py-2 hover:bg-slate-50 transition-colors" @click="$refs.signatureFileInput.click()">
-                                            <span class="text-xs font-bold text-[#92302e] block">📁 Klik untuk Unggah Gambar Tanda Tangan</span>
-                                            <span class="text-[10px] text-slate-400 mt-0.5 block">Format PNG (transparan direkomendasikan) atau JPG (Maks. 5MB)</span>
-                                        </div>
-                                    </template>
-                                    <input type="file" 
-                                           id="signature_file_input"
-                                           x-ref="signatureFileInput"
-                                           name="signature_file" 
-                                           accept="image/png,image/jpeg,image/webp"
-                                           @change="handleSignatureFileUpload($event)"
-                                           class="hidden">
-                                </div>
-
-                                <div x-show="signMode === 'canvas'" class="space-y-1.5">
-                                    <div class="border-2 border-dashed border-amber-300 rounded bg-white relative">
-                                        <canvas id="signaturePad" width="380" height="130" class="w-full h-32 cursor-crosshair touch-none bg-white rounded"></canvas>
-                                        <button type="button" @click="clearSignaturePad()" class="absolute top-2 right-2 text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-0.5 rounded font-bold shadow-xs">
-                                            Hapus Coretan
-                                        </button>
-                                    </div>
-                                    <p class="text-[10px] text-slate-400">Gunakan mouse, touchpad, atau jari Anda di atas area kotak.</p>
-                                </div>
-                            </div>
-                        @endif
+                            <p class="text-[11px] text-slate-500 text-center">
+                                Tanda tangan ini dibuat secara otomatis dari data akun Anda di sheet <strong>users</strong> (<code class="text-xs font-mono font-bold text-[#92302e]">barcodettd</code>) tanpa perlu mengunggah berkas tanda tangan manual.
+                            </p>
+                        </div>
                     </div>
 
                 </div>
@@ -2126,8 +2015,9 @@
                     <button type="button" @click="showSignatureModal = false" class="min-btn px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-200 hover:bg-slate-300">
                         Batal
                     </button>
-                    <button type="submit" class="min-btn px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200">
-                        Kunci & Bubuhkan Tanda Tangan
+                    <button type="submit" class="min-btn px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 flex items-center gap-1.5">
+                        <span>🔒</span>
+                        <span>Kunci &amp; Bubuhkan Barcode TTD</span>
                     </button>
                 </div>
 
@@ -3096,32 +2986,8 @@ function penilaianApp() {
                 }
             }
 
-            if (this.uploadedPreview && this.uploadedPreview.startsWith('data:image')) {
-                const sigBase64Input = document.getElementById('signature_base64');
-                if (sigBase64Input) {
-                    sigBase64Input.value = this.uploadedPreview;
-                }
-            }
-
-            if (!this.hasSavedSignature) {
-                const fileIn = document.getElementById('signature_file_input');
-                const hasFile = fileIn && fileIn.files && fileIn.files.length > 0;
-                const hasPreview = this.uploadedPreview && this.uploadedPreview.startsWith('data:image');
-                if (!hasFile && !hasPreview) {
-                    alert('Silakan pilih berkas gambar tanda tangan (PNG/JPG) Anda terlebih dahulu!');
-                    e.preventDefault();
-                    return false;
-                }
-            } else if (this.wantChangeSignature) {
-                const fileIn = document.getElementById('signature_file_input');
-                const hasFile = fileIn && fileIn.files && fileIn.files.length > 0;
-                const hasPreview = this.uploadedPreview && this.uploadedPreview.startsWith('data:image');
-                if (!hasFile && !hasPreview) {
-                    alert('Anda memilih untuk mengganti tanda tangan. Silakan pilih berkas gambar tanda tangan baru atau hilangkan centang.');
-                    e.preventDefault();
-                    return false;
-                }
-            }
+            // Barcode TTD is automatically bound and always ready
+            return true;
         }
     }
 }

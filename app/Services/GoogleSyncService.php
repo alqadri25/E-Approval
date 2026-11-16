@@ -364,6 +364,29 @@ class GoogleSyncService
                         // Auto-generate leadership accounts for the pulled employees
                         AccountSyncService::syncLeadershipAccountsFromKaryawan();
 
+                        // Sync users barcodettd / ttdbarcode from spreadsheet if present
+                        if (!empty($data['users']) && is_array($data['users'])) {
+                            foreach ($data['users'] as $uRow) {
+                                $uEmail = trim((string)($uRow['email'] ?? ''));
+                                $uNrp = trim((string)($uRow['nrp'] ?? ''));
+                                $barcodeVal = trim((string)($uRow['barcodettd'] ?? ($uRow['ttdbarcode'] ?? '')));
+                                if ($barcodeVal !== '') {
+                                    $q = DB::table('app_users');
+                                    if ($uEmail !== '') {
+                                        $q->where('email', $uEmail);
+                                    } elseif ($uNrp !== '') {
+                                        $q->where('nrp', $uNrp);
+                                    } else {
+                                        continue;
+                                    }
+                                    $q->update([
+                                        'barcodettd' => $barcodeVal,
+                                        'ttdbarcode' => $barcodeVal,
+                                    ]);
+                                }
+                            }
+                        }
+
                         // Sync pengaturan from Google Spreadsheet if present
                         $settingRows = $data['pengaturan'] ?? [];
                         if (!empty($settingRows) && is_array($settingRows)) {
@@ -427,7 +450,7 @@ class GoogleSyncService
 
         $karyawanData = DB::table('karyawan')->get()->toArray();
         $dokumenData = DB::table('dokumen')->get()->toArray();
-        $usersData = User::select('id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif')->get()->toArray();
+        $usersData = User::select('id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode')->get()->toArray();
         $nilaiData = Schema::hasTable('nilai') ? DB::table('nilai')->get()->toArray() : [];
         $ttdData = Schema::hasTable('tanda_tangan') ? DB::table('tanda_tangan')->get()->toArray() : [];
         $indikatorData = Schema::hasTable('indikator') ? DB::table('indikator')->get()->toArray() : [];
@@ -522,7 +545,7 @@ class GoogleSyncService
                 'aspek_kode', 'skor', 'deskripsi'
             ],
             'users' => [
-                'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif'
+                'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode'
             ],
             default => ['id', 'created_at']
         };
@@ -553,7 +576,7 @@ class GoogleSyncService
             if (Schema::hasTable($localTable)) {
                 if ($localTable === 'app_users') {
                     $rows = DB::table('app_users')
-                        ->select('id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif')
+                        ->select('id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode')
                         ->get()
                         ->map(fn ($row) => (array)$row)
                         ->toArray();
@@ -1041,7 +1064,7 @@ var CONFIG_TABLES = {
     'hash_dokumen', 'kode_verifikasi', 'created_at'
   ],
   'users': [
-    'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'created_at'
+    'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode', 'created_at'
   ],
   'nilai': [
     'dokumen_id', 'level', 'aspek_kode', 'skor', 'catatan'

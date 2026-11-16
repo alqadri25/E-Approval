@@ -99,97 +99,11 @@ class ProfileController extends Controller
             $user->password_hash = Hash::make($request->input('password'));
         }
 
-        // Handle delete signature request
-        if ($request->boolean('delete_signature')) {
-            if (!empty($user->signature_path) && !str_starts_with($user->signature_path, 'http') && Storage::disk('public')->exists($user->signature_path)) {
-                try {
-                    Storage::disk('public')->delete($user->signature_path);
-                } catch (\Throwable $e) {}
-            }
-            $user->signature_path = null;
-            if (!empty($user->nrp)) {
-                try {
-                    if (Schema::hasTable('master_tanda_tangan')) {
-                        DB::table('master_tanda_tangan')->where('nrp', (string)$user->nrp)->delete();
-                    }
-                } catch (\Throwable $e) {}
-            }
-        }
-
-        // Resolve new signature binary from file upload or canvas drawing
-        $signatureBinary = null;
-        $signatureExt = 'png';
-
-        if ($request->hasFile('signature_file') && $request->file('signature_file')->isValid()) {
-            $file = $request->file('signature_file');
-            $signatureExt = strtolower($file->getClientOriginalExtension() ?: 'png');
-            $signatureBinary = file_get_contents($file->getRealPath());
-        } elseif ($request->filled('signature_data') && str_starts_with($request->input('signature_data'), 'data:image')) {
-            $dataUrl = $request->input('signature_data');
-            $commaPos = strpos($dataUrl, ',');
-            if ($commaPos !== false) {
-                $base64 = substr($dataUrl, $commaPos + 1);
-                $signatureBinary = base64_decode($base64);
-                $signatureExt = 'png';
-            }
-        }
-
-        $driveNotice = '';
-
-        if (!empty($signatureBinary)) {
-            // Delete old signature locally if exists
-            if (!empty($user->signature_path) && !str_starts_with($user->signature_path, 'http') && Storage::disk('public')->exists($user->signature_path)) {
-                try {
-                    Storage::disk('public')->delete($user->signature_path);
-                } catch (\Throwable $e) {}
-            }
-
-            // Penamaan rapi terstandar: {nrp}_{nama}_{position}_{departemen}.png
-            $cleanNrp = preg_replace('/[^A-Za-z0-9]/', '', (string)($user->nrp ?: $user->id)) ?: '0';
-            $cleanNama = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)$user->nama)) ?: 'USER';
-            $cleanPos = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->role ?: 'FOREMAN'))) ?: 'FOREMAN';
-            $cleanDept = strtoupper(preg_replace('/[^A-Za-z0-9]/', '_', (string)($user->departemen ?: 'ALL'))) ?: 'ALL';
-            $filename = "{$cleanNrp}_{$cleanNama}_{$cleanPos}_{$cleanDept}.{$signatureExt}";
-
-            // 1. Simpan di local storage publik sebagai cadangan berkas
-            try {
-                Storage::disk('public')->put('signatures/' . $filename, $signatureBinary);
-            } catch (\Throwable $e) {}
-
-            // 2. Simpan Data URI Base64 ke $user->signature_path agar 100% tampil instan tanpa ketergantungan file lokal atau blokir Google Drive
-            $mime = ($signatureExt === 'jpg' || $signatureExt === 'jpeg') ? 'image/jpeg' : 'image/png';
-            $dataUri = 'data:' . $mime . ';base64,' . base64_encode($signatureBinary);
-            $user->signature_path = $dataUri;
-
-            // 3. Unggah otomatis ke Google Drive (Struktur Rapi: Root -> TANDA_TANGAN -> [ROLE] -> {filename}) dan catat ke Sheet 'Master Tanda Tangan'
-            $driveResult = \App\Services\GoogleSyncService::uploadSignatureToGoogleDrive($user, $signatureBinary, $signatureExt);
-
-            // 4. Catat ke tabel lokal master_tanda_tangan
-            try {
-                if (Schema::hasTable('master_tanda_tangan')) {
-                    DB::table('master_tanda_tangan')->updateOrInsert(
-                        ['nrp' => $cleanNrp],
-                        [
-                            'nama' => $user->nama,
-                            'position' => $cleanPos,
-                            'department' => $cleanDept,
-                            'division' => strtoupper(trim((string)($user->divisi ?: 'MANUFACTURING DIVISION'))),
-                            'signature_url' => $driveResult['file_url'] ?? null,
-                            'drive_file_id' => $driveResult['file_id'] ?? null,
-                            'signature_base64' => $dataUri,
-                            'updated_at' => now(),
-                        ]
-                    );
-                }
-            } catch (\Throwable $e) {}
-
-            if (!empty($driveResult['success'])) {
-                $driveNotice = " Berkas TTD tersimpan rapi di Google Drive ({$driveResult['folder_path']}/{$driveResult['file_name']}) & Sheet 'Master Tanda Tangan'.";
-            } elseif (!empty($driveResult['message'])) {
-                $driveNotice = " (Catatan Drive: {$driveResult['message']})";
-            }
-        }
-
+        // Ensure Barcode TTD (QR Code of NRP and Name) is always generated & synced with sheet 'users'
+        $barcodeData = $user->barcode_ttd;
+        $user->barcodettd = $barcodeData;
+        $user->ttdbarcode = $barcodeData;
+        $user->signature_path = $barcodeData;
         $user->save();
 
         // Also sync name and department to karyawan table if user has NRP

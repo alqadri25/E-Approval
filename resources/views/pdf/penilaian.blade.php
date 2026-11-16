@@ -263,11 +263,11 @@
                         }
                         $isForemanPdfSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && (in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcForeman['grand_total'] > 0)));
                         if (empty($foremanPdfImg) && $isForemanPdfSigned) {
-                            $foremanPdfImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN', $karyawan['nrp_foreman'] ?? '');
+                            $foremanPdfImg = \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN');
                         }
                     @endphp
                     @if(!empty($foremanPdfImg))
-                        <img src="{{ $foremanPdfImg }}" alt="TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" style="max-height: 22px; max-width: 42px; display: block; margin: 0 auto;">
+                        <img src="{{ $foremanPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" style="max-height: 24px; max-width: 24px; display: block; margin: 0 auto;">
                     @elseif($isTanpaForemanStd && !$showForemanData)
                         &nbsp;
                     @else
@@ -287,11 +287,11 @@
                             : ['menunggu_dept_head', 'menunggu_div_head', 'selesai'];
                         $isShPdfSigned = !empty($ttdByLevel['section_head']) || in_array($dokumen['status'], $col7DoneStatuses) || ($calcSectionHead['grand_total'] > 0);
                         if (empty($shPdfImg) && $isShPdfSigned) {
-                            $shPdfImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD', $karyawan['nrp_section_head'] ?? '');
+                            $shPdfImg = \App\Models\User::generateBarcodeDataUri($karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD', $karyawan['nrp_section_head'] ?? '');
                         }
                     @endphp
                     @if(!empty($shPdfImg))
-                        <img src="{{ $shPdfImg }}" alt="TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 22px; max-width: 42px; display: block; margin: 0 auto;">
+                        <img src="{{ $shPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 24px; max-width: 24px; display: block; margin: 0 auto;">
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif
@@ -307,11 +307,11 @@
                         $dhPdfImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
                         $isDhPdfSigned = !empty($ttdByLevel['dept_head']) || $dokumen['status'] === 'selesai' || ($calcDeptHead['grand_total'] > 0);
                         if (empty($dhPdfImg) && $isDhPdfSigned) {
-                            $dhPdfImg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD', $karyawan['nrp_dept_head'] ?? '');
+                            $dhPdfImg = \App\Models\User::generateBarcodeDataUri($karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD', $karyawan['nrp_dept_head'] ?? '');
                         }
                     @endphp
                     @if(!empty($dhPdfImg))
-                        <img src="{{ $dhPdfImg }}" alt="TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 22px; max-width: 42px; display: block; margin: 0 auto;">
+                        <img src="{{ $dhPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 24px; max-width: 24px; display: block; margin: 0 auto;">
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif

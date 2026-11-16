@@ -171,6 +171,7 @@ class AccountSyncService
 
                 $rawDept = trim((string)($emp->departemen ?? ''));
                 $dept = ($rawDept !== '' && $rawDept !== '-') ? $rawDept : (trim((string)($emp->division ?? '')) ?: 'ALL');
+                $barcodeData = User::generateBarcodeDataUri($nrp, $nama, $role);
 
                 // Instant in-memory lookup
                 $lowerNrp = strtolower($nrp);
@@ -197,6 +198,11 @@ class AccountSyncService
                     }
                     if ($existingUser->aktif != 1) {
                         $existingUser->aktif = 1;
+                        $dirty = true;
+                    }
+                    if (empty($existingUser->barcodettd) || empty($existingUser->ttdbarcode)) {
+                        $existingUser->barcodettd = $barcodeData;
+                        $existingUser->ttdbarcode = $barcodeData;
                         $dirty = true;
                     }
                     // Only compute expensive bcrypt hash if password is missing
@@ -226,6 +232,8 @@ class AccountSyncService
                         'nrp' => $nrp,
                         'departemen' => $dept,
                         'aktif' => 1,
+                        'barcodettd' => $barcodeData,
+                        'ttdbarcode' => $barcodeData,
                     ]);
                     $usersByNrp[$lowerNrp] = $newUser;
                     $usersByEmail[$lowerEmail] = $newUser;
