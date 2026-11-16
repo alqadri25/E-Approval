@@ -69,272 +69,120 @@ class AuthController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $allUsersByNrp = User::where('aktif', 1)->get()->keyBy('nrp');
-        $allUsersByEmail = User::where('aktif', 1)->get()->keyBy(fn($u) => strtolower($u->email));
+        $allUsers = User::where('aktif', 1)->get();
+        $curatedList = [];
 
-        $curatedList = [
-            // ==============================================================
-            // 6 FOREMAN PROD 2 (F1 CAT 1-3 & F2 CAT 1-3) + 1 PROD 1
-            // ==============================================================
-            [
-                'nrp' => '62',
-                'nama' => 'SARYANTA',
-                'role' => 'foreman',
-                'role_label' => 'Foreman (F1 CAT 1)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 1',
-                'email' => 'saryanta@musashi.co.id',
-                'alt_email' => 'foreman.prod2@musashi.co.id',
-                'kasus' => 'kasus1',
-                'kasus_badge' => 'F1 CAT 1',
-                'kasus_title' => 'Foreman F1 CAT 1: FACTORY 1 (PROD 2)',
-                'deskripsi' => 'Menilai bawahan line F1 CAT 1 -> diteruskan ke Section Head KRISTIYANTO (112)',
-            ],
-            [
-                'nrp' => '349',
-                'nama' => 'SUDIMAN',
-                'role' => 'foreman',
-                'role_label' => 'Foreman (F1 CAT 2)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 1',
-                'email' => 'sudiman@musashi.co.id',
-                'alt_email' => 'foreman.f1c2@musashi.co.id',
-                'kasus' => 'kasus1',
-                'kasus_badge' => 'F1 CAT 2',
-                'kasus_title' => 'Foreman F1 CAT 2: FACTORY 1 (PROD 2)',
-                'deskripsi' => 'Menilai bawahan line F1 CAT 2 -> diteruskan ke Section Head KRISTIYANTO (112)',
-            ],
-            [
-                'nrp' => '628',
-                'nama' => 'ANDI PURWANTO',
-                'role' => 'foreman',
-                'role_label' => 'Foreman (F1 CAT 3)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 1',
-                'email' => 'andi.purwanto@musashi.co.id',
-                'alt_email' => 'foreman.f1c3@musashi.co.id',
-                'kasus' => 'kasus1',
-                'kasus_badge' => 'F1 CAT 3',
-                'kasus_title' => 'Foreman F1 CAT 3: FACTORY 1 (PROD 2)',
-                'deskripsi' => 'Menilai bawahan line F1 CAT 3 -> diteruskan ke Section Head KRISTIYANTO (112)',
-            ],
-            [
-                'nrp' => '51',
-                'nama' => 'PURWANTO',
-                'role' => 'foreman',
-                'role_label' => 'Foreman (F2 CAT 1)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 2',
-                'email' => 'purwanto@musashi.co.id',
-                'alt_email' => 'foreman.f2c1@musashi.co.id',
-                'kasus' => 'kasus1',
-                'kasus_badge' => 'F2 CAT 1',
-                'kasus_title' => 'Foreman F2 CAT 1: FACTORY 2 (PROD 2)',
-                'deskripsi' => 'Menilai bawahan line F2 CAT 1 -> diteruskan ke Section Head MURYADI (280)',
-            ],
-            [
-                'nrp' => '487',
-                'nama' => 'SARWOTO',
-                'role' => 'foreman',
-                'role_label' => 'Foreman (F2 CAT 2)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 2',
-                'email' => 'sarwoto@musashi.co.id',
-                'alt_email' => 'foreman.f2c2@musashi.co.id',
-                'kasus' => 'kasus1',
-                'kasus_badge' => 'F2 CAT 2',
-                'kasus_title' => 'Foreman F2 CAT 2: FACTORY 2 (PROD 2)',
-                'deskripsi' => 'Menilai bawahan line F2 CAT 2 -> diteruskan ke Section Head MURYADI (280)',
-            ],
-            [
-                'nrp' => '533',
-                'nama' => 'HARIYANTO',
-                'role' => 'foreman',
-                'role_label' => 'Foreman (F2 CAT 3)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 2',
-                'email' => 'hariyanto@musashi.co.id',
-                'alt_email' => 'foreman.f2c3@musashi.co.id',
-                'kasus' => 'kasus1',
-                'kasus_badge' => 'F2 CAT 3',
-                'kasus_title' => 'Foreman F2 CAT 3: FACTORY 2 (PROD 2)',
-                'deskripsi' => 'Menilai bawahan line F2 CAT 3 -> diteruskan ke Section Head MURYADI (280)',
-            ],
+        // 1. Superadmin & Admin
+        $admins = $allUsers->whereIn('role', ['superadmin', 'admin']);
+        foreach ($admins as $u) {
+            $curatedList[] = [
+                'id' => $u->id,
+                'nrp' => $u->nrp,
+                'nama' => $u->nama,
+                'role' => $u->role,
+                'role_label' => $u->roleLabel(),
+                'departemen' => $u->departemen ?? 'ALL',
+                'seksi' => 'ADMINISTRATOR',
+                'email' => $u->email,
+                'alt_email' => $u->email,
+                'kasus' => $u->role,
+                'kasus_badge' => $u->roleLabel(),
+                'kasus_title' => $u->nama,
+                'deskripsi' => $u->isSuperadmin() ? 'Hak akses penuh, manajemen akun & pengaturan sistem' : 'Monitoring penilaian karya & kontrol operasional',
+                'db_user' => $u,
+            ];
+        }
 
-            // ==============================================================
-            // SECTION HEAD: ADA FOREMAN (112, 280) & TANPA FOREMAN (99999 AL QADRI)
-            // ==============================================================
-            [
-                'nrp' => '112',
-                'nama' => 'KRISTIYANTO',
-                'role' => 'section_head',
-                'role_label' => 'Section Head (Ada Foreman)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 1',
-                'email' => 'kristiyanto@musashi.co.id',
-                'alt_email' => 'section.prod2@musashi.co.id',
+        // 2. Division Heads
+        $divHeads = $allUsers->where('role', 'division_head');
+        foreach ($divHeads as $u) {
+            $curatedList[] = [
+                'id' => $u->id,
+                'nrp' => $u->nrp,
+                'nama' => $u->nama,
+                'role' => 'division_head',
+                'role_label' => 'Division Head',
+                'departemen' => $u->departemen ?? 'ALL',
+                'seksi' => 'DIVISION HEAD',
+                'email' => $u->email,
+                'alt_email' => $u->email,
                 'kasus' => 'kasus1',
-                'kasus_badge' => 'SH Ada Foreman (F1)',
-                'kasus_title' => 'Section Head FACTORY 1 (PROD 2)',
-                'deskripsi' => 'Membawahi 3 Foreman (62 SARYANTA, 349 SUDIMAN, 628 ANDI PURWANTO) -> lapor Dept Head SUPARDI (31)',
-            ],
-            [
-                'nrp' => '280',
-                'nama' => 'MURYADI',
-                'role' => 'section_head',
-                'role_label' => 'Section Head (Ada Foreman)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 2',
-                'email' => 'muryadi@musashi.co.id',
-                'alt_email' => 'section.b@musashi.co.id',
-                'kasus' => 'kasus1',
-                'kasus_badge' => 'SH Ada Foreman (F2)',
-                'kasus_title' => 'Section Head FACTORY 2 (PROD 2)',
-                'deskripsi' => 'Membawahi 3 Foreman (51 PURWANTO, 487 SARWOTO, 533 HARIYANTO) -> lapor Dept Head SUPARDI (31)',
-            ],
-            [
-                'nrp' => '99999',
-                'nama' => 'AL QADRI',
-                'role' => 'section_head',
-                'role_label' => 'Section Head (Tanpa Foreman)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'FACTORY 3',
-                'email' => 'al.qadri@musashi.co.id',
-                'alt_email' => 'section.f3@musashi.co.id',
-                'kasus' => 'kasus2',
-                'kasus_badge' => 'SH Tanpa Foreman (F3)',
-                'kasus_title' => 'Section Head FACTORY 3: Tanpa Foreman & Leader',
-                'deskripsi' => 'Langsung menilai staf FACTORY 3 (99998, 99997, 99996) tanpa Foreman -> Dept Head SUPARDI (31)',
-            ],
-            [
-                'nrp' => 'SH-11310',
-                'nama' => 'Dwi Cahyono',
-                'role' => 'section_head',
-                'role_label' => 'Section Head (Tanpa Foreman - PROD 1)',
-                'departemen' => 'PROD 1',
-                'seksi' => 'ASSEMBLY 1 SEC.',
-                'email' => 'section.c@musashi.co.id',
-                'alt_email' => 'section.p1a@musashi.co.id',
-                'kasus' => 'kasus3',
-                'kasus_badge' => 'PROD 1 Tanpa Foreman',
-                'kasus_title' => 'Section Head PROD 1',
-                'deskripsi' => 'Menilai staf Assembly 1 tanpa Foreman -> Dept Head PROD 1',
-            ],
+                'kasus_badge' => 'Div Head',
+                'kasus_title' => "Division Head ({$u->nrp} {$u->nama})",
+                'deskripsi' => 'Pengesahan dan approval akhir penilaian divisi',
+                'db_user' => $u,
+            ];
+        }
 
-            // ==============================================================
-            // DEPARTMENT HEAD: 31 SUPARDI (PRODUCTION 2 DEPT)
-            // ==============================================================
-            [
-                'nrp' => '31',
-                'nama' => 'SUPARDI',
+        // 3. Department Heads
+        $deptHeads = $allUsers->where('role', 'department_head');
+        foreach ($deptHeads as $u) {
+            $curatedList[] = [
+                'id' => $u->id,
+                'nrp' => $u->nrp,
+                'nama' => $u->nama,
                 'role' => 'department_head',
                 'role_label' => 'Department Head',
-                'departemen' => 'PROD 2',
-                'seksi' => 'PRODUCTION 2 DEPT',
-                'email' => 'supardi@musashi.co.id',
-                'alt_email' => 'dept.prod2@musashi.co.id',
+                'departemen' => $u->departemen ?? 'ALL',
+                'seksi' => $u->departemen ?? 'DEPARTMENT',
+                'email' => $u->email,
+                'alt_email' => $u->email,
                 'kasus' => 'kasus1',
-                'kasus_badge' => 'Dept Head PROD 2',
-                'kasus_title' => 'Department Head PRODUCTION 2 DEPT (31 SUPARDI)',
-                'deskripsi' => 'Membawahi seluruh karyawan, Leader, Foreman & Section Head (FACTORY 1-3) PROD 2 -> Div Head ATASAN (11)',
-            ],
-            [
-                'nrp' => 'DH-11300',
-                'nama' => 'Agus Setiawan',
-                'role' => 'department_head',
-                'role_label' => 'Dept. Head (PROD 1)',
-                'departemen' => 'PROD 1',
-                'seksi' => 'PRODUCTION 1 DEPT.',
-                'email' => 'dept.x@musashi.co.id',
-                'alt_email' => 'dept.prod1@musashi.co.id',
-                'kasus' => 'kasus3',
-                'kasus_badge' => 'Dept Head PROD 1',
-                'kasus_title' => 'Dept Head PROD 1',
-                'deskripsi' => 'Approval & docking penilaian PROD 1',
-            ],
-
-            // ==============================================================
-            // DIVISION HEAD: 11 ATASAN (PRODUCTION A DIV - DIVISION YANG SAMA)
-            // ==============================================================
-            [
-                'nrp' => '11',
-                'nama' => 'ATASAN',
-                'role' => 'division_head',
-                'role_label' => 'Division Head (DIV HEAD)',
-                'departemen' => 'PROD 2',
-                'seksi' => 'PRODUCTION A DIV',
-                'email' => 'atasan.div@musashi.co.id',
-                'alt_email' => 'div.a@musashi.co.id',
-                'kasus' => 'kasus1',
-                'kasus_badge' => 'Div Head PRODUCTION A DIV',
-                'kasus_title' => 'Division Head PRODUCTION A DIV (11 ATASAN)',
-                'deskripsi' => 'DIV HEAD pada division yang sama (PRODUCTION A DIV): approval akhir SUPARDI (31) & seluruh PROD 2',
-            ],
-            [
-                'nrp' => 'DIV-11000',
-                'nama' => 'Bambang Widodo',
-                'role' => 'division_head',
-                'role_label' => 'Div. Head (PROD 1)',
-                'departemen' => 'PROD 1',
-                'seksi' => 'PRODUCTION 1 DIV',
-                'email' => 'div1@musashi.co.id',
-                'alt_email' => 'div.prod@musashi.co.id',
-                'kasus' => 'kasus3',
-                'kasus_badge' => 'Div Head PROD 1',
-                'kasus_title' => 'Division Head PROD 1',
-                'deskripsi' => 'Pengesahan akhir khusus departemen PROD 1',
-            ],
-
-            // ==============================================================
-            // 2 ADMIN & SUPERADMIN
-            // ==============================================================
-            [
-                'nrp' => 'ADM-001',
-                'nama' => 'Admin Penilaian Karya',
-                'role' => 'admin',
-                'role_label' => 'Admin',
-                'departemen' => 'ALL',
-                'seksi' => 'KONTROL OPERASIONAL',
-                'email' => 'admin@musashi.co.id',
-                'alt_email' => 'admin@musashi.co.id',
-                'kasus' => 'admin',
-                'kasus_badge' => 'Admin',
-                'kasus_title' => 'Admin Sistem',
-                'deskripsi' => 'Monitoring seluruh divisi, departemen, data karyawan & target kuota',
-            ],
-            [
-                'nrp' => 'SA-001',
-                'nama' => 'Super Administrator',
-                'role' => 'superadmin',
-                'role_label' => 'Super Admin',
-                'departemen' => 'ALL',
-                'seksi' => 'SISTEM UTAMA',
-                'email' => 'superadmin@musashi.co.id',
-                'alt_email' => 'superadmin@musashi.co.id',
-                'kasus' => 'superadmin',
-                'kasus_badge' => 'Super Admin',
-                'kasus_title' => 'Super Administrator',
-                'deskripsi' => 'Hak akses penuh, manajemen akun, pengaturan kuota & Google Sheets',
-            ],
-        ];
-
-        // Enrich with real database ID
-        foreach ($curatedList as &$acc) {
-            $userObj = $allUsersByNrp[$acc['nrp']] ?? null;
-            if (!$userObj && !empty($acc['alt_email'])) {
-                $userObj = $allUsersByEmail[strtolower($acc['alt_email'])] ?? null;
-            }
-            if (!$userObj && !empty($acc['email'])) {
-                $userObj = $allUsersByEmail[strtolower($acc['email'])] ?? null;
-            }
-            $acc['id'] = $userObj?->id ?? 1;
-            $acc['db_user'] = $userObj;
+                'kasus_badge' => 'Dept Head',
+                'kasus_title' => "Department Head ({$u->nrp} {$u->nama})",
+                'deskripsi' => 'Approval & docking penilaian departemen',
+                'db_user' => $u,
+            ];
         }
-        unset($acc);
+
+        // 4. Section Heads
+        $sectHeads = $allUsers->where('role', 'section_head');
+        foreach ($sectHeads as $u) {
+            $curatedList[] = [
+                'id' => $u->id,
+                'nrp' => $u->nrp,
+                'nama' => $u->nama,
+                'role' => 'section_head',
+                'role_label' => 'Section Head',
+                'departemen' => $u->departemen ?? 'ALL',
+                'seksi' => 'SECTION HEAD',
+                'email' => $u->email,
+                'alt_email' => $u->email,
+                'kasus' => 'kasus1',
+                'kasus_badge' => 'Section Head',
+                'kasus_title' => "Section Head ({$u->nrp} {$u->nama})",
+                'deskripsi' => 'Penilaian kinerja bawahan seksi',
+                'db_user' => $u,
+            ];
+        }
+
+        // 5. Foremen (STRICTLY ONLY IF ACTIVE IN KARYAWAN)
+        $foremen = $allUsers->whereIn('role', ['foreman', 'ketua']);
+        foreach ($foremen as $u) {
+            $curatedList[] = [
+                'id' => $u->id,
+                'nrp' => $u->nrp,
+                'nama' => $u->nama,
+                'role' => 'foreman',
+                'role_label' => 'Foreman',
+                'departemen' => $u->departemen ?? 'PROD 2',
+                'seksi' => 'FOREMAN',
+                'email' => $u->email,
+                'alt_email' => $u->email,
+                'kasus' => 'kasus1',
+                'kasus_badge' => 'Foreman',
+                'kasus_title' => "Foreman ({$u->nrp} {$u->nama})",
+                'deskripsi' => 'Penilaian tahap awal bawahan line',
+                'db_user' => $u,
+            ];
+        }
+
+        $defaultUser = $allUsers->firstWhere('role', 'admin') ?? $allUsers->firstWhere('role', 'superadmin');
+        $defaultEmail = $defaultUser ? $defaultUser->email : 'admin@musashi.co.id';
 
         return view('auth.login', [
             'testAccounts' => $curatedList,
-            'defaultEmail' => 'saryanta@musashi.co.id',
+            'defaultEmail' => $defaultEmail,
             'defaultPassword' => 'password123',
         ]);
     }
@@ -342,7 +190,7 @@ class AuthController extends Controller
     /**
      * Handle authentication attempt with role verification & alias support
      */
-    public function login(Request $request)
+        public function login(Request $request)
     {
         $credentials = $request->validate([
             'email' => 'required|string',
@@ -405,6 +253,28 @@ class AuthController extends Controller
             throw ValidationException::withMessages([
                 'email' => 'Akun Anda dinonaktifkan. Silakan hubungi Superadmin.',
             ]);
+        }
+
+        // Extra check: Verify leadership account is valid for the current active employee data
+        if ($user->isForeman()) {
+            $isForemanActive = \Illuminate\Support\Facades\DB::table('karyawan')
+                ->where(function ($q) use ($user) {
+                    $q->where('nrp_foreman', $user->nrp)
+                      ->orWhere(function ($q2) use ($user) {
+                          $q2->where('nrp', $user->nrp)
+                             ->where(function ($q3) {
+                                 $q3->where('jabatan', 'like', '%FOREMAN%')
+                                    ->orWhere('jabatan', 'like', '%LEADER%')
+                                    ->orWhere('jabatan', 'like', '%KETUA%');
+                             });
+                      });
+                })->exists();
+
+            if (!$isForemanActive) {
+                throw ValidationException::withMessages([
+                    'email' => 'Akun Foreman tidak dapat digunakan karena posisi Foreman tidak terdaftar pada data karyawan saat ini.',
+                ]);
+            }
         }
 
         // Validate Role if explicitly chosen in selector

@@ -52,15 +52,9 @@ class User extends Authenticatable
     protected $table = 'app_users';
 
     public static array $legacyEmailMap = [
-        'saryanta@musashi.co.id' => '62foreman@musashi.id',
-        'purwanto@musashi.co.id' => '51foreman@musashi.id',
-        'sudiman@musashi.co.id' => '349foreman@musashi.id',
-        'sarwoto@musashi.co.id' => '487foreman@musashi.id',
-        'hariyanto@musashi.co.id' => '533foreman@musashi.id',
-        'andi.purwanto@musashi.co.id' => '628foreman@musashi.id',
+        'purwanto@musashi.co.id' => '51sectionhead@musashi.id',
         'kristiyanto@musashi.co.id' => '112sectionhead@musashi.id',
         'muryadi@musashi.co.id' => '280sectionhead@musashi.id',
-        'al.qadri@musashi.co.id' => '99999sectionhead@musashi.id',
         'supardi@musashi.co.id' => '31depthead@musashi.id',
         'atasan.div@musashi.co.id' => '11divhead@musashi.id',
         'section.p1a@musashi.co.id' => 'sh-11310sectionhead@musashi.id',

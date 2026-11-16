@@ -1518,7 +1518,7 @@ class PenilaianController extends Controller
                 $adminStatusCategory = 'selesai';
             } elseif ($sectionHeadEvaluated || in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head'])) {
                 $adminStatusCategory = 'section_head';
-            } elseif ($foremanEvaluated || $docStatus === 'menunggu_section_head') {
+            } elseif ($hasForeman && ($foremanEvaluated || $docStatus === 'menunggu_section_head')) {
                 $adminStatusCategory = 'foreman';
             }
 

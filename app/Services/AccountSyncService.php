@@ -89,36 +89,79 @@ class AccountSyncService
 
     /**
      * Delete phantom/obsolete leadership accounts that do not exist in table 'karyawan'
-     * Keeps Admin and Superadmin accounts safe.
+     * or whose positions are no longer leadership (e.g. changed to Staff/Operator)
+     * Keeps Admin, Superadmin, and HR accounts safe.
      */
     public static function cleanupPhantomLeadershipAccounts(): array
     {
-        $karyawanNrps = DB::table('karyawan')->pluck('nrp')->map(function ($n) {
+        $karyawan = DB::table('karyawan')->get();
+        $karyawanNrps = $karyawan->pluck('nrp')->map(function ($n) {
             return trim((string)$n);
         })->filter()->toArray();
 
-        // Target leadership roles that should strictly map to Master Karyawan
-        $phantomUsers = User::whereIn('role', ['foreman', 'ketua', 'section_head', 'department_head', 'division_head'])
-            ->where(function ($query) use ($karyawanNrps) {
-                $query->whereNotIn('nrp', $karyawanNrps)
-                      ->orWhereNull('nrp')
-                      ->orWhere('nrp', '');
-            })
-            ->get();
+        // Active supervisor references across active employees
+        $activeForemanNrps = $karyawan->pluck('nrp_foreman')->map(fn ($n) => trim((string)$n))->filter()->unique()->toArray();
+        $activeSectionHeadNrps = $karyawan->pluck('nrp_section_head')->map(fn ($n) => trim((string)$n))->filter()->unique()->toArray();
+        $activeDeptHeadNrps = $karyawan->pluck('nrp_dept_head')->map(fn ($n) => trim((string)$n))->filter()->unique()->toArray();
+        $activeDivHeadNrps = $karyawan->pluck('nrp_div_head')->map(fn ($n) => trim((string)$n))->filter()->unique()->toArray();
+
+        $karyawanByNrp = [];
+        foreach ($karyawan as $emp) {
+            $karyawanByNrp[trim((string)$emp->nrp)] = $emp;
+        }
+
+        // Target leadership roles that should strictly map to active leadership employees
+        $leadershipUsers = User::whereIn('role', ['foreman', 'ketua', 'section_head', 'department_head', 'division_head'])->get();
 
         $deletedCount = 0;
         $deletedDetails = [];
 
-        foreach ($phantomUsers as $user) {
-            $deletedDetails[] = [
-                'id' => $user->id,
-                'nrp' => $user->nrp,
-                'nama' => $user->nama,
-                'role' => $user->role,
-                'email' => $user->email,
-            ];
-            $user->delete();
-            $deletedCount++;
+        foreach ($leadershipUsers as $user) {
+            $userNrp = trim((string)($user->nrp ?? ''));
+            $isPhantom = false;
+
+            if (empty($userNrp) || !in_array($userNrp, $karyawanNrps, true)) {
+                $isPhantom = true;
+            } else {
+                $emp = $karyawanByNrp[$userNrp] ?? null;
+                $empJabatan = $emp ? (string)($emp->jabatan ?? '') : '';
+                $resolvedRole = $emp ? self::resolveLeadershipRole($empJabatan, (string)($emp->kj ?? '')) : null;
+                $roleExpected = $resolvedRole['role'] ?? null;
+
+                if (in_array($user->role, ['foreman', 'ketua'])) {
+                    $isValidForeman = ($roleExpected === 'foreman') || in_array($userNrp, $activeForemanNrps, true);
+                    if (!$isValidForeman) {
+                        $isPhantom = true;
+                    }
+                } elseif ($user->role === 'section_head') {
+                    $isValidSh = ($roleExpected === 'section_head') || in_array($userNrp, $activeSectionHeadNrps, true);
+                    if (!$isValidSh) {
+                        $isPhantom = true;
+                    }
+                } elseif ($user->role === 'department_head') {
+                    $isValidDh = ($roleExpected === 'department_head') || in_array($userNrp, $activeDeptHeadNrps, true);
+                    if (!$isValidDh) {
+                        $isPhantom = true;
+                    }
+                } elseif ($user->role === 'division_head') {
+                    $isValidDiv = ($roleExpected === 'division_head') || in_array($userNrp, $activeDivHeadNrps, true);
+                    if (!$isValidDiv) {
+                        $isPhantom = true;
+                    }
+                }
+            }
+
+            if ($isPhantom) {
+                $deletedDetails[] = [
+                    'id' => $user->id,
+                    'nrp' => $user->nrp,
+                    'nama' => $user->nama,
+                    'role' => $user->role,
+                    'email' => $user->email,
+                ];
+                $user->delete();
+                $deletedCount++;
+            }
         }
 
         return [

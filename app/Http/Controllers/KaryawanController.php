@@ -820,7 +820,7 @@ class KaryawanController extends Controller
                 'nrp_dept_head' => $matchedDhNrp,
                 'nrp_div_head' => null,
                 'auto_create_doc' => !$isUpperHead,
-                'default_status' => $isShPos ? 'menunggu_section_head' : 'menunggu_foreman',
+                'default_status' => 'menunggu_section_head',
             ];
         }
 
@@ -874,11 +874,24 @@ class KaryawanController extends Controller
         ];
     }
 
-    private function ensureInitialDocument(array $employee, string $status = 'menunggu_section_head'): void
+    private function ensureInitialDocument(array $employee, ?string $status = null): void
     {
         $exists = DB::table('dokumen')->where('nrp', $employee['nrp'])->exists();
         if ($exists) {
             return;
+        }
+        if (empty($status) || ($status === 'menunggu_foreman' && empty($employee['nrp_foreman']))) {
+            if (!empty($employee['nrp_foreman'])) {
+                $status = 'menunggu_foreman';
+            } elseif (!empty($employee['nrp_section_head'])) {
+                $status = 'menunggu_section_head';
+            } elseif (!empty($employee['nrp_dept_head'])) {
+                $status = 'menunggu_dept_head';
+            } elseif (!empty($employee['nrp_div_head'])) {
+                $status = 'menunggu_div_head';
+            } else {
+                $status = 'menunggu_section_head';
+            }
         }
         $activePeriod = DB::table('periode')->where('status', 'aktif')->first() ?? (object)['id' => 1];
         $this->repository->insert('dokumen', [
@@ -1483,12 +1496,22 @@ class KaryawanController extends Controller
                 // Automatically create initial appraisal document for direct subordinate
                 if (!empty($hierarchy['auto_create_doc']) && !isset($existingDocNrps[$lowerNrp])) {
                     $maxDocId++;
+                    $docStatus = 'menunggu_section_head';
+                    if (!empty($nrpForemanVal)) {
+                        $docStatus = 'menunggu_foreman';
+                    } elseif (!empty($nrpSectionVal)) {
+                        $docStatus = 'menunggu_section_head';
+                    } elseif (!empty($nrpDeptVal)) {
+                        $docStatus = 'menunggu_dept_head';
+                    } elseif (!empty($nrpDivVal)) {
+                        $docStatus = 'menunggu_div_head';
+                    }
                     $dokumenInserts[] = [
                         'id' => $maxDocId,
                         'periode_id' => $activePeriod->id ?? 1,
                         'nrp' => $nrp,
                         'kode_form' => PenilaianController::determineKodeForm($newEmployee),
-                        'status' => $hierarchy['default_status'] ?? 'menunggu_section_head',
+                        'status' => $docStatus,
                         'total_nilai' => null,
                         'grade_original' => null,
                         'docking_final' => null,
