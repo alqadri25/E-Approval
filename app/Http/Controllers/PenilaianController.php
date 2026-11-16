@@ -1967,11 +1967,26 @@ class PenilaianController extends Controller
             } catch (\Throwable $e) {}
         }
 
-        // Roles to evaluate
+        // Filter out void/invalid signatures based on current document status
+        // e.g. If status is 'menunggu_foreman', foreman has NOT completed signature yet!
         $levels = ['foreman', 'section_head', 'dept_head', 'div_head'];
         $result = [];
 
         foreach ($levels as $level) {
+            // Stage validation: a level cannot have a valid completed signature if document status is at or before that stage!
+            if ($level === 'foreman' && in_array($status, ['menunggu_foreman', 'draft', 'revisi'])) {
+                continue;
+            }
+            if ($level === 'section_head' && in_array($status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi'])) {
+                continue;
+            }
+            if ($level === 'dept_head' && in_array($status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'menunggu_dept_head', 'revisi'])) {
+                continue;
+            }
+            if ($level === 'div_head' && $status !== 'selesai') {
+                continue;
+            }
+
             $t = $dbTtdByLevel[$level] ?? null;
 
             // Determine if this role has completed signature / evaluation
@@ -1979,14 +1994,11 @@ class PenilaianController extends Controller
             if ($t) {
                 $isSigned = true;
             } elseif ($level === 'foreman') {
-                $isSigned = in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
-                    || (!empty($calcForeman['grand_total']) && (float)$calcForeman['grand_total'] > 0);
+                $isSigned = in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']);
             } elseif ($level === 'section_head') {
-                $isSigned = in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
-                    || (!empty($calcSectionHead['grand_total']) && (float)$calcSectionHead['grand_total'] > 0);
+                $isSigned = in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
             } elseif ($level === 'dept_head') {
-                $isSigned = in_array($status, ['menunggu_div_head', 'selesai'])
-                    || (!empty($calcDeptHead['grand_total']) && (float)$calcDeptHead['grand_total'] > 0);
+                $isSigned = in_array($status, ['menunggu_div_head', 'selesai']);
             } elseif ($level === 'div_head') {
                 $isSigned = ($status === 'selesai');
             }
@@ -2279,11 +2291,20 @@ class PenilaianController extends Controller
         ]);
         $commentMeta = self::enrichIndikatorComments($indikator, $dokumen, $karyawan, $user);
 
+        // 8b. Clean up stale signatures if document was revised back to an earlier stage
+        $status = $dokumen['status'] ?? 'draft';
+        if (in_array($status, ['menunggu_foreman', 'draft'])) {
+            DB::table('tanda_tangan')->where('dokumen_id', $id)->delete();
+        } elseif ($status === 'menunggu_section_head') {
+            DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
+        } elseif ($status === 'menunggu_dept_head') {
+            DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
+        }
+
         // 9. Fetch Complete Signatures for all evaluated levels (guaranteed valid Data URIs)
         $ttdByLevel = $this->buildCompleteTtdByLevel($id, $dokumen, $karyawan, $calcForeman, $calcSectionHead, $calcDeptHead);
 
         // 10. Determine Role Permissions for Editing
-        $status = $dokumen['status'];
         $isDirectSubordinate = !empty($karyawan['nrp_section_head']) && strcasecmp($karyawan['nrp_section_head'], $user->nrp) === 0;
         $isSectionHeadWithoutForeman = $user->isSectionHead() && !$user->hasForemanSubordinates();
         $isDeptHeadSubordinate = ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) && !empty($karyawan['nrp_dept_head']) && strcasecmp($karyawan['nrp_dept_head'], $user->nrp) === 0;
@@ -2315,7 +2336,7 @@ class PenilaianController extends Controller
         } else {
             // Foreman rules
             if ($user->isForeman() && $isMyDept) {
-                if (in_array($status, ['menunggu_foreman', 'draft', 'revisi']) && empty($ttdByLevel['foreman'])) {
+                if (in_array($status, ['menunggu_foreman', 'draft', 'revisi'])) {
                     $canEditForeman = true;
                     $canSignForeman = true;
                 }
@@ -2326,7 +2347,7 @@ class PenilaianController extends Controller
                 $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
                 // Evaluasi Mandiri Section Head / Form 07-006 -> Mengisi Kolom 1 (Mandiri / foreman slot)
                 if ($dokumen['nrp'] === $user->nrp || $isGol4UpDoc) {
-                    if (empty($ttdByLevel['foreman']) && ($dokumen['nrp'] === $user->nrp || in_array($status, ['menunggu_section_head', 'draft', 'revisi']))) {
+                    if ($dokumen['nrp'] === $user->nrp || in_array($status, ['menunggu_section_head', 'draft', 'revisi'])) {
                         $canEditForeman = true;
                         $canSignForeman = true;
                     }
@@ -2334,23 +2355,16 @@ class PenilaianController extends Controller
                     $canSignSectionHead = false;
                 } elseif (empty($karyawan['nrp_foreman']) || !$user->hasForemanSubordinates()) {
                     // Kasus Section Head menilai bawahan KJ 1-5 tanpa Foreman:
-                    // Kolom 1 (Foreman) DIBIARKAN KOSONG & TERKUNCI.
-                    // Section Head langsung menilai di Kolom 2 (slot section_head), lalu diteruskan ke Dept Head.
                     $canEditForeman = false;
                     $canSignForeman = false;
-                    if (in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi']) && empty($ttdByLevel['section_head'])) {
+                    if (in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi'])) {
                         $canEditSectionHead = true;
                         $canSignSectionHead = true;
-                    } else {
-                        $canEditSectionHead = false;
-                        $canSignSectionHead = false;
                     }
                     $canRevisi = false;
                 } else {
                     // Kasus normal dengan Foreman (Form 07-001/002/003):
-                    // Foreman menilai di Kolom 1, Section Head menilai di Kolom 2.
-                    // Aktif jika Foreman sudah selesai & status sudah 'menunggu_section_head' atau 'revisi'!
-                    if (in_array($status, ['menunggu_section_head', 'revisi']) && empty($ttdByLevel['section_head'])) {
+                    if (in_array($status, ['menunggu_section_head', 'revisi'])) {
                         $canEditSectionHead = true;
                         $canSignSectionHead = true;
                         $canRevisi = true;
@@ -2365,7 +2379,7 @@ class PenilaianController extends Controller
             if ($user->isDepartmentHead() && $isMyDept) {
                 // Evaluasi Mandiri Dept Head (Diri Sendiri) -> Mengisi Kolom 1 (Mandiri)
                 if ($dokumen['nrp'] === $user->nrp) {
-                    if (empty($ttdByLevel['foreman'])) {
+                    if (in_array($status, ['menunggu_dept_head', 'draft', 'revisi'])) {
                         $canEditForeman = true;
                         $canSignForeman = true;
                     }
@@ -2373,20 +2387,13 @@ class PenilaianController extends Controller
                 } elseif (in_array($status, ['menunggu_dept_head', 'revisi'])) {
                     $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
                     if ($isGol4UpDoc) {
-                        // Pada Form 07-006, Kolom 2 adalah Dept. Head!
-                        // Dept Head menilai di Kolom 2 (slot section_head)
-                        if (empty($ttdByLevel['section_head'])) {
-                            $canEditSectionHead = true;
-                            $canSignSectionHead = true;
-                            $canRevisi = true;
-                        }
+                        $canEditSectionHead = true;
+                        $canSignSectionHead = true;
+                        $canRevisi = true;
                     } else {
-                        // Pada Form 07-001/002/003 (ada Foreman), Kolom 3 adalah Dept. Head (Final)
-                        if (empty($ttdByLevel['dept_head'])) {
-                            $canEditDeptHead = true;
-                            $canSignDeptHead = true;
-                            $canRevisi = true;
-                        }
+                        $canEditDeptHead = true;
+                        $canSignDeptHead = true;
+                        $canRevisi = true;
                     }
                 }
             }

@@ -3735,6 +3735,9 @@ class AdminController extends Controller
         Cache::forget("sheet_all_nilai");
         Cache::forget("sheet_all_indikator");
 
+        // Sync to Google Spreadsheet
+        \App\Services\GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'audit_log']);
+
         // Catat Audit Log
         $targetLabel = match($targetLevel) {
             'foreman' => 'Foreman',
