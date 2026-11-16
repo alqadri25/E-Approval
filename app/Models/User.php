@@ -146,8 +146,9 @@ class User extends Authenticatable
     public function getBarcodeTtdAttribute(): string
     {
         $candidate = $this->attributes['barcodettd'] 
+            ?? ($this->attributes['signature_path_link']
             ?? ($this->attributes['ttdbarcode'] 
-            ?? ($this->attributes['signature_path'] ?? null));
+            ?? ($this->attributes['signature_path'] ?? null)));
 
         if ($candidate) {
             if (str_starts_with($candidate, 'data:image')) {

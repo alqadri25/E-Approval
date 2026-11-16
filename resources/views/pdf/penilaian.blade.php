@@ -267,7 +267,7 @@
                         }
                     @endphp
                     @if(!empty($foremanPdfImg))
-                        <img src="{{ $foremanPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" style="max-height: 32px; max-width: 32px; display: block; margin: 0 auto; padding: 1px;">
+                        <img src="{{ $foremanPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" style="max-height: 44px; max-width: 44px; width: 44px; height: 44px; display: block; margin: 0 auto; padding: 2px;">
                     @elseif($isTanpaForemanStd && !$showForemanData)
                         &nbsp;
                     @else
@@ -291,7 +291,7 @@
                         }
                     @endphp
                     @if(!empty($shPdfImg))
-                        <img src="{{ $shPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 32px; max-width: 32px; display: block; margin: 0 auto; padding: 1px;">
+                        <img src="{{ $shPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 44px; max-width: 44px; width: 44px; height: 44px; display: block; margin: 0 auto; padding: 2px;">
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif
@@ -311,7 +311,7 @@
                         }
                     @endphp
                     @if(!empty($dhPdfImg))
-                        <img src="{{ $dhPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 32px; max-width: 32px; display: block; margin: 0 auto; padding: 1px;">
+                        <img src="{{ $dhPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 44px; max-width: 44px; width: 44px; height: 44px; display: block; margin: 0 auto; padding: 2px;">
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif

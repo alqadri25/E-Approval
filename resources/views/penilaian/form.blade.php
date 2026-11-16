@@ -783,7 +783,7 @@
                         @endphp
                         @if($foremanImg)
                             <div class="p-0.5 flex items-center justify-center w-full h-full">
-                                <img src="{{ $foremanImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" class="h-16 w-16 sm:h-[68px] sm:w-[68px] max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN') }}';">
+                                <img src="{{ $foremanImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" class="h-[72px] w-[72px] sm:h-[78px] sm:w-[78px] max-w-full object-contain mx-auto p-0.5" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN') }}';">
                             </div>
                         @elseif($isTanpaForemanStd && !$showForemanData)
                             &nbsp;
@@ -808,7 +808,7 @@
                         @endphp
                         @if($shImg)
                             <div class="p-0.5 flex items-center justify-center w-full h-full">
-                                <img src="{{ $shImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan Langsung' : 'Section Head' }}" class="h-16 w-16 sm:h-[68px] sm:w-[68px] max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_section_head'] ?? '', $karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD') }}';">
+                                <img src="{{ $shImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan Langsung' : 'Section Head' }}" class="h-[72px] w-[72px] sm:h-[78px] sm:w-[78px] max-w-full object-contain mx-auto p-0.5" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_section_head'] ?? '', $karyawan['section_head_nama'] ?? 'SECTION HEAD', 'SECTION HEAD') }}';">
                                 
                             </div>
                         @else
@@ -833,7 +833,7 @@
                         @endphp
                         @if($dhImg)
                             <div class="p-0.5 flex items-center justify-center w-full h-full">
-                                <img src="{{ $dhImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" class="h-16 w-16 sm:h-[68px] sm:w-[68px] max-w-full object-contain mx-auto" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_dept_head'] ?? '', $karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD') }}';">
+                                <img src="{{ $dhImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" class="h-[72px] w-[72px] sm:h-[78px] sm:w-[78px] max-w-full object-contain mx-auto p-0.5" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_dept_head'] ?? '', $karyawan['dept_head_nama'] ?? 'DEPT HEAD', 'DEPT HEAD') }}';">
                                 
                             </div>
                         @else
