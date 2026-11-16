@@ -18,6 +18,7 @@ class GoogleSyncService
      */
     public const DEFAULT_SPREADSHEET_ID = '14-xI_m24eXSj1L2aiX_gytMWrrS9HnjH5HzcRgWV_9g';
     public const DEFAULT_DRIVE_FOLDER_ID = '1zB2loWV14fCpLWMCnNiEa4dVKAvhLZYE';
+    public const DEFAULT_APPSCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHVYf6nKFM7Joyfl0sQpNHjCMegbBVAV9BvDor0Mz9mDyl40SkQ8K_uv4UMrQulmQL/exec';
 
     /**
      * Extract ID from Google Sheets URL or raw ID
@@ -115,9 +116,9 @@ class GoogleSyncService
 
         $spreadsheetUrl = $settings['google_spreadsheet_url'] ?? "https://docs.google.com/spreadsheets/d/{$spreadsheetId}/edit?usp=sharing";
         $driveFolderUrl = $settings['google_drive_folder_url'] ?? "https://drive.google.com/drive/folders/{$driveFolderId}?usp=sharing";
-        $appscriptUrl = $settings['google_appscript_url'] ?? env('GOOGLE_APPSCRIPT_URL', '');
-        if (empty($appscriptUrl) || str_contains($appscriptUrl, 'AKfycbwTG3pNhrTe')) {
-            $appscriptUrl = env('GOOGLE_APPSCRIPT_URL', 'https://script.google.com/macros/s/AKfycbwDK80WrKfr7iKOp7awaqhf1ezP7A-xREMbbSuuaGMlhHJJrPuGF5VXHnedi8v2ZIRE/exec');
+        $appscriptUrl = $settings['google_appscript_url'] ?? env('GOOGLE_APPSCRIPT_URL', self::DEFAULT_APPSCRIPT_URL);
+        if (empty($appscriptUrl) || str_contains($appscriptUrl, 'AKfycbwTG3pNhrTe') || str_contains($appscriptUrl, 'AKfycbwDK80WrKfr7iKOp7awaqhf1ezP7A-xREMbbSuuaGMlhHJJrPuGF5VXHnedi8v2ZIRE')) {
+            $appscriptUrl = self::DEFAULT_APPSCRIPT_URL;
         }
 
         $lastSyncGoogle = $settings['terakhir_sinkron_google'] ?? null;
@@ -170,6 +171,22 @@ class GoogleSyncService
                 ['key' => $key],
                 ['value' => $val]
             );
+        }
+
+        // Simpan juga ke sheet 'pengaturan' di Google Spreadsheet agar permanen di cloud
+        if (!empty($appscriptInput) && filter_var($appscriptInput, FILTER_VALIDATE_URL)) {
+            try {
+                $pRows = [];
+                foreach ($items as $k => $v) {
+                    $pRows[] = ['key' => $k, 'value' => (string)$v, 'updated_at' => now()->toDateTimeString()];
+                }
+                Http::timeout(5)->withoutVerifying()->post($appscriptInput, [
+                    'action' => 'push_all',
+                    'data' => [
+                        'pengaturan' => $pRows,
+                    ]
+                ]);
+            } catch (\Throwable $e) {}
         }
 
         Cache::flush();
@@ -346,6 +363,18 @@ class GoogleSyncService
 
                         // Auto-generate leadership accounts for the pulled employees
                         AccountSyncService::syncLeadershipAccountsFromKaryawan();
+
+                        // Sync pengaturan from Google Spreadsheet if present
+                        $settingRows = $data['pengaturan'] ?? [];
+                        if (!empty($settingRows) && is_array($settingRows)) {
+                            foreach ($settingRows as $sRow) {
+                                $k = trim((string)($sRow['key'] ?? ''));
+                                $v = (string)($sRow['value'] ?? '');
+                                if ($k !== '') {
+                                    DB::table('pengaturan')->updateOrInsert(['key' => $k], ['value' => $v, 'updated_at' => now()]);
+                                }
+                            }
+                        }
                     }
                 }
             } catch (Exception $e) {
