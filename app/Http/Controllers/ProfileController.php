@@ -209,6 +209,9 @@ class ProfileController extends Controller
             $cacheKey = 'gdrive_sig_img_' . $fileId;
             $cached = Cache::get($cacheKey);
             if ($cached) {
+                if ($cached === 'FALLBACK_SVG') {
+                    return $this->fallbackOfficialSvgSignature($user);
+                }
                 // Ensure cached is not HTML error page
                 if (!str_starts_with($cached, '<!DOCTYPE') && !str_starts_with($cached, '<html')) {
                     $mime = str_starts_with($cached, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($cached, "RIFF") ? 'image/webp' : 'image/png');
@@ -219,32 +222,29 @@ class ProfileController extends Controller
                 }
             }
 
-            $tryUrls = [
-                "https://drive.google.com/thumbnail?id={$fileId}&sz=w800",
-                "https://lh3.googleusercontent.com/d/{$fileId}",
-                "https://drive.google.com/uc?export=download&id={$fileId}",
-                "https://drive.usercontent.google.com/download?id={$fileId}&export=view",
-            ];
-            foreach ($tryUrls as $url) {
-                try {
-                    $res = Http::timeout(6)->withHeaders([
-                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-                    ])->get($url);
-                    if ($res->successful() && strlen($res->body()) > 100) {
-                        $body = $res->body();
-                        // Validate image magic bytes
-                        $isImg = str_starts_with($body, "\x89PNG") || str_starts_with($body, "\xFF\xD8\xFF") || str_starts_with($body, "GIF8") || (str_starts_with($body, "RIFF") && str_contains(substr($body, 8, 8), "WEBP"));
-                        if ($isImg) {
-                            $mime = str_starts_with($body, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($body, "RIFF") ? 'image/webp' : 'image/png');
-                            Cache::put($cacheKey, $body, 86400);
-                            return response($body, 200, [
-                                'Content-Type' => $mime,
-                                'Cache-Control' => 'public, max-age=86400',
-                            ]);
-                        }
+            // Fast fetch: attempt single thumbnail fetch with 1.5s timeout
+            try {
+                $res = Http::timeout(1.5)->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                ])->get("https://drive.google.com/thumbnail?id={$fileId}&sz=w800");
+
+                if ($res->successful() && strlen($res->body()) > 100) {
+                    $body = $res->body();
+                    $isImg = str_starts_with($body, "\x89PNG") || str_starts_with($body, "\xFF\xD8\xFF") || str_starts_with($body, "GIF8") || (str_starts_with($body, "RIFF") && str_contains(substr($body, 8, 8), "WEBP"));
+                    if ($isImg) {
+                        $mime = str_starts_with($body, "\xFF\xD8\xFF") ? 'image/jpeg' : (str_starts_with($body, "RIFF") ? 'image/webp' : 'image/png');
+                        Cache::put($cacheKey, $body, 86400);
+                        return response($body, 200, [
+                            'Content-Type' => $mime,
+                            'Cache-Control' => 'public, max-age=86400',
+                        ]);
                     }
-                } catch (\Throwable $e) {}
-            }
+                }
+            } catch (\Throwable $e) {}
+
+            // Cache negative result so subsequent requests don't hang and return immediately
+            Cache::put($cacheKey, 'FALLBACK_SVG', 3600);
+            return $this->fallbackOfficialSvgSignature($user);
         }
 
         // 3. Local filesystem in storage disk

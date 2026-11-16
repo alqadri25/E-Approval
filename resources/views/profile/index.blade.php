@@ -241,7 +241,7 @@
                                                     <img src="{{ $user->signature_url }}" 
                                                          alt="TTD {{ $user->nama }}" 
                                                          class="max-h-28 max-w-full object-contain mx-auto"
-                                                         onerror="this.onerror=null; this.src='{{ route('user.signature', $user->id) }}';">
+                                                         onerror="if (this.src.indexOf('user-signature') === -1) { this.src='{{ route('user.signature', $user->id) }}'; } else { this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 380 110\' width=\'380\' height=\'110\'><rect x=\'2\' y=\'2\' width=\'376\' height=\'106\' rx=\'8\' fill=\'%23fdfbf7\' stroke=\'%2392302e\' stroke-width=\'1.5\' stroke-dasharray=\'4 3\'/><text x=\'190\' y=\'65\' text-anchor=\'middle\' font-family=\'Brush Script MT, cursive\' font-size=\'28\' font-weight=\'bold\' fill=\'%230f172a\'>{{ addslashes($user->nama) }}</text><text x=\'190\' y=\'92\' text-anchor=\'middle\' font-family=\'sans-serif\' font-size=\'9\' font-weight=\'bold\' fill=\'%23475569\'>VALIDATED DIGITAL SIGNATURE • {{ strtoupper($user->role) }} • NRP: {{ $user->nrp }}</text></svg>'; }">
                                                 </div>
                                                 <div class="flex items-center justify-center gap-2">
                                                     <span class="text-[11px] text-emerald-700 font-bold flex items-center gap-1">

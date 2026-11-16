@@ -1008,27 +1008,131 @@ function setupDatabaseSheets() {
 }
 
 /**
- * 3. STRUKTUR FOLDER GOOGLE DRIVE PDF RAPI (TAHUN -> DEPARTEMEN)
+ * 3. STRUKTUR FOLDER GOOGLE DRIVE DINAMIS DARI MASTER KARYAWAN
+ * Otomatis membaca Hirarki Tanpa Dobel: DIVISION -> DEPARTMENT -> SECTION -> (dan POSITION TTD)
  */
 function setupDriveFolders() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var empSheet = ss.getSheetByName('Master Karyawan') || ss.getSheetByName('karyawan');
   var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
-  var depts = [
-    'PRODUCTION 1 DEPT',
-    'PRODUCTION 2 DEPT',
-    'QA QC DEPT',
-    'ENGINEERING DEPT',
-    'HR GA FINANCE DEPT'
-  ];
-
   var yearFolderName = 'TAHUN ' + CONFIG.DEFAULT_YEAR;
   var yearFolder = getOrCreateSubfolder(rootFolder, yearFolderName);
 
-  for (var i = 0; i < depts.length; i++) {
-    getOrCreateSubfolder(yearFolder, depts[i]);
+  // Buat folder induk tanda tangan
+  var mainTtdFolder = getOrCreateSubfolder(rootFolder, 'TANDA_TANGAN');
+
+  var divCount = 0;
+  var deptCount = 0;
+  var seksiCount = 0;
+  var posCount = 0;
+
+  var uniqueRoles = {};
+  var standardRoles = ['FOREMAN', 'SECTION_HEAD', 'DEPT_HEAD', 'DIV_HEAD', 'ADMIN'];
+  for (var r = 0; r < standardRoles.length; r++) {
+    uniqueRoles[standardRoles[r]] = true;
+  }
+
+  if (empSheet && empSheet.getLastRow() > 1) {
+    var data = empSheet.getDataRange().getValues();
+    var headers = data[0];
+
+    // Temukan index kolom secara otomatis
+    var idxDiv = -1;
+    var idxDept = -1;
+    var idxSeksi = -1;
+    var idxJabatan = -1;
+
+    for (var h = 0; h < headers.length; h++) {
+      var head = String(headers[h] || '').trim().toLowerCase();
+      if (head === 'division' || head === 'divisi') idxDiv = h;
+      else if (head === 'departemen' || head === 'department' || head === 'dept') idxDept = h;
+      else if (head === 'seksi' || head === 'section' || head === 'nama_sect' || head === 'nama_bagian') {
+        if (idxSeksi === -1) idxSeksi = h;
+      }
+      else if (head === 'jabatan' || head === 'position' || head === 'posisi' || head === 'level_form') {
+        if (idxJabatan === -1) idxJabatan = h;
+      }
+    }
+
+    // Peta hirarki unik tanpa dobel: division -> department -> sections
+    var hierarchy = {}; // { division: { dept: { seksi: true } } }
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var div = (idxDiv > -1 && row[idxDiv]) ? String(row[idxDiv]).trim().toUpperCase() : '';
+      var dept = (idxDept > -1 && row[idxDept]) ? String(row[idxDept]).trim().toUpperCase() : '';
+      var seksi = (idxSeksi > -1 && row[idxSeksi]) ? String(row[idxSeksi]).trim().toUpperCase() : '';
+      var jab = (idxJabatan > -1 && row[idxJabatan]) ? String(row[idxJabatan]).trim().toUpperCase() : '';
+
+      if (!div && !dept && !seksi) continue;
+
+      if (!div) div = 'MANUFACTURING DIVISION';
+      if (!dept) dept = 'GENERAL DEPT';
+
+      if (!hierarchy[div]) {
+        hierarchy[div] = {};
+        divCount++;
+      }
+      if (!hierarchy[div][dept]) {
+        hierarchy[div][dept] = {};
+        deptCount++;
+      }
+      if (seksi && seksi !== '-' && seksi !== 'SEMUA') {
+        if (!hierarchy[div][dept][seksi]) {
+          hierarchy[div][dept][seksi] = true;
+          seksiCount++;
+        }
+      }
+
+      if (jab && jab !== '-') {
+        var cleanJab = jab.replace(/[^A-Z0-9]/g, '_');
+        if (cleanJab && !uniqueRoles[cleanJab]) {
+          uniqueRoles[cleanJab] = true;
+        }
+      }
+    }
+
+    // Bangun hirarki folder di Google Drive
+    for (var dName in hierarchy) {
+      var divFolder = getOrCreateSubfolder(yearFolder, dName);
+      var deptsObj = hierarchy[dName];
+      for (var dpName in deptsObj) {
+        var deptFolder = getOrCreateSubfolder(divFolder, dpName);
+        var seksisObj = deptsObj[dpName];
+        for (var sName in seksisObj) {
+          getOrCreateSubfolder(deptFolder, sName);
+        }
+      }
+    }
+  } else {
+    // Fallback jika belum ada data baris di sheet karyawan
+    var defaultDepts = [
+      'PRODUCTION 1 DEPT',
+      'PRODUCTION 2 DEPT',
+      'QA QC DEPT',
+      'ENGINEERING DEPT',
+      'HR GA FINANCE DEPT'
+    ];
+    var defaultDivFolder = getOrCreateSubfolder(yearFolder, 'MANUFACTURING DIVISION');
+    for (var k = 0; k < defaultDepts.length; k++) {
+      getOrCreateSubfolder(defaultDivFolder, defaultDepts[k]);
+    }
+  }
+
+  // Buat subfolder tanda tangan berdasarkan posisi / role unik
+  for (var posKey in uniqueRoles) {
+    getOrCreateSubfolder(mainTtdFolder, posKey);
+    posCount++;
   }
 
   showAlertSafely(
-    'Sukses! Struktur folder Google Drive untuk arsip PDF (' + yearFolderName + ') telah dirapikan.'
+    'Sukses! Struktur folder Google Drive otomatis dibuat dari Excel tanpa dobel:\n\n' +
+    '📁 ' + yearFolderName + '\n' +
+    '   ├── Divisi: ' + divCount + ' Folder\n' +
+    '   ├── Departemen: ' + deptCount + ' Folder\n' +
+    '   └── Seksi: ' + seksiCount + ' Folder\n\n' +
+    '📁 TANDA_TANGAN: ' + posCount + ' Posisi/Role\n\n' +
+    'Seluruh PDF penilaian dan file TTD akan otomatis tersimpan rapi.'
   );
 }
 
@@ -1212,8 +1316,9 @@ function doPost(e) {
       });
     }
 
-    // B. SIMPAN ARSIP PDF KE DRIVE DENGAN PENAMAAN RAPI
+    // B. SIMPAN ARSIP PDF KE DRIVE DENGAN PENAMAAN DAN STRUKTUR HIERARKI RAPI
     // Format Berkas: PK_[TAHUN]_[NRP]_[NAMA]_[JABATAN]_[GOL].pdf
+    // Folder: Root Folder -> TAHUN [YYYY] -> [DIVISION] -> [DEPARTMENT] -> [SEKSI]
     if (action === 'save_pdf') {
       var pdfBase64 = postData.pdf_base64;
       if (!pdfBase64) {
@@ -1224,15 +1329,47 @@ function doPost(e) {
       var nama = String(postData.nama_lengkap || 'KARYAWAN').toUpperCase().replace(/[^A-Z0-9]/g, '_');
       var jabatan = String(postData.jabatan || 'OPERATOR').toUpperCase().replace(/[^A-Z0-9]/g, '_');
       var golongan = String(postData.golongan || 'KJ').toUpperCase().replace(/[^A-Z0-9]/g, '_');
-      var departemen = String(postData.departemen || 'PRODUCTION 2 DEPT').toUpperCase().trim();
+      var departemen = String(postData.departemen || '').toUpperCase().trim();
+      var division = String(postData.division || postData.divisi || '').toUpperCase().trim();
       var seksi = String(postData.seksi || '').toUpperCase().trim();
       var tahun = String(postData.tahun || CONFIG.DEFAULT_YEAR);
+
+      // Jika division atau seksi belum dikirim, cari otomatis dari Master Karyawan berdasarkan NRP
+      if ((!division || !seksi) && nrp) {
+        var empSheet = ss.getSheetByName('Master Karyawan') || ss.getSheetByName('karyawan');
+        if (empSheet && empSheet.getLastRow() > 1) {
+          var eData = empSheet.getDataRange().getValues();
+          var eHeaders = eData[0];
+          var eNrpIdx = -1, eDivIdx = -1, eDeptIdx = -1, eSeksiIdx = -1;
+          for (var eh = 0; eh < eHeaders.length; eh++) {
+            var col = String(eHeaders[eh] || '').trim().toLowerCase();
+            if (col === 'nrp') eNrpIdx = eh;
+            else if (col === 'division' || col === 'divisi') eDivIdx = eh;
+            else if (col === 'departemen' || col === 'department') eDeptIdx = eh;
+            else if (col === 'seksi' || col === 'nama_sect' || col === 'nama_bagian') { if (eSeksiIdx === -1) eSeksiIdx = eh; }
+          }
+          if (eNrpIdx > -1) {
+            for (var er = 1; er < eData.length; er++) {
+              if (String(eData[er][eNrpIdx]).trim() === nrp) {
+                if (!division && eDivIdx > -1) division = String(eData[er][eDivIdx] || '').trim().toUpperCase();
+                if (!departemen && eDeptIdx > -1) departemen = String(eData[er][eDeptIdx] || '').trim().toUpperCase();
+                if (!seksi && eSeksiIdx > -1) seksi = String(eData[er][eSeksiIdx] || '').trim().toUpperCase();
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (!division) division = 'MANUFACTURING DIVISION';
+      if (!departemen) departemen = 'PRODUCTION 2 DEPT';
 
       var filename = 'PK_' + tahun + '_' + nrp + '_' + nama + '_' + jabatan + '_' + golongan + '.pdf';
 
       var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
       var yearFolder = getOrCreateSubfolder(rootFolder, 'TAHUN ' + tahun);
-      var deptFolder = getOrCreateSubfolder(yearFolder, departemen);
+      var divFolder = getOrCreateSubfolder(yearFolder, division);
+      var deptFolder = getOrCreateSubfolder(divFolder, departemen);
       var targetFolder = (seksi && seksi !== '-' && seksi !== 'SEMUA')
           ? getOrCreateSubfolder(deptFolder, seksi)
           : deptFolder;
@@ -1253,7 +1390,7 @@ function doPost(e) {
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
       } catch (eShare) {}
 
-      var folderPath = 'TAHUN ' + tahun + ' / ' + departemen + (seksi && seksi !== '-' ? ' / ' + seksi : '');
+      var folderPath = 'TAHUN ' + tahun + ' / ' + division + ' / ' + departemen + (seksi && seksi !== '-' ? ' / ' + seksi : '');
 
       return jsonResponse({
         status: 'success',
