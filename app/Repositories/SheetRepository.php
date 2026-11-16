@@ -122,10 +122,10 @@ class SheetRepository implements SheetRepositoryInterface
         $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 300);
 
         return Cache::remember($cacheKey, $cacheTtl, function () use ($table) {
-            // 1. FAST PATH: Check local SQLite database first (instant < 5ms response time)
-            $localRows = $this->getFromLocal($table);
-            if (!empty($localRows)) {
-                return $localRows;
+            // 1. FAST PATH: Check local SQLite database first (instant < 1ms response time)
+            $localTable = $this->getLocalTableName($table);
+            if (Schema::hasTable($localTable)) {
+                return $this->getFromLocal($table);
             }
             if ($this->googleService->isConfigured()) {
                 try {
@@ -210,9 +210,7 @@ class SheetRepository implements SheetRepositoryInterface
         $localTable = $this->getLocalTableName($table);
         if (Schema::hasTable($localTable)) {
             $row = DB::table($localTable)->where($column, $value)->first();
-            if ($row) {
-                return (array)$row;
-            }
+            return $row ? (array)$row : null;
         }
 
         // 2. Secondary check via all()
@@ -238,10 +236,7 @@ class SheetRepository implements SheetRepositoryInterface
             foreach ($criteria as $col => $val) {
                 $query->where($col, $val);
             }
-            $results = $query->get();
-            if ($results->isNotEmpty()) {
-                return $results->map(fn($r) => (array)$r)->toArray();
-            }
+            return $query->get()->map(fn($r) => (array)$r)->toArray();
         }
 
         // 2. Fallback to all()

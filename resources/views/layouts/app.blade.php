@@ -1041,26 +1041,39 @@
       }
     });
 
-    // 1. Session Keep-Alive Heartbeat: Ping server every 2 minutes so idle tabs never expire unexpectedly
-    setInterval(function() {
-      fetch('/up', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    // 1. Session Keep-Alive Heartbeat: Ping /session-keepalive every 40s so the session never expires
+    function sendSessionHeartbeat() {
+      fetch('/session-keepalive', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
         .catch(function() {});
-    }, 120000);
+    }
+    setInterval(sendSessionHeartbeat, 40000);
+    // Send initial heartbeat on page load
+    sendSessionHeartbeat();
 
-    // 2. Instant Navigation Prefetch for Sidebar links on mouse hover / touch
+    // 2. Ultra-Fast Navigation: Instant Prefetch & Preload for Sidebar links
     document.addEventListener('DOMContentLoaded', function() {
       const prefetchedUrls = new Set();
+      
+      function prefetchUrl(href) {
+        if (!href || prefetchedUrls.has(href) || href.includes('/logout') || href.includes('/export') || href.includes('#')) return;
+        prefetchedUrls.add(href);
+        const linkTag = document.createElement('link');
+        linkTag.rel = 'prefetch';
+        linkTag.href = href;
+        document.head.appendChild(linkTag);
+      }
+
+      // Proactively prefetch main navigation destinations
+      setTimeout(function() {
+        prefetchUrl('/dashboard');
+        prefetchUrl('/laporan');
+      }, 500);
+
+      // Instant prefetch on mouse hover and touch start
       document.querySelectorAll('aside a[href^="/"], nav a[href^="/"]').forEach(function(link) {
-        link.addEventListener('mouseenter', function() {
-          const href = link.getAttribute('href');
-          if (href && !prefetchedUrls.has(href) && !href.includes('/logout') && !href.includes('/export')) {
-            prefetchedUrls.add(href);
-            const linkTag = document.createElement('link');
-            linkTag.rel = 'prefetch';
-            linkTag.href = href;
-            document.head.appendChild(linkTag);
-          }
-        }, { passive: true });
+        const href = link.getAttribute('href');
+        link.addEventListener('mouseenter', function() { prefetchUrl(href); }, { passive: true });
+        link.addEventListener('touchstart', function() { prefetchUrl(href); }, { passive: true });
       });
     });
   </script>

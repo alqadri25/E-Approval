@@ -261,13 +261,13 @@
                         if (empty($foremanPdfImg) && $subFormVariant === 'div_head') {
                             $foremanPdfImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
                         }
-                        $isForemanPdfSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && (in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcForeman['grand_total'] > 0)));
+                        $isForemanPdfSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']));
                         if (empty($foremanPdfImg) && $isForemanPdfSigned) {
                             $foremanPdfImg = \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN');
                         }
                     @endphp
                     @if(!empty($foremanPdfImg))
-                        <img src="{{ $foremanPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" style="max-height: 44px; max-width: 44px; width: 44px; height: 44px; display: block; margin: 0 auto; padding: 2px;">
+                        <img src="{{ $foremanPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" style="max-height: 54px; max-width: 54px; width: 54px; height: 54px; display: block; margin: 0 auto; padding: 2px;">
                     @elseif($isTanpaForemanStd && !$showForemanData)
                         &nbsp;
                     @else
@@ -291,7 +291,7 @@
                         }
                     @endphp
                     @if(!empty($shPdfImg))
-                        <img src="{{ $shPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 44px; max-width: 44px; width: 44px; height: 44px; display: block; margin: 0 auto; padding: 2px;">
+                        <img src="{{ $shPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 54px; max-width: 54px; width: 54px; height: 54px; display: block; margin: 0 auto; padding: 2px;">
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif
@@ -311,7 +311,7 @@
                         }
                     @endphp
                     @if(!empty($dhPdfImg))
-                        <img src="{{ $dhPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 44px; max-width: 44px; width: 44px; height: 44px; display: block; margin: 0 auto; padding: 2px;">
+                        <img src="{{ $dhPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 54px; max-width: 54px; width: 54px; height: 54px; display: block; margin: 0 auto; padding: 2px;">
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif

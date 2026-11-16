@@ -39,9 +39,9 @@ ENV PORT=80 \
     LOG_CHANNEL=stderr \
     DB_CONNECTION=sqlite \
     DB_DATABASE=/app/database/database.sqlite \
-    SESSION_DRIVER=database \
-    SESSION_LIFETIME=480 \
-    CACHE_STORE=database
+    SESSION_DRIVER=cookie \
+    SESSION_LIFETIME=525600 \
+    CACHE_STORE=file
 
 # Copy repository files
 COPY . .

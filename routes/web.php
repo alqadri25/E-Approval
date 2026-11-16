@@ -218,3 +218,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/accounts/{id}/reset-password', [AccountController::class, 'resetPassword'])->name('accounts.reset-password');
     });
 });
+
+// Persistent session keepalive endpoint
+Route::get('/session-keepalive', function () {
+    return response()->json(['status' => 'ok', 'authenticated' => \Illuminate\Support\Facades\Auth::check(), 'user_id' => \Illuminate\Support\Facades\Auth::id()]);
+})->middleware('web')->name('session.keepalive');
