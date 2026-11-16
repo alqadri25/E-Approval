@@ -41,6 +41,8 @@ function onOpen() {
     .addItem('📊 Format & Rapikan Sheet Dokumen_Dinilai', 'setupDokumenDinilaiSheet')
     .addItem('📅 Rapikan Format Tanggal Masuk (dd-Mmm-yy)', 'formatAllDatesInSheets')
     .addItem('🗑️ Hapus Sheet yang Tidak Diperlukan (Termasuk Master Karyawan)', 'cleanUnusedSheets')
+    .addSeparator()
+    .addItem('⚠️ Kosongkan Seluruh Data Penilaian & PDF Drive (Wipe Total)', 'wipeAllDataAndPdfsMenu')
     .addItem('✍️ Uji & Buat Folder Tanda Tangan Drive', 'testDriveAccess')
     .addSeparator()
     .addItem('📈 Cek Status & Statistik Data', 'showDatabaseStats')
@@ -108,12 +110,12 @@ var COLUMN_FORMATS = {
   'karyawan': {
     widths: { 1: 90, 2: 230, 3: 90, 4: 80, 5: 80, 6: 220, 7: 110, 8: 180, 9: 180, 10: 100, 11: 110, 12: 130, 13: 120, 14: 110, 15: 110, 16: 220, 17: 180, 18: 120, 19: 190 },
     alignCenter: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15, 18],
-    textFormatCols: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15] // Kolom 7 (tgl_masuk) diformat Text (@)
+    textFormatCols: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15] // Kolom 7 (tgl_masuk) diformat Plain Text (@)
   },
   'Dokumen_Dinilai': {
     widths: { 1: 90, 2: 230, 3: 220, 4: 160, 5: 160, 6: 190, 7: 190, 8: 110, 9: 80, 10: 90, 11: 90, 12: 90, 13: 90, 14: 110, 15: 90, 16: 170, 17: 120, 18: 120, 19: 120, 20: 130 },
     alignCenter: [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-    textFormatCols: [1, 8, 9, 10] // Kolom 8 (START WORK) diformat Text (@)
+    textFormatCols: [1, 8, 9, 10] // Kolom 8 (START WORK) diformat Plain Text (@)
   },
   'kuota_departemen': {
     widths: { 1: 60, 2: 220, 3: 110, 4: 110, 5: 110, 6: 110, 7: 110 },
@@ -702,7 +704,215 @@ function syncUserBarcodesToDriveAndSheet() {
 }
 
 /**
- * 5. RINGKASAN STATUS DATA DATABASE
+ * 5. PENGHAPUSAN DAN PEMBERSIHAN DATA PENILAIAN & BERKAS DRIVE (CASCADE WIPE)
+ */
+
+/**
+ * Menghapus / memindahkan ke Trash berkas PDF di Google Drive berdasarkan daftar NRP atau fileId
+ */
+function deleteDriveFilesByNrps(nrpsList, fileIdsList) {
+  var deletedCount = 0;
+  var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+
+  // 1. Hapus berdasarkan file_ids spesifik jika ada
+  if (fileIdsList && Array.isArray(fileIdsList)) {
+    for (var f = 0; f < fileIdsList.length; f++) {
+      var fid = String(fileIdsList[f] || '').trim();
+      if (!fid) continue;
+      try {
+        var fObj = DriveApp.getFileById(fid);
+        if (fObj && !fObj.isTrashed()) {
+          fObj.setTrashed(true);
+          deletedCount++;
+        }
+      } catch (eFid) {
+        Logger.log('Gagal trash file ID ' + fid + ': ' + eFid);
+      }
+    }
+  }
+
+  // 2. Cari berdasarkan pola nama berkas yang mengandung NRP target
+  if (nrpsList && nrpsList.length > 0) {
+    var nrpMap = {};
+    for (var n = 0; n < nrpsList.length; n++) {
+      var nrpStr = String(nrpsList[n] || '').trim();
+      if (nrpStr) nrpMap[nrpStr] = true;
+    }
+
+    function searchAndTrashByNrp(folder) {
+      var files = folder.getFiles();
+      while (files.hasNext()) {
+        var file = files.next();
+        if (file.isTrashed()) continue;
+        var fName = file.getName();
+        for (var tNrp in nrpMap) {
+          var p1 = '_' + tNrp + '_';
+          var p2 = 'PK_' + tNrp + '_';
+          var p3 = tNrp + '_';
+          if (fName.indexOf(p1) > -1 || fName.indexOf(p2) > -1 || fName.indexOf(p3) === 0) {
+            file.setTrashed(true);
+            deletedCount++;
+            break;
+          }
+        }
+      }
+
+      var subfolders = folder.getFolders();
+      while (subfolders.hasNext()) {
+        var sub = subfolders.next();
+        if (!sub.isTrashed()) {
+          searchAndTrashByNrp(sub);
+        }
+      }
+    }
+
+    try {
+      searchAndTrashByNrp(rootFolder);
+    } catch (eSearch) {
+      Logger.log('Error saat mencari berkas Drive berdasarkan NRP: ' + eSearch);
+    }
+  }
+
+  return deletedCount;
+}
+
+/**
+ * Menghapus seluruh berkas PDF penilaian di Google Drive (misal saat reset atau hapus semua karyawan)
+ */
+function wipeAllAppraisalPdfsInDrive() {
+  var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
+  var deletedCount = 0;
+
+  function searchAndTrashAllPdfs(folder) {
+    var files = folder.getFiles();
+    while (files.hasNext()) {
+      var file = files.next();
+      if (file.isTrashed()) continue;
+      var fName = file.getName().toLowerCase();
+      var mime = file.getMimeType();
+      if (mime === 'application/pdf' || fName.endsWith('.pdf') || fName.indexOf('pk_') === 0) {
+        file.setTrashed(true);
+        deletedCount++;
+      }
+    }
+
+    var subfolders = folder.getFolders();
+    while (subfolders.hasNext()) {
+      var sub = subfolders.next();
+      if (!sub.isTrashed()) {
+        // Folder TANDA_TANGAN dipelihara kecuali jika diminta khusus
+        if (sub.getName() !== 'TANDA_TANGAN') {
+          searchAndTrashAllPdfs(sub);
+        }
+      }
+    }
+  }
+
+  try {
+    searchAndTrashAllPdfs(rootFolder);
+  } catch (eWipe) {
+    Logger.log('Error saat wipe PDF Drive: ' + eWipe);
+  }
+
+  return deletedCount;
+}
+
+/**
+ * Mengosongkan seluruh baris data penilaian di seluruh tabel (tetap pertahankan header resmi Musashi)
+ */
+function wipeAllAppraisalSheetsData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'kuota_departemen', 'Master Tanda Tangan'];
+
+  for (var i = 0; i < targetSheets.length; i++) {
+    var sName = targetSheets[i];
+    var sh = ss.getSheetByName(sName);
+    if (!sh) continue;
+
+    var lastRow = sh.getLastRow();
+    var lastCol = sh.getLastColumn();
+    if (lastRow > 1 && lastCol > 0) {
+      sh.deleteRows(2, lastRow - 1);
+    }
+    formatSheetColumns(sh, sName);
+  }
+}
+
+/**
+ * Hapus data baris untuk daftar NRP tertentu dari seluruh sheet penilaian
+ */
+function deleteEmployeeRowsFromSheets(nrpsList) {
+  if (!nrpsList || nrpsList.length === 0) return {};
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan'];
+  var nrpMap = {};
+  for (var n = 0; n < nrpsList.length; n++) {
+    var s = String(nrpsList[n] || '').trim().toLowerCase();
+    if (s) nrpMap[s] = true;
+  }
+
+  var stats = {};
+
+  for (var t = 0; t < targetSheets.length; t++) {
+    var sName = targetSheets[t];
+    var sh = ss.getSheetByName(sName);
+    if (!sh || sh.getLastRow() <= 1) continue;
+
+    var data = sh.getDataRange().getValues();
+    var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+    
+    var keyColIdx = headers.indexOf('nrp');
+    if (keyColIdx === -1) keyColIdx = 0;
+
+    var count = 0;
+    for (var r = data.length - 1; r >= 1; r--) {
+      var val = String(data[r][keyColIdx]).trim().toLowerCase();
+      if (nrpMap[val]) {
+        sh.deleteRow(r + 1);
+        count++;
+      }
+    }
+    stats[sName] = count;
+  }
+
+  return stats;
+}
+
+/**
+ * Menu UI: Kosongkan Seluruh Data Penilaian & PDF Drive (Wipe Total)
+ */
+function wipeAllDataAndPdfsMenu() {
+  var ui = SpreadsheetApp.getUi();
+  var response = ui.alert(
+    '⚠️ KONFIRMASI PEMBERSIHAN TOTAL',
+    'Apakah Anda yakin ingin MENGHAPUS SELURUH data pada sheet karyawan, dokumen, Dokumen_Dinilai, nilai, indikator, tanda tangan, kuota departemen, SERTA seluruh berkas PDF penilaian di Google Drive?\n\nTindakan ini akan mengosongkan seluruh data penilaian dan memindahkan seluruh PDF ke Trash.',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) {
+    showAlertSafely('Pembersihan total dibatalkan.');
+    return;
+  }
+
+  // 1. Bersihkan seluruh baris data di spreadsheet
+  wipeAllAppraisalSheetsData();
+
+  // 2. Bersihkan seluruh berkas PDF di Google Drive
+  var trashedPdfs = wipeAllAppraisalPdfsInDrive();
+
+  // 3. Bersihkan sheet usang / duplikat
+  cleanUnusedSheets(true);
+
+  showAlertSafely(
+    '✅ Pembersihan Total Berhasil!\n\n' +
+    '• Seluruh sheet penilaian (karyawan, dokumen, Dokumen_Dinilai, nilai, dll) telah dikosongkan dengan rapi.\n' +
+    '• ' + trashedPdfs + ' berkas PDF penilaian di Google Drive telah dipindahkan ke Trash.\n' +
+    '• Header dan format resmi Musashi tetap terjaga utuh dan siap digunakan kembali.'
+  );
+}
+
+/**
+ * 6. RINGKASAN STATUS DATA DATABASE
  */
 function showDatabaseStats() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -776,6 +986,19 @@ function doGet(e) {
       return jsonResponse({
         status: 'success',
         message: 'Format tanggal tgl_masuk dan START WORK berhasil dirapikan menjadi dd-Mmm-yy.',
+        time: new Date().toISOString()
+      });
+    }
+
+    if (action === 'wipe_all_data' || action === 'wipe_appraisals' || action === 'reset_database') {
+      wipeAllAppraisalSheetsData();
+      var trashedPdfs = wipeAllAppraisalPdfsInDrive();
+      cleanUnusedSheets(true);
+      return jsonResponse({
+        status: 'success',
+        action: 'wipe_all_data',
+        message: 'Seluruh data karyawan, dokumen penilaian, Dokumen_Dinilai, dan berkas PDF Drive berhasil dibersihkan total.',
+        trashed_drive_pdfs: trashedPdfs,
         time: new Date().toISOString()
       });
     }
@@ -855,6 +1078,41 @@ function doPost(e) {
         status: 'success',
         message: 'Format tanggal tgl_masuk dan START WORK berhasil dirapikan menjadi dd-Mmm-yy.',
         time: new Date().toISOString()
+      });
+    }
+
+    // PEMBERSIHAN TOTAL (WIPE ALL APPRAISAL DATA & DRIVE PDFS)
+    if (action === 'wipe_all_data' || action === 'wipe_appraisals' || action === 'reset_database') {
+      wipeAllAppraisalSheetsData();
+      var trashedPdfs = 0;
+      if (postData.wipe_drive_pdfs !== false) {
+        trashedPdfs = wipeAllAppraisalPdfsInDrive();
+      }
+      cleanUnusedSheets(true);
+      return jsonResponse({
+        status: 'success',
+        action: 'wipe_all_data',
+        message: 'Seluruh data karyawan, dokumen penilaian, Dokumen_Dinilai, dan berkas PDF Drive berhasil dibersihkan total.',
+        trashed_drive_pdfs: trashedPdfs,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // HAPUS DATA KARYAWAN & BERKAS DRIVE BERDASARKAN DAFTAR NRP / FILE ID
+    if (action === 'delete_employee_data' || action === 'delete_employees') {
+      var nrps = postData.nrps || (postData.nrp ? [postData.nrp] : []);
+      var fileIds = postData.file_ids || (postData.file_id ? [postData.file_id] : []);
+
+      var deletedRows = deleteEmployeeRowsFromSheets(nrps);
+      var trashedDrivePdfs = deleteDriveFilesByNrps(nrps, fileIds);
+
+      return jsonResponse({
+        status: 'success',
+        action: 'delete_employee_data',
+        nrps: nrps,
+        deleted_rows: deletedRows,
+        trashed_drive_pdfs: trashedDrivePdfs,
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -1066,8 +1324,9 @@ function doPost(e) {
     }
 
     // D. HAPUS 1 BARIS KILAT (DELETE ROW BY NRP)
+    // Otomatis menghapus baris di seluruh tabel DAN menghapus berkas PDF di Google Drive
     if (action === 'delete_row') {
-      var targetTables = postData.tables || ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'users'];
+      var targetTables = postData.tables || ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users'];
       var keyColumn = (postData.key_column || 'nrp').toLowerCase();
       var keyValue = String(postData.key_value || '').trim().toLowerCase();
       var deletedStats = {};
@@ -1095,11 +1354,18 @@ function doPost(e) {
         deletedStats[sName] = count;
       }
 
+      // Hapus berkas PDF di Drive jika keyColumn adalah nrp
+      var trashedDriveFiles = 0;
+      if (keyColumn === 'nrp' && keyValue) {
+        trashedDriveFiles = deleteDriveFilesByNrps([keyValue], []);
+      }
+
       return jsonResponse({
         status: 'success',
         action: 'delete_row',
         key_value: keyValue,
         deleted_stats: deletedStats,
+        trashed_drive_pdfs: trashedDriveFiles,
         timestamp: new Date().toISOString()
       });
     }
@@ -1224,8 +1490,21 @@ function writeObjectsToSheet(ss, sheetName, items) {
     sheet = ss.insertSheet(targetName);
   }
 
-  // Jika payload kosong: Bersihkan baris lama tapi pertahankan header resmi
-  if (!items || items.length === 0) {
+  // Jika payload kosong atau payload berisi objek kosong: Bersihkan baris lama tapi pertahankan header resmi
+  var isEmptyPayload = (!items || items.length === 0);
+  if (!isEmptyPayload && items.length === 1) {
+    var firstObj = items[0];
+    var allEmpty = true;
+    for (var k in firstObj) {
+      if (firstObj[k] !== '' && firstObj[k] !== null && firstObj[k] !== undefined) {
+        allEmpty = false;
+        break;
+      }
+    }
+    if (allEmpty) isEmptyPayload = true;
+  }
+
+  if (isEmptyPayload) {
     var stdHeaders = CONFIG_TABLES[targetName];
     if (stdHeaders) {
       sheet.clear();

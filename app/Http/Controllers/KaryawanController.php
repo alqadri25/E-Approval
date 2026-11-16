@@ -1614,6 +1614,13 @@ class KaryawanController extends Controller
 
         $nama = $karyawan['nama_lengkap'] ?? $nrp;
 
+        // Ambil File ID Google Drive sebelum dokumen dihapus dari database
+        $driveFileIds = DB::table('dokumen')
+            ->where('nrp', $nrp)
+            ->whereNotNull('drive_file_id')
+            ->pluck('drive_file_id')
+            ->toArray();
+
         // Clean up related documents, scores, indicators, signatures directly in DB (atomic transaction)
         try {
             DB::transaction(function () use ($nrp) {
@@ -1631,6 +1638,13 @@ class KaryawanController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Notice on cascading delete documents for NRP {$nrp}: " . $e->getMessage());
             DB::table('karyawan')->where('nrp', $nrp)->delete();
+        }
+
+        // Hapus berkas PDF di Google Drive yang terkait dengan karyawan ini
+        try {
+            \App\Services\GoogleSyncService::deleteGoogleDriveEmployeePdfs([$nrp], $driveFileIds);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Drive PDF delete notice for NRP {$nrp}: " . $e->getMessage());
         }
 
         // Clean up phantom leadership accounts if applicable
@@ -1651,11 +1665,12 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
         \Illuminate\Support\Facades\Cache::flush();
 
-        // Sinkronisasi hapus ke Google Spreadsheet (karyawan, dokumen, nilai, indikator, tanda_tangan, kuota_departemen, users)
+        // Sinkronisasi hapus ke Google Spreadsheet (karyawan, dokumen, Dokumen_Dinilai, nilai, indikator, tanda_tangan, kuota_departemen, users)
         try {
             \App\Services\GoogleSyncService::syncTables([
                 'karyawan',
                 'dokumen',
+                'Dokumen_Dinilai',
                 'nilai',
                 'indikator',
                 'tanda_tangan',
@@ -1783,6 +1798,13 @@ class KaryawanController extends Controller
             return redirect()->back()->with('error', 'Tidak ada data karyawan yang cocok dengan kriteria filter untuk dihapus.');
         }
 
+        // Ambil File ID Google Drive dokumen terkait sebelum dihapus dari database
+        $driveFileIds = DB::table('dokumen')
+            ->whereIn('nrp', $targetNrps)
+            ->whereNotNull('drive_file_id')
+            ->pluck('drive_file_id')
+            ->toArray();
+
         // Cascade delete related records and employees atomically in DB
         $deletedCount = 0;
         try {
@@ -1814,6 +1836,17 @@ class KaryawanController extends Controller
             $deletedCount = DB::table('karyawan')->whereIn('nrp', $targetNrps)->delete();
         }
 
+        // Hapus berkas PDF di Google Drive (Jika hapus semua -> bersihkan total seluruh PDF penilaian di Drive)
+        try {
+            if ($scope === 'all') {
+                \App\Services\GoogleSyncService::wipeAllDataAndDrivePdfs();
+            } else {
+                \App\Services\GoogleSyncService::deleteGoogleDriveEmployeePdfs($targetNrps, $driveFileIds);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Drive PDF bulk delete notice: " . $e->getMessage());
+        }
+
         // Clean up phantom leadership accounts whose entire team was deleted
         try {
             \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
@@ -1832,11 +1865,12 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
         \Illuminate\Support\Facades\Cache::flush();
 
-        // Realtime sync to Google Spreadsheet (wipe all appraisal sheets: karyawan, dokumen, nilai, indikator, tanda_tangan, kuota_departemen, and users)
+        // Realtime sync to Google Spreadsheet (wipe all appraisal sheets: karyawan, dokumen, Dokumen_Dinilai, nilai, indikator, tanda_tangan, kuota_departemen, and users)
         try {
             \App\Services\GoogleSyncService::syncTables([
                 'karyawan',
                 'dokumen',
+                'Dokumen_Dinilai',
                 'nilai',
                 'indikator',
                 'tanda_tangan',
