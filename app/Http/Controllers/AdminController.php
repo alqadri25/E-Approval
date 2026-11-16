@@ -3676,21 +3676,31 @@ class AdminController extends Controller
             return back()->with('error', 'Tidak dapat merevisi ke Division Head karena Division Head belum menandatangani dokumen ini.');
         }
 
+        $isGol4Up = in_array($dokumen->kode_form ?? '', ['07-006-SH', '07-006-DH', '07-006-DIV']);
+
         // Tentukan status dokumen baru
         $newStatus = match($targetLevel) {
-            'foreman' => 'menunggu_foreman',
+            'foreman' => ($isGol4Up ? 'menunggu_section_head' : 'menunggu_foreman'),
             'section_head' => 'menunggu_section_head',
             'dept_head' => 'menunggu_dept_head',
             'div_head' => 'menunggu_div_head',
         };
 
         // Level tanda tangan yang harus diinvalidasi
-        $levelsToInvalidate = match($targetLevel) {
-            'foreman' => ['foreman', 'section_head', 'dept_head', 'div_head', 'division_head'],
-            'section_head' => ['section_head', 'dept_head', 'div_head', 'division_head'],
-            'dept_head' => ['dept_head', 'div_head', 'division_head'],
-            'div_head' => ['div_head', 'division_head'],
-        };
+        if ($isGol4Up) {
+            $levelsToInvalidate = match($targetLevel) {
+                'foreman', 'section_head' => ['foreman', 'section_head', 'dept_head', 'div_head', 'division_head'],
+                'dept_head' => ['section_head', 'dept_head', 'div_head', 'division_head'],
+                'div_head' => ['dept_head', 'div_head', 'division_head'],
+            };
+        } else {
+            $levelsToInvalidate = match($targetLevel) {
+                'foreman' => ['foreman', 'section_head', 'dept_head', 'div_head', 'division_head'],
+                'section_head' => ['section_head', 'dept_head', 'div_head', 'division_head'],
+                'dept_head' => ['dept_head', 'div_head', 'division_head'],
+                'div_head' => ['div_head', 'division_head'],
+            };
+        }
 
         // Hapus berkas tanda tangan fisik & hapus record di tabel tanda_tangan
         $oldTtds = DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->get();

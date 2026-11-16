@@ -1966,16 +1966,33 @@ class PenilaianController extends Controller
                 if (in_array($status, ['menunggu_foreman', 'draft', 'revisi'])) {
                     continue;
                 }
+                if ($isGol4Up && $status === 'menunggu_section_head') {
+                    continue;
+                }
                 // If employee has NO Foreman (and it's not a self-evaluation form 07-006), Foreman NEVER signs!
                 if (empty($karyawan['nrp_foreman']) && !$isGol4Up) {
                     continue;
                 }
             }
-            if ($level === 'section_head' && in_array($status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi'])) {
-                continue;
+            if ($level === 'section_head') {
+                if (in_array($status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi'])) {
+                    continue;
+                }
+                // For 07-006-SH / Golongan 4 forms, section_head is Department Head (Atasan Langsung)
+                // When status is 'menunggu_dept_head', Department Head has NOT signed yet!
+                if ($isGol4Up && $status === 'menunggu_dept_head') {
+                    continue;
+                }
             }
-            if ($level === 'dept_head' && in_array($status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'menunggu_dept_head', 'revisi'])) {
-                continue;
+            if ($level === 'dept_head') {
+                if (in_array($status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'menunggu_dept_head', 'revisi'])) {
+                    continue;
+                }
+                // For Golongan 4 forms, dept_head is Division Head (Penilai Final)
+                // When status is 'menunggu_div_head', Division Head has NOT signed yet!
+                if ($isGol4Up && $status === 'menunggu_div_head') {
+                    continue;
+                }
             }
             if ($level === 'div_head' && $status !== 'selesai') {
                 continue;
@@ -1983,24 +2000,9 @@ class PenilaianController extends Controller
 
             $t = $dbTtdByLevel[$level] ?? null;
 
-            // Determine if this role has completed signature / evaluation
-            $isSigned = false;
-            if ($t) {
-                $isSigned = true;
-            } elseif ($level === 'foreman' && !empty($karyawan['nrp_foreman'])) {
-                $isSigned = in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
-                    && !empty($calcForeman) && (($calcForeman['grand_total'] ?? 0) > 0);
-            } elseif ($level === 'section_head') {
-                $isSigned = in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
-                    && !empty($calcSectionHead) && (($calcSectionHead['grand_total'] ?? 0) > 0);
-            } elseif ($level === 'dept_head') {
-                $isSigned = in_array($status, ['menunggu_div_head', 'selesai'])
-                    && !empty($calcDeptHead) && (($calcDeptHead['grand_total'] ?? 0) > 0);
-            } elseif ($level === 'div_head') {
-                $isSigned = ($status === 'selesai');
-            }
-
-            if (!$isSigned) {
+            // Signature MUST genuinely exist in database / sheet records ($t).
+            // NEVER synthesize or fake a signature if the reviewer has not signed or was purged during revision!
+            if (!$t) {
                 continue;
             }
 
@@ -2021,14 +2023,14 @@ class PenilaianController extends Controller
             if (!$userObj) {
                 // Resolve from employee hierarchical NRP fields
                 if ($level === 'foreman') {
-                    $signerNrp = $karyawan['nrp_foreman'] ?? null;
-                    $signerName = $karyawan['foreman_nama'] ?? null;
+                    $signerNrp = $isGol4Up ? ($karyawan['nrp'] ?? null) : ($karyawan['nrp_foreman'] ?? null);
+                    $signerName = $isGol4Up ? ($karyawan['nama_lengkap'] ?? null) : ($karyawan['foreman_nama'] ?? null);
                 } elseif ($level === 'section_head') {
-                    $signerNrp = $karyawan['nrp_section_head'] ?? null;
-                    $signerName = $karyawan['section_head_nama'] ?? null;
+                    $signerNrp = $isGol4Up ? ($karyawan['nrp_dept_head'] ?? null) : ($karyawan['nrp_section_head'] ?? null);
+                    $signerName = $isGol4Up ? ($karyawan['dept_head_nama'] ?? null) : ($karyawan['section_head_nama'] ?? null);
                 } elseif ($level === 'dept_head') {
-                    $signerNrp = $karyawan['nrp_dept_head'] ?? null;
-                    $signerName = $karyawan['dept_head_nama'] ?? null;
+                    $signerNrp = $isGol4Up ? ($karyawan['nrp_div_head'] ?? null) : ($karyawan['nrp_dept_head'] ?? null);
+                    $signerName = $isGol4Up ? ($karyawan['div_head_nama'] ?? null) : ($karyawan['dept_head_nama'] ?? null);
                 } elseif ($level === 'div_head') {
                     $signerNrp = $karyawan['nrp_div_head'] ?? null;
                     $signerName = $karyawan['div_head_nama'] ?? null;
@@ -2302,12 +2304,27 @@ class PenilaianController extends Controller
         $commentMeta = self::enrichIndikatorComments($indikator, $dokumen, $karyawan, $user);
 
         // 8b. Clean up stale signatures if document was revised back to an earlier stage
+        $isGol4Up = self::isForm07006($kodeForm);
         $status = $dokumen['status'] ?? 'draft';
         if (in_array($status, ['menunggu_foreman', 'draft'])) {
             DB::table('tanda_tangan')->where('dokumen_id', $id)->delete();
         } elseif ($status === 'menunggu_section_head') {
-            DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
+            if ($isGol4Up) {
+                DB::table('tanda_tangan')->where('dokumen_id', $id)->delete();
+            } else {
+                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
+            }
         } elseif ($status === 'menunggu_dept_head') {
+            if ($isGol4Up) {
+                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
+            } else {
+                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
+            }
+        } elseif ($status === 'menunggu_div_head') {
+            if ($isGol4Up) {
+                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
+            }
+        } elseif ($status === 'revisi') {
             DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
         }
 
@@ -3630,28 +3647,58 @@ class PenilaianController extends Controller
 
         $karyawanRevisi = $this->repository->find('karyawan', 'nrp', $dokumen['nrp']);
         $isGol4UpRevisi = in_array($dokumen['kode_form'] ?? '', ['07-006-SH', '07-006-DH', '07-006-DIV']);
-        $defaultTargetLevel = (!$isGol4UpRevisi && empty($karyawanRevisi['nrp_foreman']))
-            ? 'section_head'
-            : (($isGol4UpRevisi && ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))) ? 'section_head' : 'foreman');
-        $targetLevel = $request->input('target_level', $defaultTargetLevel);
-        if (!$isGol4UpRevisi && empty($karyawanRevisi['nrp_foreman'])) {
-            $targetLevel = 'section_head';
-        }
-        $newStatus = $targetLevel === 'section_head' ? 'menunggu_section_head' : 'menunggu_foreman';
+        $hasForeman = !empty($karyawanRevisi['nrp_foreman']);
 
-        // Invalidate signatures at and above target level
-        if ($newStatus === 'menunggu_foreman') {
-            DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['foreman', 'section_head', 'dept_head'])->delete();
-        } elseif ($newStatus === 'menunggu_section_head') {
-            DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head'])->delete();
+        $targetLevel = $request->input('target_level');
+        if (!$targetLevel) {
+            if ($isGol4UpRevisi) {
+                $targetLevel = ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) ? 'dept_head' : 'section_head';
+            } else {
+                $targetLevel = $hasForeman ? 'foreman' : 'section_head';
+            }
         }
+
+        if ($isGol4UpRevisi) {
+            if ($targetLevel === 'dept_head') {
+                $newStatus = 'menunggu_dept_head';
+                $levelsToInvalidate = ['section_head', 'dept_head', 'div_head', 'division_head'];
+            } else {
+                // Return to Karyawan Ybs (Section Head self-evaluation)
+                $newStatus = 'menunggu_section_head';
+                $levelsToInvalidate = ['foreman', 'section_head', 'dept_head', 'div_head', 'division_head'];
+            }
+        } else {
+            if ($targetLevel === 'dept_head') {
+                $newStatus = 'menunggu_dept_head';
+                $levelsToInvalidate = ['dept_head', 'div_head', 'division_head'];
+            } elseif ($targetLevel === 'section_head') {
+                $newStatus = 'menunggu_section_head';
+                $levelsToInvalidate = ['section_head', 'dept_head', 'div_head', 'division_head'];
+            } else {
+                $newStatus = 'menunggu_foreman';
+                $levelsToInvalidate = ['foreman', 'section_head', 'dept_head', 'div_head', 'division_head'];
+            }
+        }
+
+        // Invalidate signatures at and above target level (delete physical file and DB record)
+        $oldTtds = DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->get();
+        foreach ($oldTtds as $t) {
+            if (!empty($t->ttd_image) && Storage::disk('public')->exists($t->ttd_image)) {
+                try { Storage::disk('public')->delete($t->ttd_image); } catch (\Throwable $e) {}
+            }
+        }
+        DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->delete();
 
         DB::table('dokumen')->where('id', $id)->update([
-            'status' => 'revisi',
+            'status' => $newStatus,
+            'docking_final' => null,
+            'hash_dokumen' => null,
             'updated_at' => now()->toDateTimeString(),
         ]);
         $this->repository->update('dokumen', 'id', $id, [
-            'status' => 'revisi',
+            'status' => $newStatus,
+            'docking_final' => null,
+            'hash_dokumen' => null,
             'updated_at' => now()->toDateTimeString(),
         ]);
 
@@ -3671,7 +3718,7 @@ class PenilaianController extends Controller
             'user_id' => $user->id,
             'aksi' => 'revisi_dokumen',
             'dokumen_id' => $id,
-            'detail' => "User {$user->nama} mengembalikan dokumen ID {$id} untuk direvisi oleh {$targetLevel}. Alasan: {$catatanRevisi}",
+            'detail' => "User {$user->nama} mengembalikan dokumen ID {$id} untuk direvisi ke {$targetLevel}. Alasan: {$catatanRevisi}",
             'created_at' => now()->toDateTimeString(),
         ]);
 
@@ -3679,7 +3726,7 @@ class PenilaianController extends Controller
         GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'audit_log']);
 
         return redirect(self::getFormUrlForUser($user, $id))
-            ->with('warning', "Dokumen berhasil dikembalikan untuk revisi ke {$targetLevel}. Status dokumen kini: Revisi.");
+            ->with('warning', "Dokumen berhasil dikembalikan untuk revisi ke {$targetLevel}. Status dokumen kini: " . ucwords(str_replace('_', ' ', $newStatus)) . ".");
     }
 
     /**
