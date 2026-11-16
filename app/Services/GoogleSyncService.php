@@ -1202,7 +1202,7 @@ function onOpen() {
 }
 
 /**
- * 2. INISIALISASI SELURUH SHEET DATABASE (TABEL RESMI)
+ * 2. DAFTAR NAMA SHEET & STRUKTUR KOLOM DATABASE RESMI (TERHUBUNG KE WEB)
  */
 var CONFIG_TABLES = {
   'Master Karyawan': [
@@ -1228,6 +1228,9 @@ var CONFIG_TABLES = {
   'users': [
     'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode', 'created_at'
   ],
+  'Dokumen_Dinilai': [
+    'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
+  ],
   'nilai': [
     'dokumen_id', 'level', 'aspek_kode', 'skor', 'catatan'
   ],
@@ -1240,9 +1243,6 @@ var CONFIG_TABLES = {
   ],
   'kuota_departemen': [
     'id', 'departemen', 'grade_s_max', 'grade_a_max', 'grade_b_max', 'grade_c_max', 'grade_k_max'
-  ],
-  'Dokumen_Dinilai': [
-    'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
   ],
   'master_aspek': [
     'kode_form', 'grup', 'aspek_kode', 'nama', 'bobot_grup', 'urutan'
@@ -1261,6 +1261,118 @@ var CONFIG_TABLES = {
   ]
 };
 
+/**
+ * 2B. KONFIGURASI LEBAR KOLOM & FORMAT ALIGNMENT TIAP SHEET
+ */
+var COLUMN_FORMATS = {
+  'users': {
+    widths: { 1: 60, 2: 220, 3: 220, 4: 140, 5: 90, 6: 180, 7: 70, 8: 100, 9: 280, 10: 160 },
+    alignCenter: [1, 4, 5, 7, 8, 10]
+  },
+  'Master Karyawan': {
+    widths: { 1: 90, 2: 230, 3: 90, 4: 80, 5: 80, 6: 220, 7: 110, 8: 180, 9: 180, 10: 100, 11: 110, 12: 130, 13: 120, 14: 110, 15: 110, 16: 220, 17: 180, 18: 120, 19: 190 },
+    alignCenter: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15, 18]
+  },
+  'karyawan': {
+    widths: { 1: 90, 2: 230, 3: 90, 4: 80, 5: 80, 6: 220, 7: 110, 8: 180, 9: 180, 10: 100, 11: 110, 12: 130, 13: 120, 14: 110, 15: 110, 16: 220, 17: 180, 18: 120, 19: 190 },
+    alignCenter: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15, 18]
+  },
+  'Dokumen_Dinilai': {
+    widths: { 1: 90, 2: 230, 3: 220, 4: 160, 5: 160, 6: 190, 7: 190, 8: 110, 9: 80, 10: 90, 11: 90, 12: 90, 13: 90, 14: 110, 15: 90, 16: 170, 17: 120, 18: 120, 19: 120, 20: 130 },
+    alignCenter: [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+  },
+  'kuota_departemen': {
+    widths: { 1: 60, 2: 220, 3: 110, 4: 110, 5: 110, 6: 110, 7: 110 },
+    alignCenter: [1, 3, 4, 5, 6, 7]
+  },
+  'Master Tanda Tangan': {
+    widths: { 1: 90, 2: 220, 3: 150, 4: 180, 5: 180, 6: 280, 7: 260, 8: 160 },
+    alignCenter: [1, 3, 8]
+  },
+  'dokumen': {
+    widths: { 1: 70, 2: 80, 3: 90, 4: 100, 5: 170, 6: 90, 7: 110, 8: 110, 9: 260, 10: 280, 11: 220, 12: 140, 13: 160 },
+    alignCenter: [1, 2, 3, 4, 5, 6, 7, 8, 12, 13]
+  },
+  'periode': {
+    widths: { 1: 60, 2: 80, 3: 110, 4: 110, 5: 100 },
+    alignCenter: [1, 2, 3, 4, 5]
+  },
+  'nilai': {
+    widths: { 1: 90, 2: 120, 3: 110, 4: 80, 5: 280 },
+    alignCenter: [1, 2, 3, 4]
+  },
+  'indikator': {
+    widths: { 1: 90, 2: 220, 3: 260, 4: 260, 5: 260 },
+    alignCenter: [1]
+  },
+  'tanda_tangan': {
+    widths: { 1: 90, 2: 120, 3: 80, 4: 160, 5: 130, 6: 220, 7: 200, 8: 260, 9: 160 },
+    alignCenter: [1, 2, 3, 4, 5, 9]
+  },
+  'master_aspek': {
+    widths: { 1: 100, 2: 130, 3: 110, 4: 260, 5: 90, 6: 70 },
+    alignCenter: [1, 2, 3, 5, 6]
+  },
+  'master_kriteria': {
+    widths: { 1: 110, 2: 70, 3: 360 },
+    alignCenter: [1, 2]
+  },
+  'pengaturan': {
+    widths: { 1: 220, 2: 360, 3: 160 },
+    alignCenter: [3]
+  },
+  'audit_log': {
+    widths: { 1: 70, 2: 160, 3: 80, 4: 140, 5: 90, 6: 360 },
+    alignCenter: [1, 2, 3, 4, 5]
+  }
+};
+
+/**
+ * Format tampilan, border, lebar kolom, dan perataan teks secara rapi
+ */
+function formatSheetColumns(sheet, sheetName) {
+  if (!sheet) return;
+  var colCount = sheet.getLastColumn();
+  if (colCount === 0) return;
+
+  // Format Header Resmi Musashi
+  var hr = sheet.getRange(1, 1, 1, colCount);
+  hr.setBackground('#92302E')
+    .setFontColor('#FFFFFF')
+    .setFontWeight('bold')
+    .setFontFamily('Arial')
+    .setFontSize(10)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.setRowHeight(1, 32);
+  sheet.setFrozenRows(1);
+
+  var cfg = COLUMN_FORMATS[sheetName];
+  if (cfg) {
+    if (cfg.widths) {
+      for (var colIdx in cfg.widths) {
+        var cNum = parseInt(colIdx, 10);
+        if (cNum <= colCount) {
+          sheet.setColumnWidth(cNum, cfg.widths[colIdx]);
+        }
+      }
+    }
+    if (cfg.alignCenter && sheet.getLastRow() > 1) {
+      for (var a = 0; a < cfg.alignCenter.length; a++) {
+        var colC = cfg.alignCenter[a];
+        if (colC <= colCount) {
+          sheet.getRange(2, colC, sheet.getLastRow() - 1, 1)
+            .setHorizontalAlignment('center')
+            .setVerticalAlignment('middle');
+        }
+      }
+    }
+  }
+}
+
+/**
+ * 2C. INISIALISASI SELURUH SHEET DATABASE
+ */
 function setupDatabaseSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -1273,14 +1385,7 @@ function setupDatabaseSheets() {
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(headers);
     }
-    var headerRange = sheet.getRange(1, 1, 1, headers.length);
-    headerRange.setBackground('#92302E')
-               .setFontColor('#FFFFFF')
-               .setFontWeight('bold')
-               .setFontFamily('Arial')
-               .setFontSize(10)
-               .setHorizontalAlignment('center');
-    sheet.setFrozenRows(1);
+    formatSheetColumns(sheet, name);
   }
 
   var defaultSheet = ss.getSheetByName('Sheet1');
@@ -1288,11 +1393,11 @@ function setupDatabaseSheets() {
     try { ss.deleteSheet(defaultSheet); } catch (e) {}
   }
 
-  showAlertSafely('✅ Sukses! Seluruh tabel database resmi (termasuk kuota_departemen & Dokumen_Dinilai) telah dibuat dan diformat rapi.');
+  showAlertSafely('✅ Sukses! Seluruh tabel database resmi (termasuk kuota_departemen & Dokumen_Dinilai) telah dibuat dan diformat dengan lebar kolom yang rapi.');
 }
 
 /**
- * 2B. FORMAT & RAPIKAN SHEET DOKUMEN_DINILAI
+ * 2D. FORMAT & RAPIKAN SHEET DOKUMEN_DINILAI
  */
 function setupDokumenDinilaiSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1304,16 +1409,8 @@ function setupDokumenDinilaiSheet() {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(headers);
   }
-  var colCount = Math.max(headers.length, sheet.getLastColumn());
-  var hRange = sheet.getRange(1, 1, 1, colCount);
-  hRange.setBackground('#92302E')
-        .setFontColor('#FFFFFF')
-        .setFontWeight('bold')
-        .setFontFamily('Arial')
-        .setFontSize(10)
-        .setHorizontalAlignment('center');
-  sheet.setFrozenRows(1);
-  showAlertSafely('✅ Sheet Dokumen_Dinilai berhasil disiapkan dan diformat rapi.');
+  formatSheetColumns(sheet, 'Dokumen_Dinilai');
+  showAlertSafely('✅ Sheet Dokumen_Dinilai berhasil disiapkan dan dirapikan.');
 }
 
 /**
@@ -1326,13 +1423,11 @@ function setupDriveFolders() {
   var empSheet = ss.getSheetByName('Master Karyawan') || ss.getSheetByName('karyawan');
   var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
 
-  // 1. Kumpulkan daftar tahun target secara otomatis (Tahun ini + Tahun depan + Sheet Periode)
   var targetYears = {};
   var currentYearNum = new Date().getFullYear();
   targetYears[String(currentYearNum)] = true;       // Tahun berjalan saat ini (misal: 2026)
   targetYears[String(currentYearNum + 1)] = true;   // Otomatis siapkan tahun depan (misal: 2027)
 
-  // Baca juga tahun yang terdaftar di sheet 'periode' jika ada
   var periodeSheet = ss.getSheetByName('periode');
   if (periodeSheet && periodeSheet.getLastRow() > 1) {
     var pData = periodeSheet.getDataRange().getValues();
@@ -1354,7 +1449,6 @@ function setupDriveFolders() {
     }
   }
 
-  // Buat folder induk tanda tangan
   var mainTtdFolder = getOrCreateSubfolder(rootFolder, 'TANDA_TANGAN');
 
   var divCount = 0;
@@ -1368,19 +1462,13 @@ function setupDriveFolders() {
     uniqueRoles[standardRoles[r]] = true;
   }
 
-  // Siapkan struktur hierarki unik dari data karyawan
   var hierarchy = {}; // { division: { dept: { seksi: true } } }
 
   if (empSheet && empSheet.getLastRow() > 1) {
     var data = empSheet.getDataRange().getValues();
     var headers = data[0];
 
-    // Temukan index kolom secara otomatis
-    var idxDiv = -1;
-    var idxDept = -1;
-    var idxSeksi = -1;
-    var idxJabatan = -1;
-
+    var idxDiv = -1, idxDept = -1, idxSeksi = -1, idxJabatan = -1;
     for (var h = 0; h < headers.length; h++) {
       var head = String(headers[h] || '').trim().toLowerCase();
       if (head === 'division' || head === 'divisi') idxDiv = h;
@@ -1428,7 +1516,6 @@ function setupDriveFolders() {
       }
     }
   } else {
-    // Fallback jika belum ada data baris di sheet karyawan
     var defaultDepts = [
       'PRODUCTION 1 DEPT',
       'PRODUCTION 2 DEPT',
@@ -1442,7 +1529,6 @@ function setupDriveFolders() {
     }
   }
 
-  // Bangun hirarki folder di Google Drive untuk setiap tahun target (2026, 2027, dst)
   var yearsList = Object.keys(targetYears).sort();
   for (var y = 0; y < yearsList.length; y++) {
     var yFolder = getOrCreateSubfolder(rootFolder, 'TAHUN ' + yearsList[y]);
@@ -1459,7 +1545,6 @@ function setupDriveFolders() {
     }
   }
 
-  // Buat subfolder tanda tangan berdasarkan posisi / role unik
   for (var posKey in uniqueRoles) {
     getOrCreateSubfolder(mainTtdFolder, posKey);
     posCount++;
@@ -1487,7 +1572,6 @@ function testDriveAccess() {
 
     var testFileName = 'test_permission_' + new Date().getTime() + '.txt';
     var testFile = ttdFolder.createFile(testFileName, 'Drive Access OK');
-    var fileId = testFile.getId();
     testFile.setTrashed(true);
 
     showAlertSafely('✅ Koneksi Google Drive Berhasil!\n\nFolder Induk: ' + rootFolder.getName() + '\nFolder Tanda Tangan: TANDA_TANGAN');
@@ -1519,7 +1603,6 @@ function syncUserBarcodesToDriveAndSheet() {
     var uData = uSheet.getDataRange().getValues();
     var headers = uData[0];
 
-    // Cari index kolom secara fleksibel
     var colNrp = -1, colNama = -1, colRole = -1, colBarcodeTtd = -1, colTtdBarcode = -1;
     for (var h = 0; h < headers.length; h++) {
       var hName = String(headers[h] || '').trim().toLowerCase();
@@ -1530,7 +1613,6 @@ function syncUserBarcodesToDriveAndSheet() {
       if (hName === 'ttdbarcode') colTtdBarcode = h;
     }
 
-    // Tambahkan kolom jika belum ada
     if (colBarcodeTtd === -1) {
       colBarcodeTtd = headers.length;
       uSheet.getRange(1, colBarcodeTtd + 1).setValue('barcodettd');
@@ -1542,10 +1624,7 @@ function syncUserBarcodesToDriveAndSheet() {
       headers.push('ttdbarcode');
     }
 
-    // Format header
-    var hRange = uSheet.getRange(1, 1, 1, headers.length);
-    hRange.setBackground('#92302E').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Arial').setFontSize(10).setHorizontalAlignment('center');
-    uSheet.setFrozenRows(1);
+    formatSheetColumns(uSheet, 'users');
 
     var processedCount = 0;
 
@@ -1559,17 +1638,14 @@ function syncUserBarcodesToDriveAndSheet() {
       var cleanNama = nama.replace(/[^A-Z0-9]/g, '_');
       var filename = nrp + '_' + cleanNama + '_' + role + '.png';
 
-      // Folder tujuan di Drive: TANDA_TANGAN / [ROLE]
       var roleFolder = getOrCreateSubfolder(mainTtdFolder, role);
 
-      // Buat QR Code melalui API resmi QR
       var payload = "PT MUSASHI AUTO PARTS INDONESIA\nE-APPROVAL DIGITAL SIGNATURE\nNRP: " + nrp + "\nNAMA: " + nama + "\nROLE: " + role + "\nSTATUS: VERIFIED";
       var qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=" + encodeURIComponent(payload);
 
       try {
         var blob = UrlFetchApp.fetch(qrApiUrl).getBlob().setName(filename);
 
-        // Bersihkan duplikat lama
         var existingFiles = roleFolder.getFilesByName(filename);
         while (existingFiles.hasNext()) {
           var ef = existingFiles.next();
@@ -1583,12 +1659,11 @@ function syncUserBarcodesToDriveAndSheet() {
 
         var driveViewUrl = file.getUrl();
 
-        // 1. Tampilkan gambar Barcode di sheet users (menggunakan setFormula agar langsung render visual di spreadsheet)
+        // 1. Tampilkan gambar Barcode di sheet users (menggunakan rumus =IMAGE agar otomatis render visual)
         uSheet.getRange(r + 1, colBarcodeTtd + 1).setFormula('=IMAGE("' + qrApiUrl + '")');
         // 2. Tampilkan URL file Google Drive di kolom ttdbarcode
         uSheet.getRange(r + 1, colTtdBarcode + 1).setValue(driveViewUrl);
 
-        // Atur tinggi baris agar gambar QR terlihat besar, presisi & rapi
         uSheet.setRowHeight(r + 1, 75);
         uSheet.getRange(r + 1, colBarcodeTtd + 1).setHorizontalAlignment('center').setVerticalAlignment('middle');
         processedCount++;
@@ -1597,9 +1672,7 @@ function syncUserBarcodesToDriveAndSheet() {
       }
     }
 
-    // Atur lebar kolom
-    uSheet.setColumnWidth(colBarcodeTtd + 1, 95);
-    uSheet.setColumnWidth(colTtdBarcode + 1, 280);
+    formatSheetColumns(uSheet, 'users');
 
     showAlertSafely(
       '✅ Sinkronisasi Barcode TTD Users Selesai!\n\n' +
@@ -1629,57 +1702,75 @@ function showDatabaseStats() {
   var totalDinilai = dinilaiSheet ? Math.max(0, dinilaiSheet.getLastRow() - 1) : 0;
   var totalTtd = ttdSheet ? Math.max(0, ttdSheet.getLastRow() - 1) : 0;
 
-  var msg = '📊 STATUS DATABASE MUSASHI E-APPROVAL:\n\n' +
-            '• Total Karyawan: ' + totalKaryawan + ' orang\n' +
-            '• Total Dokumen Penilaian: ' + totalDokumen + ' berkas\n' +
-            '• Total Pengguna Sistem: ' + totalUsers + ' user\n' +
-            '• Dokumen Dinilai (Rekap Laporan): ' + totalDinilai + ' baris\n' +
-            '• Arsip Tanda Tangan: ' + totalTtd + ' berkas\n' +
-            '• Tahun Default: ' + CONFIG.DEFAULT_YEAR + '\n\n' +
-            'Database dan Drive siap digunakan.';
+  var msg = '📊 STATISTIK BASIS DATA MUSASHI E-APPROVAL:\n\n' +
+            '• Master Karyawan: ' + totalKaryawan + ' Orang\n' +
+            '• Dokumen Penilaian: ' + totalDokumen + ' Dokumen\n' +
+            '• Akun Pengguna: ' + totalUsers + ' Akun\n' +
+            '• Dokumen Dinilai (Laporan): ' + totalDinilai + ' Baris\n' +
+            '• Master Tanda Tangan: ' + totalTtd + ' Berkas\n\n' +
+            'Spreadsheet ID: ' + ss.getId();
   showAlertSafely(msg);
 }
 
 /**
  * =========================================================================
- * WEB APP ENDPOINT HTTP: GET & POST
+ * WEB APP ENDPOINT HTTP: GET & POST (Terhubung Penuh dengan Frontend Laravel)
  * =========================================================================
  */
 function doGet(e) {
   try {
     var p = (e && e.parameter) ? e.parameter : {};
     var action = p.action || 'ping';
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
 
     if (action === 'ping') {
       return jsonResponse({
-        status: 'online',
-        app: 'Musashi E-Approval System Apps Script',
-        timestamp: new Date().toISOString(),
-        spreadsheet_id: CONFIG.SPREADSHEET_ID,
+        status: 'ok',
+        app: 'Musashi E-Approval Apps Script',
+        spreadsheet_id: ss.getId(),
+        spreadsheet_name: ss.getName(),
         drive_folder_id: CONFIG.DRIVE_FOLDER_ID,
-        default_year: CONFIG.DEFAULT_YEAR
+        default_year: CONFIG.DEFAULT_YEAR,
+        time: new Date().toISOString()
       });
     }
 
-    if (action === 'get_tables') {
-      var ss = SpreadsheetApp.getActiveSpreadsheet();
-      var tableName = p.table;
-      if (tableName) {
-        var sh = ss.getSheetByName(tableName);
-        if (!sh) return jsonResponse({ status: 'error', message: 'Tabel tidak ditemukan: ' + tableName }, 404);
-        return jsonResponse({ status: 'success', table: tableName, data: sheetToObjects(sh) });
-      }
-
-      var allData = {};
-      var sheets = ss.getSheets();
-      for (var s = 0; s < sheets.length; s++) {
-        var sName = sheets[s].getName();
-        allData[sName] = sheetToObjects(sheets[s]);
-      }
-      return jsonResponse({ status: 'success', data: allData });
+    if (action === 'init_sheets' || action === 'setup_sheets') {
+      setupDatabaseSheets();
+      return jsonResponse({
+        status: 'success',
+        message: 'Seluruh sheet database resmi telah berhasil diinisialisasi.',
+        tables: Object.keys(CONFIG_TABLES),
+        time: new Date().toISOString()
+      });
     }
 
-    return jsonResponse({ status: 'unknown_action', action: action });
+    if (action === 'pull_all' || action === 'export_database') {
+      var result = {};
+      var sheetNames = Object.keys(CONFIG_TABLES);
+      for (var i = 0; i < sheetNames.length; i++) {
+        var sName = sheetNames[i];
+        var sh = ss.getSheetByName(sName);
+        result[sName] = (sh && sh.getLastRow() > 1) ? sheetToObjects(sh) : [];
+      }
+      return jsonResponse({
+        status: 'success',
+        source: 'Google Spreadsheet Live (' + ss.getName() + ')',
+        timestamp: new Date().toISOString(),
+        data: result
+      });
+    }
+
+    if (action === 'get_table' || action === 'get_tables') {
+      var tableName = p.table || 'Master Karyawan';
+      var sheet = ss.getSheetByName(tableName) || ss.getSheetByName('karyawan');
+      if (!sheet) {
+        return jsonResponse({ status: 'error', message: 'Tabel ' + tableName + ' tidak ditemukan' }, 404);
+      }
+      return jsonResponse({ status: 'success', table: tableName, data: sheetToObjects(sheet) });
+    }
+
+    return jsonResponse({ status: 'ok', message: 'Musashi E-Approval Endpoint Aktif' });
   } catch (err) {
     return jsonResponse({ status: 'error', error: err.toString() }, 500);
   }
@@ -1698,29 +1789,44 @@ function doPost(e) {
       postData = e.parameter;
     }
 
-    var action = postData.action || 'push_all';
+    var action = postData.action || (e && e.parameter ? e.parameter.action : 'push_all');
     var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // A. SIMPAN FILE TANDA TANGAN DIGITAL DARI FRONTEND
-    if (action === 'save_signature') {
-      var imageBase64 = postData.image_base64 || postData.ttd_image;
-      if (!imageBase64) {
-        return jsonResponse({ status: 'error', message: 'Data image_base64 kosong.' }, 400);
+    if (action === 'init_sheets' || action === 'setup_sheets') {
+      setupDatabaseSheets();
+      return jsonResponse({
+        status: 'success',
+        message: 'Seluruh sheet database resmi telah berhasil diinisialisasi.',
+        tables: Object.keys(CONFIG_TABLES),
+        time: new Date().toISOString()
+      });
+    }
+
+    // A. SIMPAN TANDA TANGAN DIGITAL KE GOOGLE DRIVE & UPDATE DATABASE
+    if (action === 'save_signature' || action === 'upload_signature') {
+      var sigBase64 = String(postData.signature_base64 || postData.image_base64 || postData.ttd_image || postData.base64 || '');
+      if (!sigBase64) {
+        return jsonResponse({ status: 'error', message: 'Data gambar tanda tangan (base64) kosong.' }, 400);
       }
 
       var nrp = String(postData.nrp || '0').trim();
-      var nama = String(postData.nama || 'KARYAWAN').toUpperCase().replace(/[^A-Z0-9]/g, '_');
-      var position = String(postData.position || postData.role || 'FOREMAN').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      var nama = String(postData.nama || postData.nama_lengkap || 'USER').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      var position = String(postData.position || postData.role || postData.jabatan || 'FOREMAN').toUpperCase().replace(/[^A-Z0-9]/g, '_');
       var departemen = String(postData.department || postData.departemen || 'DEPT').toUpperCase().replace(/[^A-Z0-9]/g, '_');
-      var division = String(postData.division || 'DIV').toUpperCase().replace(/[^A-Z0-9]/g, '_');
+      var division = String(postData.division || postData.divisi || 'MANUFACTURING DIVISION').toUpperCase().trim();
 
-      var cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
-      var decodedBytes = Utilities.base64Decode(cleanBase64);
-      var filename = nrp + '_' + nama + '_' + position + '.png';
+      var filename = postData.filename || (nrp + '_' + nama + '_' + position + '.png');
 
       var rootFolder = DriveApp.getFolderById(CONFIG.DRIVE_FOLDER_ID);
       var mainTtdFolder = getOrCreateSubfolder(rootFolder, 'TANDA_TANGAN');
       var roleFolder = getOrCreateSubfolder(mainTtdFolder, position);
+
+      if (sigBase64.indexOf(',') > -1) {
+        sigBase64 = sigBase64.split(',')[1];
+      }
+
+      var decodedBytes = Utilities.base64Decode(sigBase64);
+      var blob = Utilities.newBlob(decodedBytes, 'image/png', filename);
 
       var existingFiles = roleFolder.getFilesByName(filename);
       while (existingFiles.hasNext()) {
@@ -1728,7 +1834,6 @@ function doPost(e) {
         if (!oldFile.isTrashed()) oldFile.setTrashed(true);
       }
 
-      var blob = Utilities.newBlob(decodedBytes, 'image/png', filename);
       var file = roleFolder.createFile(blob);
       try {
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -1736,25 +1841,21 @@ function doPost(e) {
 
       var fileUrl = file.getUrl();
       var folderPath = 'TANDA_TANGAN / ' + position;
+      var nowFormatted = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
 
-      // Update sheet Master Tanda Tangan
+      // Update sheet 'Master Tanda Tangan'
       try {
         var ttdSheet = ss.getSheetByName('Master Tanda Tangan');
+        var ttdHeaders = CONFIG_TABLES['Master Tanda Tangan'];
         if (!ttdSheet) {
           ttdSheet = ss.insertSheet('Master Tanda Tangan');
-          var ttdHeaders = CONFIG_TABLES['Master Tanda Tangan'];
           ttdSheet.appendRow(ttdHeaders);
-          var hr = ttdSheet.getRange(1, 1, 1, ttdHeaders.length);
-          hr.setBackground('#92302E').setFontColor('#FFFFFF').setFontWeight('bold');
-          ttdSheet.setFrozenRows(1);
         }
 
-        var tData = ttdSheet.getDataRange().getValues();
+        var ttdData = ttdSheet.getDataRange().getValues();
         var rowUpdated = false;
-        var nowFormatted = Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
-
-        for (var tr = 1; tr < tData.length; tr++) {
-          if (String(tData[tr][0]).trim() === nrp) {
+        for (var tr = 1; tr < ttdData.length; tr++) {
+          if (String(ttdData[tr][0]).trim() === nrp) {
             ttdSheet.getRange(tr + 1, 1, 1, 8).setValues([[nrp, nama, position, departemen, division, fileUrl, file.getId(), nowFormatted]]);
             rowUpdated = true;
             break;
@@ -1763,11 +1864,12 @@ function doPost(e) {
         if (!rowUpdated) {
           ttdSheet.appendRow([nrp, nama, position, departemen, division, fileUrl, file.getId(), nowFormatted]);
         }
+        formatSheetColumns(ttdSheet, 'Master Tanda Tangan');
       } catch (eSheetTtd) {
         Logger.log('Gagal update sheet Master Tanda Tangan: ' + eSheetTtd);
       }
 
-      // Sinkronkan signature_path & ttdbarcode di sheet users
+      // Update kolom signature_path & ttdbarcode di sheet 'users'
       try {
         var uSheet = ss.getSheetByName('users');
         if (uSheet && uSheet.getLastRow() > 1) {
@@ -1804,7 +1906,7 @@ function doPost(e) {
       });
     }
 
-    // B. SIMPAN ARSIP PDF KE DRIVE
+    // B. SIMPAN ARSIP PDF KE DRIVE DENGAN PENAMAAN DAN STRUKTUR HIERARKI RAPI
     if (action === 'save_pdf') {
       var pdfBase64 = postData.pdf_base64;
       if (!pdfBase64) {
@@ -1908,8 +2010,9 @@ function doPost(e) {
     }
 
     // D. HAPUS 1 BARIS KILAT (DELETE ROW BY NRP)
+    // Menghapus data karyawan secara sinkron di seluruh sheet terkait
     if (action === 'delete_row') {
-      var targetTables = postData.tables || ['Master Karyawan', 'karyawan', 'dokumen'];
+      var targetTables = postData.tables || ['Master Karyawan', 'karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'users'];
       var keyColumn = (postData.key_column || 'nrp').toLowerCase();
       var keyValue = String(postData.key_value || '').trim().toLowerCase();
       var deletedStats = {};
@@ -1967,9 +2070,6 @@ function doPost(e) {
         if (sh.getLastRow() === 0 || data.length === 0) {
           headers = CONFIG_TABLES[sName] || CONFIG_TABLES['karyawan'] || Object.keys(rowData);
           sh.appendRow(headers);
-          var hr = sh.getRange(1, 1, 1, headers.length);
-          hr.setBackground('#92302E').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Arial').setFontSize(10).setHorizontalAlignment('center');
-          sh.setFrozenRows(1);
           data = [headers];
         } else {
           headers = data[0];
@@ -2020,6 +2120,8 @@ function doPost(e) {
           var targetRow = foundRowIndex > 0 ? foundRowIndex : sh.getLastRow();
           sh.setRowHeight(targetRow, 75);
         }
+
+        formatSheetColumns(sh, sName);
       }
 
       return jsonResponse({
@@ -2060,18 +2162,13 @@ function writeObjectsToSheet(ss, sheetName, items) {
     sheet = ss.insertSheet(sheetName);
   }
 
+  // Jika payload kosong: Bersihkan baris lama tapi pertahankan header resmi
   if (!items || items.length === 0) {
     var stdHeaders = CONFIG_TABLES[sheetName] || (sheetName === 'Master Karyawan' ? CONFIG_TABLES['karyawan'] : null);
-    if (sheet.getLastRow() === 0 && stdHeaders) {
+    if (stdHeaders) {
+      sheet.clear();
       sheet.appendRow(stdHeaders);
-      var hr = sheet.getRange(1, 1, 1, stdHeaders.length);
-      hr.setBackground('#92302E')
-        .setFontColor('#FFFFFF')
-        .setFontWeight('bold')
-        .setFontFamily('Arial')
-        .setFontSize(10)
-        .setHorizontalAlignment('center');
-      sheet.setFrozenRows(1);
+      formatSheetColumns(sheet, sheetName);
     }
     return;
   }
@@ -2104,21 +2201,14 @@ function writeObjectsToSheet(ss, sheetName, items) {
   if (rows.length > 0) {
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
 
-    // Atur tinggi baris jika sheet users agar QR tampil besar & rapi
     if (sheetName === 'users') {
       for (var rIdx = 0; rIdx < rows.length; rIdx++) {
         sheet.setRowHeight(rIdx + 2, 75);
       }
     }
   }
-  var headerRange = sheet.getRange(1, 1, 1, headers.length);
-  headerRange.setBackground('#92302E')
-             .setFontColor('#FFFFFF')
-             .setFontWeight('bold')
-             .setFontFamily('Arial')
-             .setFontSize(10)
-             .setHorizontalAlignment('center');
-  sheet.setFrozenRows(1);
+
+  formatSheetColumns(sheet, sheetName);
 }
 
 // HELPER: Get or Create Subfolder (mengabaikan folder yang terhapus di Trash)
