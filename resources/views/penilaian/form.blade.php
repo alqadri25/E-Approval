@@ -776,18 +776,18 @@
                             if (empty($foremanImg) && $subFormVariant === 'div_head') {
                                 $foremanImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
                             }
-                            // Foreman signed only if explicit ttd exists OR document has advanced past foreman stage
-                            $isForemanSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']));
-                            if (empty($foremanImg) && $isForemanSigned) {
+                            // Foreman signed only if explicit ttd exists OR document has advanced past foreman stage WITH foreman
+                            $isForemanSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) && !empty($scoresByLevel['foreman']));
+                            if (empty($foremanImg) && $isForemanSigned && !empty($karyawan['nrp_foreman'])) {
                                 $foremanImg = \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN');
                             }
                         @endphp
-                        @if($foremanImg)
+                        @if($isTanpaForemanStd)
+                            <span class="text-[11px] text-slate-300 italic font-medium">-</span>
+                        @elseif($foremanImg)
                             <div class="p-1 flex items-center justify-center w-full h-full">
                                 <img src="{{ $foremanImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1" onerror="this.onerror=null; this.src='{{ \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN') }}';">
                             </div>
-                        @elseif($isTanpaForemanStd && !$showForemanData)
-                            &nbsp;
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
                         @endif

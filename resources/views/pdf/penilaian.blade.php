@@ -261,15 +261,15 @@
                         if (empty($foremanPdfImg) && $subFormVariant === 'div_head') {
                             $foremanPdfImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
                         }
-                        $isForemanPdfSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']));
-                        if (empty($foremanPdfImg) && $isForemanPdfSigned) {
+                        $isForemanPdfSigned = !empty($ttdByLevel['foreman']) || ($subFormVariant === 'div_head' && !empty($ttdByLevel['dept_head'])) || (!empty($karyawan['nrp_foreman']) && in_array($dokumen['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) && !empty($scoresByLevel['foreman']));
+                        if (empty($foremanPdfImg) && $isForemanPdfSigned && !empty($karyawan['nrp_foreman'])) {
                             $foremanPdfImg = \App\Models\User::generateBarcodeDataUri($karyawan['nrp_foreman'] ?? '', $karyawan['foreman_nama'] ?? 'FOREMAN', 'FOREMAN');
                         }
                     @endphp
-                    @if(!empty($foremanPdfImg))
+                    @if($isTanpaForemanStd)
+                        <span style="color: #94a3b8; font-style: italic; font-size: 6.5pt;">-</span>
+                    @elseif(!empty($foremanPdfImg))
                         <img src="{{ $foremanPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" style="max-height: 54px; max-width: 54px; width: 54px; height: 54px; display: block; margin: 0 auto; padding: 2px;">
-                    @elseif($isTanpaForemanStd && !$showForemanData)
-                        &nbsp;
                     @else
                         <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif

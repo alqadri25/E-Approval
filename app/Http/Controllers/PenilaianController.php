@@ -1962,8 +1962,14 @@ class PenilaianController extends Controller
 
         foreach ($levels as $level) {
             // Stage validation: a level cannot have a valid completed signature if document status is at or before that stage!
-            if ($level === 'foreman' && in_array($status, ['menunggu_foreman', 'draft', 'revisi'])) {
-                continue;
+            if ($level === 'foreman') {
+                if (in_array($status, ['menunggu_foreman', 'draft', 'revisi'])) {
+                    continue;
+                }
+                // If employee has NO Foreman (and it's not a self-evaluation form 07-006), Foreman NEVER signs!
+                if (empty($karyawan['nrp_foreman']) && !$isGol4Up) {
+                    continue;
+                }
             }
             if ($level === 'section_head' && in_array($status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi'])) {
                 continue;
@@ -1981,12 +1987,15 @@ class PenilaianController extends Controller
             $isSigned = false;
             if ($t) {
                 $isSigned = true;
-            } elseif ($level === 'foreman') {
-                $isSigned = in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+            } elseif ($level === 'foreman' && !empty($karyawan['nrp_foreman'])) {
+                $isSigned = in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
+                    && !empty($calcForeman) && (($calcForeman['grand_total'] ?? 0) > 0);
             } elseif ($level === 'section_head') {
-                $isSigned = in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+                $isSigned = in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
+                    && !empty($calcSectionHead) && (($calcSectionHead['grand_total'] ?? 0) > 0);
             } elseif ($level === 'dept_head') {
-                $isSigned = in_array($status, ['menunggu_div_head', 'selesai']);
+                $isSigned = in_array($status, ['menunggu_div_head', 'selesai'])
+                    && !empty($calcDeptHead) && (($calcDeptHead['grand_total'] ?? 0) > 0);
             } elseif ($level === 'div_head') {
                 $isSigned = ($status === 'selesai');
             }
