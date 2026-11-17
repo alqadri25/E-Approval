@@ -1386,6 +1386,60 @@ class GoogleSyncService
                     });
                 }
 
+                // 4. Sync karyawan (employees from Google Sheets)
+                if (!empty($data['karyawan']) && is_array($data['karyawan'])) {
+                    DB::transaction(function () use ($data) {
+                        $karyawanCols = Schema::getColumnListing('karyawan');
+                        $colSet = array_flip($karyawanCols);
+                        $sheetNrps = [];
+                        foreach ($data['karyawan'] as $k) {
+                            $nrp = trim((string)($k['nrp'] ?? ''));
+                            if ($nrp === '') continue;
+                            $sheetNrps[] = $nrp;
+                            $cleanRow = [];
+                            foreach ($k as $col => $val) {
+                                $cLower = strtolower(trim((string)$col));
+                                if (isset($colSet[$cLower])) {
+                                    $cleanRow[$cLower] = $val;
+                                }
+                            }
+                            if (!empty($cleanRow)) {
+                                DB::table('karyawan')->updateOrInsert(['nrp' => $nrp], $cleanRow);
+                            }
+                        }
+                        if (!empty($sheetNrps)) {
+                            DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
+                        }
+                    });
+                }
+
+                // 5. Sync kuota_departemen (Target Kuota from Google Sheets)
+                if (!empty($data['kuota_departemen']) && is_array($data['kuota_departemen'])) {
+                    DB::transaction(function () use ($data) {
+                        $kdCols = Schema::getColumnListing('kuota_departemen');
+                        $colSet = array_flip($kdCols);
+                        $sheetIds = [];
+                        foreach ($data['kuota_departemen'] as $kd) {
+                            $id = $kd['id'] ?? null;
+                            if (!$id) continue;
+                            $sheetIds[] = $id;
+                            $cleanRow = [];
+                            foreach ($kd as $col => $val) {
+                                $cLower = strtolower(trim((string)$col));
+                                if (isset($colSet[$cLower])) {
+                                    $cleanRow[$cLower] = $val;
+                                }
+                            }
+                            if (!empty($cleanRow)) {
+                                DB::table('kuota_departemen')->updateOrInsert(['id' => $id], $cleanRow);
+                            }
+                        }
+                        if (!empty($sheetIds)) {
+                            DB::table('kuota_departemen')->whereNotIn('id', $sheetIds)->delete();
+                        }
+                    });
+                }
+
                 Cache::put($cacheKey, true, 45); // Active cache for 45 seconds
                 return ['status' => 'success', 'timestamp' => now()->toIso8601String()];
             }

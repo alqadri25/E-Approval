@@ -119,14 +119,48 @@ class SheetRepository implements SheetRepositoryInterface
     public function all(string $table, ?int $cacheTtl = 60): array
     {
         $cacheKey = "sheet_all_{$table}";
-        $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 300);
+        $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 60);
 
         return Cache::remember($cacheKey, $cacheTtl, function () use ($table) {
-            // 1. FAST PATH: Check local SQLite database first (instant < 1ms response time)
             $localTable = $this->getLocalTableName($table);
-            if (Schema::hasTable($localTable)) {
-                return $this->getFromLocal($table);
+            $appscriptTables = [
+                'karyawan', 'dokumen', 'users', 'kuota_departemen', 'nilai', 'indikator', 'tanda_tangan', 'pengaturan', 'audit_log'
+            ];
+
+            // 1. Fetch fresh data from Google Apps Script Web App for operational tables
+            if ($this->hasAppscript() && in_array($table, $appscriptTables)) {
+                try {
+                    $config = GoogleSyncService::getConfig();
+                    $appscriptUrl = $config['appscript_url'] ?? '';
+
+                    $tableVariants = [$table];
+                    if ($table === 'karyawan') {
+                        $tableVariants = ['karyawan', 'Master Karyawan'];
+                    }
+
+                    foreach ($tableVariants as $sheetTable) {
+                        $response = \Illuminate\Support\Facades\Http::timeout(5)->withoutVerifying()->get($appscriptUrl, [
+                            'action' => 'get_table',
+                            'table' => $sheetTable,
+                        ]);
+
+                        if ($response->successful()) {
+                            $json = $response->json();
+                            if (isset($json['status']) && $json['status'] === 'success' && isset($json['data']) && is_array($json['data'])) {
+                                $rows = $json['data'];
+                                if (!empty($rows)) {
+                                    $this->mirrorToLocal($table, $rows);
+                                    return $rows;
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning("Apps Script read failed for table '{$table}': " . $e->getMessage() . ". Falling back to local database.");
+                }
             }
+
+            // 2. Direct Google Sheets API if service account configured
             if ($this->googleService->isConfigured()) {
                 try {
                     $sheets = $this->googleService->getSheetsService();
@@ -150,54 +184,20 @@ class SheetRepository implements SheetRepositoryInterface
                             $rows[] = $record;
                         }
 
-                        // Mirror to local database asynchronously/quietly for redundancy
                         $this->mirrorToLocal($table, $rows);
-
                         return $rows;
                     }
-                } catch (Exception $e) {
-                    Log::warning("Google Sheets read failed for table '{$table}': " . $e->getMessage() . ". Falling back to Apps Script / local.");
+                } catch (\Throwable $e) {
+                    Log::warning("Google Sheets read failed for table '{$table}': " . $e->getMessage() . ". Falling back to local database.");
                 }
             }
 
-            // 2. Fetch via Google Apps Script Web App for operational tables only
-            $appscriptTables = [
-                'karyawan', 'dokumen', 'users', 'kuota_departemen', 'nilai', 'indikator', 'tanda_tangan', 'pengaturan', 'audit_log'
-            ];
-            if ($this->hasAppscript() && in_array($table, $appscriptTables)) {
-                try {
-                    $config = GoogleSyncService::getConfig();
-                    $appscriptUrl = $config['appscript_url'];
-
-                    $tableVariants = [$table];
-                    if ($table === 'karyawan') {
-                        $tableVariants = ['karyawan', 'Master Karyawan'];
-                    }
-
-                    foreach ($tableVariants as $sheetTable) {
-                        $response = \Illuminate\Support\Facades\Http::timeout(6)->withoutVerifying()->get($appscriptUrl, [
-                            'action' => 'get_table',
-                            'table' => $sheetTable,
-                        ]);
-
-                        if ($response->successful()) {
-                            $json = $response->json();
-                            if (isset($json['status']) && $json['status'] === 'success' && isset($json['data']) && is_array($json['data'])) {
-                                $rows = $json['data'];
-                                if (!empty($rows)) {
-                                    $this->mirrorToLocal($table, $rows);
-                                    return $rows;
-                                }
-                            }
-                        }
-                    }
-                } catch (Exception $e) {
-                    Log::warning("Apps Script read failed for table '{$table}': " . $e->getMessage() . ". Falling back to local database.");
-                }
+            // 3. Fallback to local SQLite database (sub-millisecond)
+            if (Schema::hasTable($localTable)) {
+                return $this->getFromLocal($table);
             }
 
-            // Fallback to local database
-            return $this->getFromLocal($table);
+            return [];
         });
     }
 
@@ -210,10 +210,12 @@ class SheetRepository implements SheetRepositoryInterface
         $localTable = $this->getLocalTableName($table);
         if (Schema::hasTable($localTable)) {
             $row = DB::table($localTable)->where($column, $value)->first();
-            return $row ? (array)$row : null;
+            if ($row) {
+                return (array)$row;
+            }
         }
 
-        // 2. Secondary check via all()
+        // 2. Secondary check via all() (which fetches fresh Google Sheets data if needed)
         $records = $this->all($table);
         foreach ($records as $record) {
             if (isset($record[$column]) && (string)$record[$column] === (string)$value) {
@@ -236,7 +238,10 @@ class SheetRepository implements SheetRepositoryInterface
             foreach ($criteria as $col => $val) {
                 $query->where($col, $val);
             }
-            return $query->get()->map(fn($r) => (array)$r)->toArray();
+            $results = $query->get()->map(fn($r) => (array)$r)->toArray();
+            if (!empty($results)) {
+                return $results;
+            }
         }
 
         // 2. Fallback to all()
@@ -785,7 +790,8 @@ class SheetRepository implements SheetRepositoryInterface
             $columns = Schema::getColumnListing($localTable);
             $colSet = array_flip($columns);
 
-            DB::transaction(function () use ($localTable, $rows, $colSet) {
+            DB::transaction(function () use ($localTable, $rows, $colSet, $table) {
+                $insertedKeys = [];
                 foreach ($rows as $row) {
                     $cleanRow = [];
                     foreach ($row as $k => $v) {
@@ -798,6 +804,14 @@ class SheetRepository implements SheetRepositoryInterface
                     $keyField = isset($cleanRow['id']) ? 'id' : (isset($cleanRow['nrp']) ? 'nrp' : (isset($cleanRow['key']) ? 'key' : null));
                     if ($keyField && !empty($cleanRow[$keyField])) {
                         DB::table($localTable)->updateOrInsert([$keyField => $cleanRow[$keyField]], $cleanRow);
+                        $insertedKeys[$keyField][] = $cleanRow[$keyField];
+                    }
+                }
+
+                // If mirroring full operational table and some rows were deleted from Google Sheets, prune local DB
+                if (in_array($table, ['karyawan', 'dokumen', 'kuota_departemen']) && !empty($insertedKeys)) {
+                    foreach ($insertedKeys as $kCol => $keys) {
+                        DB::table($localTable)->whereNotIn($kCol, $keys)->delete();
                     }
                 }
             });

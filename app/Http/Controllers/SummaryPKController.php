@@ -200,10 +200,7 @@ class SummaryPKController extends Controller
             }
         }
         $hasExplicitDeptSetting = DB::table('pengaturan')
-            ->whereIn('key', array_values(array_unique([
-                'target_kuota_dept_' . strtoupper($selectedDept),
-                ...(strtoupper($selectedDept) === 'ENGINEERING' ? ['target_kuota_div_DIV-E'] : []),
-            ])))
+            ->where('key', 'target_kuota_dept_' . strtoupper($selectedDept))
             ->exists();
         $needsSync = !empty($missingKjs) || (!$hasExplicitDeptSetting && $actualDeptTotal > 0 && $existingDeptTotal !== $actualDeptTotal);
 

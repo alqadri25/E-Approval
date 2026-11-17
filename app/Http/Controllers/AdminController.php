@@ -736,85 +736,52 @@ class AdminController extends Controller
             ));
         }
 
-        // 1. Division definitions with connected departments
-        $divisiDefs = [
-            [
-                'kode' => 'DIV-E',
-                'nama' => 'Division E (Technical & Engineering)',
-                'singkat' => 'Division E',
-                'departemen_desc' => 'Engineering & Maintenance',
-                'depts' => ['ENGINEERING'],
-            ],
-            [
-                'kode' => 'DIV-MFG',
-                'nama' => 'Manufacturing Division',
-                'singkat' => 'Divisi Manufacturing',
-                'departemen_desc' => 'Production 1, Production 2, Machining',
-                'depts' => ['PROD 1', 'PROD 2', 'MACHINING'],
-            ],
-            [
-                'kode' => 'DIV-QC',
-                'nama' => 'Quality Control Division',
-                'singkat' => 'Divisi Quality Control',
-                'departemen_desc' => 'Quality Assurance (QA/QC)',
-                'depts' => ['QA/QC'],
-            ],
-            [
-                'kode' => 'DIV-GA',
-                'nama' => 'General Affairs & Finance Division',
-                'singkat' => 'Divisi General Affairs',
-                'departemen_desc' => 'HR, GA & Finance',
-                'depts' => ['HR & GA'],
-            ],
-        ];
+        // 1. Discover real Divisions & Departments dynamically from Data Karyawan
+        $realDeptDivMap = [];
+        $realDivDeptsMap = [];
+        foreach ($allKaryawan as $kItem) {
+            $rawDiv = trim((string)($kItem['division'] ?? ''));
+            $rawDept = strtoupper(trim((string)($kItem['departemen'] ?? '')));
+            if ($rawDept === '' || $rawDept === '-') {
+                continue;
+            }
+            $divName = ($rawDiv !== '' && $rawDiv !== '-') ? $rawDiv : 'DIVISI LAINNYA';
+            $realDeptDivMap[$rawDept] = $divName;
+            if (!isset($realDivDeptsMap[$divName])) {
+                $realDivDeptsMap[$divName] = [];
+            }
+            if (!in_array($rawDept, $realDivDeptsMap[$divName], true)) {
+                $realDivDeptsMap[$divName][] = $rawDept;
+            }
+        }
 
-        // 2. Department definitions with parent division mapping
-        $deptDefs = [
-            [
-                'kode' => 'ENGINEERING',
-                'departemen' => 'Engineering & Maintenance',
-                'divisi' => 'Division E (Technical)',
-                'divisi_kode' => 'DIV-E',
-                'match' => ['ENGINEERING', 'ENG'],
-            ],
-            [
-                'kode' => 'PROD 1',
-                'departemen' => 'Production 1',
-                'divisi' => 'Manufacturing Division',
-                'divisi_kode' => 'DIV-MFG',
-                'match' => ['PROD 1', 'PRODUCTION 1'],
-            ],
-            [
-                'kode' => 'PROD 2',
-                'departemen' => 'Production 2',
-                'divisi' => 'Manufacturing Division',
-                'divisi_kode' => 'DIV-MFG',
-                'match' => ['PROD 2', 'PRODUCTION 2'],
-            ],
-            [
-                'kode' => 'MACHINING',
-                'departemen' => 'Machining & Tooling',
-                'divisi' => 'Manufacturing Division',
-                'divisi_kode' => 'DIV-MFG',
-                'match' => ['MACHINING'],
-            ],
-            [
-                'kode' => 'QA/QC',
-                'departemen' => 'Quality Assurance',
-                'divisi' => 'Quality Control Division',
-                'divisi_kode' => 'DIV-QC',
-                'match' => ['QA', 'QUALITY CONTROL', 'QUALITY ASSURANCE (QA)', 'QC'],
-            ],
-            [
-                'kode' => 'HR & GA',
-                'departemen' => 'HR, GA & Finance',
-                'divisi' => 'General Affairs Division',
-                'divisi_kode' => 'DIV-GA',
-                'match' => ['HR & IR DEPT.', 'HR', 'GA', 'GENERAL AFFAIRS', 'GA DEPT.'],
-            ],
-        ];
+        // Build $divisiDefs dynamically from real Data Karyawan
+        $divisiDefs = [];
+        foreach ($realDivDeptsMap as $divName => $deptsInDiv) {
+            $divCode = 'DIV-' . strtoupper(\Illuminate\Support\Str::slug($divName));
+            $divisiDefs[] = [
+                'kode' => $divCode,
+                'nama' => $divName,
+                'singkat' => $divName,
+                'departemen_desc' => implode(', ', $deptsInDiv),
+                'depts' => $deptsInDiv,
+            ];
+        }
 
-        // 2b. Auto-discover real Divisions & Departments from Data Karyawan (e.g., DATA PK.xlsx / future imports up to 9 divisions)
+        // Build $deptDefs dynamically from real Data Karyawan
+        $deptDefs = [];
+        foreach ($realDeptDivMap as $deptCode => $divName) {
+            $divCode = 'DIV-' . strtoupper(\Illuminate\Support\Str::slug($divName));
+            $cleanDept = preg_replace('/^PROD\s*(\d+)$/i', 'Production $1', $deptCode);
+            $deptDefs[] = [
+                'kode' => $deptCode,
+                'departemen' => $cleanDept,
+                'divisi' => $divName,
+                'divisi_kode' => $divCode,
+                'match' => [$deptCode],
+            ];
+        }
+
         $resolveDeptDefKode = function (string $deptRaw) use (&$deptDefs): ?string {
             $deptUpper = strtoupper(trim($deptRaw));
             if ($deptUpper === '' || $deptUpper === '-') {
@@ -825,30 +792,15 @@ class AdminController extends Controller
                     return $dDef['kode'];
                 }
             }
-            return null;
+            return $deptUpper;
         };
 
-        $realDivDeptMap = [];
+        $realDivDeptMap = $realDeptDivMap;
         $realDivisionsStats = [];
         foreach ($allKaryawan as $kItem) {
             $rawDiv = trim((string)($kItem['division'] ?? ''));
             $rawDept = strtoupper(trim((string)($kItem['departemen'] ?? '')));
             $mappedKode = $resolveDeptDefKode($rawDept);
-
-            if ($rawDept !== '' && $rawDept !== '-' && $mappedKode === null) {
-                $mappedKode = $rawDept;
-                $cleanDept = preg_replace('/^PROD\s*(\d+)$/i', 'Production $1', $mappedKode);
-                $deptDefs[] = [
-                    'kode' => $mappedKode,
-                    'departemen' => $cleanDept,
-                    'divisi' => ($rawDiv !== '' && $rawDiv !== '-') ? $rawDiv : 'Divisi Lainnya',
-                    'divisi_kode' => 'DIV-DYN-' . substr(md5($rawDiv !== '' ? $rawDiv : $mappedKode), 0, 6),
-                    'match' => [$mappedKode],
-                    'is_dynamic' => true,
-                ];
-            } elseif ($mappedKode !== null && $rawDiv !== '' && $rawDiv !== '-') {
-                $realDivDeptMap[$mappedKode] = $rawDiv;
-            }
 
             if ($rawDiv !== '' && $rawDiv !== '-') {
                 if (!isset($realDivisionsStats[$rawDiv])) {
@@ -2400,13 +2352,6 @@ class AdminController extends Controller
                     ]
                 );
 
-                if ($departemen === 'ENGINEERING') {
-                    DB::table('pengaturan')->updateOrInsert(
-                        ['key' => 'target_kuota_kj_DIV-E_' . str_replace(' ', '', $kj)],
-                        ['value' => json_encode(['S' => $s, 'A' => $a, 'B' => $b, 'C' => $c, 'K' => $k, 'total' => $totalInput]), 'updated_at' => now()]
-                    );
-                }
-
                 $msg = "Target kuota jenjang {$kj} khusus departemen '{$departemen}' (S: {$s}, A: {$a}, B: {$b}, C: {$c}, K: {$k}) berhasil disimpan!";
             }
         }
@@ -2437,42 +2382,7 @@ class AdminController extends Controller
 
         $totS = 0; $totA = 0; $totB = 0; $totC = 0; $totK = 0;
 
-        if ($departemen === 'DIV-E' || $departemen === 'ENGINEERING') {
-            $allKdEng = DB::table('kuota_departemen')->where('departemen', 'ENGINEERING')->get()->keyBy(function($item) {
-                return strtoupper(trim($item->kj));
-            });
-            foreach ($allKjList as $mKj) {
-                $mkCode = strtoupper(trim($mKj['kode']));
-                $sanitized = str_replace(' ', '', $mkCode);
-                $divKjSetting = DB::table('pengaturan')->where('key', 'target_kuota_kj_DIV-E_' . $sanitized)->first();
-                if ($divKjSetting && !empty($divKjSetting->value)) {
-                    $dVal = json_decode($divKjSetting->value, true);
-                    $totS += (int)($dVal['S'] ?? 0);
-                    $totA += (int)($dVal['A'] ?? 0);
-                    $totB += (int)($dVal['B'] ?? 0);
-                    $totC += (int)($dVal['C'] ?? 0);
-                    $totK += (int)($dVal['K'] ?? 0);
-                } elseif (isset($allKdEng[$mkCode])) {
-                    $totS += (int)$allKdEng[$mkCode]->kuota_s;
-                    $totA += (int)$allKdEng[$mkCode]->kuota_a;
-                    $totB += (int)$allKdEng[$mkCode]->kuota_b;
-                    $totC += (int)$allKdEng[$mkCode]->kuota_c;
-                    $totK += (int)$allKdEng[$mkCode]->kuota_k;
-                }
-            }
-
-            $parentTotal = $totS + $totA + $totB + $totC + $totK;
-            $parentData = ['S' => $totS, 'A' => $totA, 'B' => $totB, 'C' => $totC, 'K' => $totK, 'total' => $parentTotal];
-
-            DB::table('pengaturan')->updateOrInsert(
-                ['key' => 'target_kuota_div_DIV-E'],
-                ['value' => json_encode($parentData), 'updated_at' => now()]
-            );
-            DB::table('pengaturan')->updateOrInsert(
-                ['key' => 'target_kuota_dept_ENGINEERING'],
-                ['value' => json_encode($parentData), 'updated_at' => now()]
-            );
-        } elseif (str_starts_with($departemen, 'DIV-')) {
+        if (str_starts_with($departemen, 'DIV-')) {
             foreach ($allKjList as $mKj) {
                 $mkCode = strtoupper(trim($mKj['kode']));
                 $sanitized = str_replace(' ', '', $mkCode);
@@ -2638,16 +2548,9 @@ class AdminController extends Controller
                 DB::table('pengaturan')->updateOrInsert(['key' => 'target_kuota_headcount'], ['value' => $unitPayload, 'updated_at' => now()]);
             } elseif (str_starts_with($unit, 'DIV-')) {
                 DB::table('pengaturan')->updateOrInsert(['key' => 'target_kuota_div_' . $unit], ['value' => $unitPayload, 'updated_at' => now()]);
-                if ($unit === 'DIV-E') {
-                    DB::table('pengaturan')->updateOrInsert(['key' => 'target_kuota_dept_ENGINEERING'], ['value' => $unitPayload, 'updated_at' => now()]);
-                    $this->syncDepartmentQuotaRows('ENGINEERING', $unitArr);
-                }
             } else {
                 DB::table('pengaturan')->updateOrInsert(['key' => 'target_kuota_dept_' . $unit], ['value' => $unitPayload, 'updated_at' => now()]);
                 $this->syncDepartmentQuotaRows(strtoupper($unit), $unitArr);
-                if (strtoupper($unit) === 'ENGINEERING') {
-                    DB::table('pengaturan')->updateOrInsert(['key' => 'target_kuota_div_DIV-E'], ['value' => $unitPayload, 'updated_at' => now()]);
-                }
             }
         }
 
@@ -2723,8 +2626,8 @@ class AdminController extends Controller
             ['value' => json_encode(array_values($list)), 'updated_at' => now()]
         );
 
-        // Pre-populate kuota_departemen for standard departments
-        $depts = ['PROD 1', 'PROD 2', 'ENGINEERING', 'QA/QC', 'HR & GA'];
+        // Pre-populate kuota_departemen only for departments present in Data Karyawan
+        $depts = DB::table('karyawan')->whereNotNull('departemen')->where('departemen', '!=', '-')->pluck('departemen')->unique()->values()->toArray();
         foreach ($depts as $d) {
             DB::table('kuota_departemen')->updateOrInsert(
                 ['departemen' => $d, 'kj' => $kodeKj],
@@ -3882,7 +3785,7 @@ class AdminController extends Controller
         ]);
 
         // Realtime sync ke spreadsheet
-        GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'audit_log']);
+        GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']);
 
         return back()->with('success', "Form penilaian {$karyawan->nama_lengkap} ({$karyawan->nrp}) berhasil dikembalikan untuk dinilai ulang oleh {$targetLabelStr}. Status saat ini: " . ucwords(str_replace('_', ' ', $newStatus)) . ".");
     }

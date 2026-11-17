@@ -3799,7 +3799,7 @@ class PenilaianController extends Controller
         ]);
 
         // Realtime sync to Google Spreadsheet
-        GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'audit_log']);
+        GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']);
 
         return redirect(self::getFormUrlForUser($user, $id))
             ->with('warning', "Dokumen berhasil dikembalikan untuk revisi ke {$targetLevel}. Status dokumen kini: " . ucwords(str_replace('_', ' ', $newStatus)) . ".");
@@ -3936,7 +3936,7 @@ class PenilaianController extends Controller
         ]);
 
         // Realtime sync to Google Spreadsheet
-        GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'audit_log']);
+        GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']);
 
         return redirect(self::getFormUrlForUser($user, $id))
             ->with('success', 'Dokumen penilaian berhasil dibuka kembali! Anda sekarang dapat mengisi dan mengubah penilaian kembali.');

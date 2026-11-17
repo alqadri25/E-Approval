@@ -447,12 +447,12 @@
                             </span>
                         </td>
                         <td class="py-3 px-2 text-center font-mono">{{ $row['sub_gol'] }}</td>
-                        <td class="py-3 px-2 text-center font-mono">{{ number_format($row['hasil_kerja'], 2) }}</td>
-                        <td class="py-3 px-2 text-center font-mono">{{ number_format($row['proses_kerja'], 2) }}</td>
-                        <td class="py-3 px-2 text-center font-mono">{{ number_format($row['sikap_kerja'], 2) }}</td>
-                        <td class="py-3 px-2 text-center font-mono">{{ number_format($row['man_management'], 2) }}</td>
+                        <td class="py-3 px-2 text-center font-mono">{{ number_format((float)($row['hasil_kerja'] ?? 0), 2) }}</td>
+                        <td class="py-3 px-2 text-center font-mono">{{ number_format((float)($row['proses_kerja'] ?? 0), 2) }}</td>
+                        <td class="py-3 px-2 text-center font-mono">{{ number_format((float)($row['sikap_kerja'] ?? 0), 2) }}</td>
+                        <td class="py-3 px-2 text-center font-mono">{{ number_format((float)($row['man_management'] ?? 0), 2) }}</td>
                         <td class="py-3 px-2 text-center font-mono font-bold text-slate-900 bg-slate-50">
-                            {{ number_format($row['total_nilai'], 2) }}
+                            {{ number_format((float)($row['total_nilai'] ?? 0), 2) }}
                         </td>
                         <td class="py-3 px-2 text-center">
                             @if($row['total_nilai'] > 0 || !empty($row['grade_original']))
