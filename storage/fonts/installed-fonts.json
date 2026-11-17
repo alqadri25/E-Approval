@@ -78,10 +78,18 @@
         "normal": "DejaVuSerif"
     },
     "arialuni": {
-        "normal": "C:\\Users\\USER\\Music\\E-Approval\\storage\\fonts\/arialuni_normal_8402563077fbcdc5a09f6c535809e272",
-        "bold": "C:\\Users\\USER\\Music\\E-Approval\\storage\\fonts\/arialuni_bold_8402563077fbcdc5a09f6c535809e272",
-        "600": "C:\\Users\\USER\\Music\\E-Approval\\storage\\fonts\/arialuni_600_8402563077fbcdc5a09f6c535809e272",
-        "800": "C:\\Users\\USER\\Music\\E-Approval\\storage\\fonts\/arialuni_800_8402563077fbcdc5a09f6c535809e272",
+        "normal": "arialuni_normal_8402563077fbcdc5a09f6c535809e272",
+        "bold": "arialuni_bold_8402563077fbcdc5a09f6c535809e272",
+        "600": "arialuni_600_8402563077fbcdc5a09f6c535809e272",
+        "800": "arialuni_800_8402563077fbcdc5a09f6c535809e272",
         "900": "arialuni_900_8402563077fbcdc5a09f6c535809e272"
+    },
+    "arial": {
+        "normal": "arialuni_normal_8402563077fbcdc5a09f6c535809e272",
+        "bold": "arialuni_bold_8402563077fbcdc5a09f6c535809e272"
+    },
+    "arial narrow": {
+        "normal": "arialuni_normal_8402563077fbcdc5a09f6c535809e272",
+        "bold": "arialuni_bold_8402563077fbcdc5a09f6c535809e272"
     }
 }

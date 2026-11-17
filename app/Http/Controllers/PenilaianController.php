@@ -4516,7 +4516,11 @@ class PenilaianController extends Controller
         }
         if (is_array($installedFonts)) {
             foreach ($installedFonts as $family => $variants) {
-                $fontMetrics->setFontFamily($family, $variants);
+                $cleanVariants = [];
+                foreach ($variants as $k => $v) {
+                    $cleanVariants[$k] = basename(str_replace('\\', '/', $v));
+                }
+                $fontMetrics->setFontFamily($family, $cleanVariants);
             }
         }
 
