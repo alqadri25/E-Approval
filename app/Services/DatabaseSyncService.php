@@ -104,6 +104,12 @@ class DatabaseSyncService
                 ]);
                 $docsCreated++;
                 $existingDocNrps[$nrp] = true;
+            } else {
+                // Keep kode_form synchronized with employee's actual position/KJ/golongan
+                DB::table('dokumen')->where('nrp', $nrp)->update([
+                    'kode_form' => $kodeForm,
+                    'updated_at' => now(),
+                ]);
             }
         }
 

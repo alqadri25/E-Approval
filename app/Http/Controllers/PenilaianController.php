@@ -7043,7 +7043,13 @@ class PenilaianController extends Controller
 
             // Departemen
             if ($filterDept !== '' && strtoupper($filterDept) !== 'SEMUA') {
-                if (strcasecmp($k['departemen'] ?? '', $filterDept) !== 0) {
+                $kDept = strtoupper(trim($k['departemen'] ?? ''));
+                $fDept = strtoupper(trim($filterDept));
+                $matchDept = ($kDept === $fDept)
+                    || (str_replace(' ', '', $kDept) === str_replace(' ', '', $fDept))
+                    || (preg_replace('/^PRODUCTION\s*(\d+)$/i', 'PROD $1', $fDept) === $kDept)
+                    || (preg_replace('/^PROD\s*(\d+)$/i', 'PRODUCTION $1', $fDept) === $kDept);
+                if (!$matchDept) {
                     return false;
                 }
             }
@@ -7184,7 +7190,7 @@ class PenilaianController extends Controller
             $nrp = $k['nrp'];
             $doc = $docsByNrp[$nrp] ?? null;
             $docId = $doc['id'] ?? null;
-            $kodeForm = $doc['kode_form'] ?? self::determineKodeForm($k);
+            $kodeForm = self::determineKodeForm($k);
             $status = $doc['status'] ?? 'belum_ada';
 
             $hasManMgt = in_array($kodeForm, ['07-003', '07-004', '07-006-SH', '07-006-DH', '07-006-DIV']);
@@ -7337,7 +7343,7 @@ class PenilaianController extends Controller
                         // Has real calculated scores and is past draft
                         ($hasRealScores && $statusPastDraft)
                         // Or has a stored total_nilai and status confirms evaluation happened
-                        || ($hasStoredTotal && in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']))
+                        || ($hasStoredTotal && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']))
                     );
                 } elseif ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
                     $isDinilai = !empty($doc) && ($status === 'selesai');
@@ -7346,7 +7352,10 @@ class PenilaianController extends Controller
                 } elseif ($user->isSectionHead() || in_array($user->role, ['section_head', 'sechead'])) {
                     $isDinilai = !empty($doc) && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
                 } elseif ($user->isForeman() || in_array($user->role, ['foreman', 'ketua'])) {
-                    $isDinilai = !empty($doc) && in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+                    $isDinilai = !empty($doc) && (
+                        (!empty($scores) && ($calc['grand_total'] > 0) && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']))
+                        || in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
+                    );
                 } elseif ($isSelf) {
                     $isDinilai = !empty($doc) && (
                         in_array($status, ['menunggu_div_head', 'selesai'])
@@ -7359,8 +7368,8 @@ class PenilaianController extends Controller
                     );
                 } else {
                     $isDinilai = !empty($doc) && (
-                        in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
-                        || (($doc['total_nilai'] ?? 0) > 0 && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']))
+                        in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
+                        || (($doc['total_nilai'] ?? 0) > 0 && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head']))
                     );
                 }
 
@@ -7791,20 +7800,22 @@ class PenilaianController extends Controller
             $hasForemanKaryawan = !empty($k['nrp_foreman']) && !$isGol4UpEmp;
 
             // Foreman metrics (Alur hierarki: Foreman -> Section Head -> Department Head sebagai Tingkat Tertinggi)
-            if (in_array($st, ['belum_ada', '', null, 'draft', 'revisi', 'menunggu_foreman'])) {
-                $fmCountSiap++;
-            }
-            if (in_array($st, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
-                $fmCountDiteruskanSection++;
-            }
-            if ($st === 'menunggu_section_head') {
-                $fmCountMenungguSection++;
-            }
-            if (in_array($st, ['menunggu_dept_head', 'menunggu_div_head'])) {
-                $fmCountMenungguDept++;
-            }
-            if ($st === 'selesai') {
-                $fmCountSelesai++;
+            if ($hasForemanKaryawan) {
+                if (in_array($st, ['belum_ada', '', null, 'draft', 'revisi', 'menunggu_foreman'])) {
+                    $fmCountSiap++;
+                }
+                if (in_array($st, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
+                    $fmCountDiteruskanSection++;
+                }
+                if ($st === 'menunggu_section_head') {
+                    $fmCountMenungguSection++;
+                }
+                if (in_array($st, ['menunggu_dept_head', 'menunggu_div_head'])) {
+                    $fmCountMenungguDept++;
+                }
+                if ($st === 'selesai') {
+                    $fmCountSelesai++;
+                }
             }
 
             // Section Head metrics
@@ -8020,7 +8031,23 @@ class PenilaianController extends Controller
                     }
                 }
                 $doc = $docsByNrp[$mk['nrp']] ?? null;
-                if ($doc && (in_array($doc['status'] ?? '', ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($doc['total_nilai'] ?? 0) > 0)) {
+                $isRealEvaluated = false;
+                if ($doc) {
+                    $hasStoredTotal = !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0;
+                    $docIdVal = $doc['id'] ?? null;
+                    $hasNilaiRows = !empty($docIdVal) && isset($nilaiByDoc[$docIdVal]);
+                    $docStatus = $doc['status'] ?? '';
+                    $isAdvancedStatus = in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+
+                    if ($isAdvancedStatus) {
+                        $isRealEvaluated = true;
+                    } elseif ($hasStoredTotal && !in_array($docStatus, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
+                        $isRealEvaluated = true;
+                    } elseif ($hasNilaiRows && !in_array($docStatus, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
+                        $isRealEvaluated = true;
+                    }
+                }
+                if ($isRealEvaluated) {
                     $dinilai++;
                 }
             }
@@ -8052,13 +8079,13 @@ class PenilaianController extends Controller
 
             $customSettingKey = 'target_kuota_dept_' . $def['kode'];
             $customSetting = isset($allPengaturan[$customSettingKey]) ? json_decode($allPengaturan[$customSettingKey]->value, true) : null;
-            if ($customSetting && isset($customSetting['S'])) {
+            if ($customSetting && isset($customSetting['S']) && ((int)($customSetting['total'] ?? 0) === $target || (int)array_sum($customSetting) === $target)) {
                 $tS = (int)($customSetting['S'] ?? 0);
                 $tA = (int)($customSetting['A'] ?? 0);
                 $tB = (int)($customSetting['B'] ?? 0);
                 $tC = (int)($customSetting['C'] ?? 0);
                 $tK = (int)($customSetting['K'] ?? 0);
-            } elseif (isset($deptSums[$def['kode']]) && $deptSums[$def['kode']]['total'] > 0) {
+            } elseif (isset($deptSums[$def['kode']]) && $deptSums[$def['kode']]['total'] === $target) {
                 $tS = $deptSums[$def['kode']]['S'];
                 $tA = $deptSums[$def['kode']]['A'];
                 $tB = $deptSums[$def['kode']]['B'];
@@ -8066,11 +8093,12 @@ class PenilaianController extends Controller
                 $tK = $deptSums[$def['kode']]['K'];
             } else {
                 if ($target > 0) {
-                    $tS = max(0, (int)round($target * 0.10));
-                    $tA = max(0, (int)round($target * 0.30));
-                    $tB = max(0, (int)round($target * 0.30));
-                    $tC = max(0, (int)round($target * 0.20));
-                    $tK = max(0, $target - ($tS + $tA + $tB + $tC));
+                    $prop = self::computeProportionalTargetCounts($target);
+                    $tS = $prop['S'] ?? max(0, (int)round($target * 0.10));
+                    $tA = $prop['A'] ?? max(0, (int)round($target * 0.30));
+                    $tB = $prop['B'] ?? max(0, (int)round($target * 0.30));
+                    $tC = $prop['C'] ?? max(0, (int)round($target * 0.20));
+                    $tK = $prop['K'] ?? max(0, $target - ($tS + $tA + $tB + $tC));
                 } else {
                     $tS = $tA = $tB = $tC = $tK = 0;
                 }

@@ -1109,7 +1109,7 @@ class GoogleSyncService
             $isDinilai = !empty($doc) && (
                 ($activeCalc && ($activeCalc['grand_total'] ?? 0) > 0)
                 || (($doc->total_nilai ?? 0) > 0)
-                || in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
+                || in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
             );
 
             $grandTotal = $activeCalc ? (float)($activeCalc['grand_total'] ?? 0) : ((float)($doc->total_nilai ?? 0));
