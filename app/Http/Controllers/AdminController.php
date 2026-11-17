@@ -3518,34 +3518,59 @@ class AdminController extends Controller
             $docId = $doc->doc_id;
             $kodeForm = $doc->kode_form;
 
+            $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+
             // Needs Foreman?
-            $needsForeman = !empty($doc->nrp_foreman) && trim($doc->nrp_foreman) !== '-' && !in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $needsForeman = !empty($doc->nrp_foreman) && trim($doc->nrp_foreman) !== '-' && !$isGol4Up;
 
             // 1. Foreman scores & signature
             $foremanScores = $scoresByDoc[$docId]['foreman'] ?? [];
             $foremanCalc = !empty($foremanScores) ? $calcService->calculate($kodeForm, $foremanScores) : null;
             $foremanTotal = $foremanCalc['grand_total'] ?? 0.00;
-            $foremanSigned = !empty($ttdByDoc[$docId]['foreman']);
+            $foremanSigned = !empty($ttdByDoc[$docId]['foreman'])
+                || in_array($doc->status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'revisi'])) {
+                $foremanSigned = false;
+            }
+            if (!$needsForeman && empty($foremanScores) && empty($ttdByDoc[$docId]['foreman'])) {
+                $foremanSigned = false;
+            }
             $hasForemanValue = (!empty($foremanScores) && $foremanTotal > 0) || $foremanSigned;
 
             // 2. Section Head scores & signature
             $sectionScores = $scoresByDoc[$docId]['section_head'] ?? [];
             $sectionCalc = !empty($sectionScores) ? $calcService->calculate($kodeForm, $sectionScores) : null;
             $sectionTotal = $sectionCalc['grand_total'] ?? 0.00;
-            $sectionSigned = !empty($ttdByDoc[$docId]['section_head']);
+            if ($sectionTotal <= 0 && $isGol4Up && !empty($foremanTotal)) {
+                $sectionTotal = $foremanTotal;
+            }
+            $sectionSigned = !empty($ttdByDoc[$docId]['section_head'])
+                || ($isGol4Up && !empty($ttdByDoc[$docId]['foreman']))
+                || in_array($doc->status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi'])) {
+                $sectionSigned = false;
+            }
             $hasSectionValue = (!empty($sectionScores) && $sectionTotal > 0) || $sectionSigned;
 
             // 3. Dept Head scores & signature
             $deptScores = $scoresByDoc[$docId]['dept_head'] ?? [];
             $deptCalc = !empty($deptScores) ? $calcService->calculate($kodeForm, $deptScores) : null;
             $deptTotal = $deptCalc['grand_total'] ?? 0.00;
-            $deptSigned = !empty($ttdByDoc[$docId]['dept_head']);
+            if ($deptTotal <= 0 && ($doc->total_nilai ?? 0) > 0 && in_array($doc->status, ['menunggu_div_head', 'selesai'])) {
+                $deptTotal = (float)$doc->total_nilai;
+            }
+            $deptSigned = !empty($ttdByDoc[$docId]['dept_head'])
+                || ($isGol4Up && !empty($ttdByDoc[$docId]['section_head']))
+                || in_array($doc->status, ['menunggu_div_head', 'selesai']);
+            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'menunggu_dept_head', 'revisi'])) {
+                $deptSigned = false;
+            }
             $hasDeptValue = (!empty($deptScores) && $deptTotal > 0) || $deptSigned;
 
             // 4. Div Head scores & signature
             $divScores = $scoresByDoc[$docId]['div_head'] ?? [];
-            $divSigned = !empty($ttdByDoc[$docId]['div_head']);
-            $hasDivValue = !empty($divScores) || $divSigned || ($doc->status === 'selesai' && in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']));
+            $divSigned = !empty($ttdByDoc[$docId]['div_head']) || ($doc->status === 'selesai');
+            $hasDivValue = !empty($divScores) || $divSigned || ($doc->status === 'selesai' && $isGol4Up);
 
             // Revision rules strictly matching user specification:
             // "KETIKA MISAL BELUM ADA NILAI SECTION HEAD MAKA AKSI UNTUK KEMBALI REVISI SECTION HEAD KEATAS IT GABISA HANYA KE FOREMAN JIKA FOREMAN SUDAH ADA NILAI"

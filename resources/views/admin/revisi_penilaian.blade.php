@@ -286,7 +286,7 @@
                                     {{ $item->foreman_total > 0 ? number_format($item->foreman_total, 2) : '-' }}
                                 </div>
                                 <div class="mt-0.5">
-                                    @if($item->foreman_signed)
+                                    @if($item->foreman_signed || in_array($item->status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']))
                                         <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
                                     @else
                                         <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
@@ -304,7 +304,7 @@
                                     {{ $item->section_total > 0 ? number_format($item->section_total, 2) : '-' }}
                                 </div>
                                 <div class="mt-0.5">
-                                    @if($item->section_signed)
+                                    @if($item->section_signed || in_array($item->status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']))
                                         <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
                                     @else
                                         <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
@@ -322,7 +322,7 @@
                                     {{ $item->dept_total > 0 ? number_format($item->dept_total, 2) : '-' }}
                                 </div>
                                 <div class="mt-0.5">
-                                    @if($item->dept_signed)
+                                    @if($item->dept_signed || in_array($item->status, ['menunggu_div_head', 'selesai']))
                                         <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
                                     @else
                                         <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
