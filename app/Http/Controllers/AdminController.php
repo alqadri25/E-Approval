@@ -3789,4 +3789,117 @@ class AdminController extends Controller
 
         return back()->with('success', "Form penilaian {$karyawan->nama_lengkap} ({$karyawan->nrp}) berhasil dikembalikan untuk dinilai ulang oleh {$targetLabelStr}. Status saat ini: " . ucwords(str_replace('_', ' ', $newStatus)) . ".");
     }
+
+    /**
+     * History Penilaian (Audit Log Aktivitas Penilaian & Sinkronisasi Spreadsheet)
+     * Khusus Admin & Super Admin
+     */
+    public function historyPenilaian(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        }
+
+        $search = trim((string)$request->input('search', ''));
+        $aksiFilter = trim((string)$request->input('aksi', ''));
+        $tglMulai = trim((string)$request->input('tgl_mulai', ''));
+        $tglSelesai = trim((string)$request->input('tgl_selesai', ''));
+
+        // Query audit_log dari DB
+        $query = DB::table('audit_log')
+            ->leftJoin('app_users', 'audit_log.user_id', '=', 'app_users.id')
+            ->leftJoin('dokumen', 'audit_log.dokumen_id', '=', 'dokumen.id')
+            ->leftJoin('karyawan', 'dokumen.nrp', '=', 'karyawan.nrp')
+            ->select(
+                'audit_log.*',
+                'app_users.nama as user_nama',
+                'app_users.nrp as user_nrp',
+                'app_users.role as user_role',
+                'dokumen.kode_form as doc_kode_form',
+                'dokumen.status as doc_status',
+                'karyawan.nama_lengkap as karyawan_nama',
+                'karyawan.nrp as karyawan_nrp',
+                'karyawan.departemen as karyawan_departemen',
+                'karyawan.division as karyawan_division'
+            );
+
+        if ($search !== '') {
+            $query->where(function($q) use ($search) {
+                $q->where('audit_log.detail', 'like', "%{$search}%")
+                  ->orWhere('audit_log.aksi', 'like', "%{$search}%")
+                  ->orWhere('app_users.nama', 'like', "%{$search}%")
+                  ->orWhere('app_users.nrp', 'like', "%{$search}%")
+                  ->orWhere('karyawan.nama_lengkap', 'like', "%{$search}%")
+                  ->orWhere('karyawan.nrp', 'like', "%{$search}%");
+            });
+        }
+
+        if ($aksiFilter !== '') {
+            $query->where('audit_log.aksi', $aksiFilter);
+        }
+
+        if ($tglMulai !== '') {
+            $query->where('audit_log.waktu', '>=', $tglMulai . ' 00:00:00');
+        }
+
+        if ($tglSelesai !== '') {
+            $query->where('audit_log.waktu', '<=', $tglSelesai . ' 23:59:59');
+        }
+
+        $logs = $query->orderBy('audit_log.id', 'desc')->paginate(20)->withQueryString();
+
+        // Statistik ringkas
+        $totalLogs = DB::table('audit_log')->count();
+        $logsHariIni = DB::table('audit_log')->whereDate('waktu', today())->count();
+        $totalRevisi = DB::table('audit_log')->where('aksi', 'like', '%revisi%')->count();
+        $totalApproval = DB::table('audit_log')->where(function($q) {
+            $q->where('aksi', 'like', '%ttd%')
+              ->orWhere('aksi', 'like', '%approve%')
+              ->orWhere('aksi', 'like', '%selesai%');
+        })->count();
+
+        // Daftar aksi untuk filter dropdown
+        $daftarAksi = DB::table('audit_log')
+            ->select('aksi', DB::raw('count(*) as total'))
+            ->groupBy('aksi')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        return view('admin.history_penilaian', compact(
+            'user',
+            'logs',
+            'totalLogs',
+            'logsHariIni',
+            'totalRevisi',
+            'totalApproval',
+            'daftarAksi',
+            'search',
+            'aksiFilter',
+            'tglMulai',
+            'tglSelesai'
+        ));
+    }
+
+    /**
+     * Sinkronkan Riwayat Audit Log dari Google Spreadsheet
+     */
+    public function syncAuditLog(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        }
+
+        try {
+            $sheetRepo = app(\App\Contracts\SheetRepositoryInterface::class);
+            $sheetRepo->all('audit_log', 0);
+
+            return back()->with('success', 'Riwayat aktivitas (audit_log) berhasil disinkronkan langsung dari Google Spreadsheet.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Gagal menyinkronkan dengan Google Spreadsheet: ' . $e->getMessage());
+        }
+    }
 }

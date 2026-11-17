@@ -126,6 +126,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/superadmin/revisi-penilaian', [AdminController::class, 'revisiPenilaian'])->name('superadmin.revisiPenilaian');
     Route::post('/admin/revisi-penilaian/{id}', [AdminController::class, 'prosesRevisiPenilaian'])->name('admin.revisiPenilaian.proses');
     Route::post('/superadmin/revisi-penilaian/{id}', [AdminController::class, 'prosesRevisiPenilaian'])->name('superadmin.revisiPenilaian.proses');
+    Route::get('/admin/history-penilaian', [AdminController::class, 'historyPenilaian'])->name('admin.historyPenilaian');
+    Route::get('/superadmin/history-penilaian', [AdminController::class, 'historyPenilaian'])->name('superadmin.historyPenilaian');
+    Route::post('/admin/history-penilaian/sync', [AdminController::class, 'syncAuditLog'])->name('admin.historyPenilaian.sync');
+    Route::post('/superadmin/history-penilaian/sync', [AdminController::class, 'syncAuditLog'])->name('superadmin.historyPenilaian.sync');
 
     // User Management Routes (Mockup Screens: Kelola User / Manajemen Akun, Pengaturan)
     Route::get('/superadmin/users', [SuperAdminController::class, 'kelolaUser'])->name('superadmin.users');

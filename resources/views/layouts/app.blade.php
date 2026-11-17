@@ -235,6 +235,14 @@
                 <span>Revisi Form Penilaian</span>
               </a>
 
+              <a href="{{ route('superadmin.historyPenilaian') }}" 
+                class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('*historyPenilaian*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
+                <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('*historyPenilaian*') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>History Penilaian</span>
+              </a>
+
               <a href="{{ route('laporan.index') }}" 
                 class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('laporan.*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
                 <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('laporan.*') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,21 +350,12 @@
                 <span>Revisi Form Penilaian</span>
               </a>
 
-              <a href="{{ route('laporan.index') }}" 
-                class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('laporan.*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
-                <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('laporan.*') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              <a href="{{ route('admin.historyPenilaian') }}" 
+                class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('*historyPenilaian*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
+                <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('*historyPenilaian*') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                <span>Pusat Laporan &amp; Rekap</span>
-              </a>
-
-              <a href="{{ route('admin.pengaturan') }}" 
-                class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('admin.pengaturan*') || request()->routeIs('superadmin.pengaturan*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
-                <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('admin.pengaturan*') || request()->routeIs('superadmin.pengaturan*') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <span>Pengaturan Sistem</span>
+                <span>History Penilaian</span>
               </a>
             </div>
           </div>
@@ -790,6 +789,7 @@
               <a href="{{ route('admin.lembarPenilaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.lembarPenilaian*') || request()->routeIs('superadmin.lembarPenilaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Lembar Penilaian PK</a>
               <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">AUDIT &amp; SISTEM</div>
               <a href="{{ route('superadmin.revisiPenilaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('*revisiPenilaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Revisi Form Penilaian</a>
+              <a href="{{ route('superadmin.historyPenilaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('*historyPenilaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">History Penilaian</a>
               <a href="{{ route('laporan.index') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('laporan.*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Pusat Laporan &amp; Rekap</a>
               <a href="{{ route('superadmin.pengaturan') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('superadmin.pengaturan*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Pengaturan Sistem</a>
             @elseif($user->isAdmin())
@@ -807,8 +807,7 @@
               <a href="{{ route('admin.lembarPenilaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.lembarPenilaian*') || request()->routeIs('superadmin.lembarPenilaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Lembar Penilaian PK</a>
               <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">AUDIT &amp; SISTEM</div>
               <a href="{{ route('admin.revisiPenilaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('*revisiPenilaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Revisi Form Penilaian</a>
-              <a href="{{ route('laporan.index') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('laporan.*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Pusat Laporan &amp; Rekap</a>
-              <a href="{{ route('admin.pengaturan') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.pengaturan*') || request()->routeIs('superadmin.pengaturan*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Pengaturan Sistem</a>
+              <a href="{{ route('admin.historyPenilaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('*historyPenilaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">History Penilaian</a>
             @elseif($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))
               <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">DASHBOARD</div>
               <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('dashboard') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Dashboard</a>

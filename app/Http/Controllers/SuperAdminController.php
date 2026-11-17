@@ -490,8 +490,8 @@ class SuperAdminController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        if (!$user->isSuperadmin() && !$user->isAdmin()) {
-            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        if (!$user->isSuperadmin()) {
+            return redirect()->route('admin.historyPenilaian')->with('error', 'Halaman Pengaturan Spreadsheet & Sistem hanya dapat diakses oleh Super Admin.');
         }
 
         // Settings matching Mockup Screen 3
@@ -545,8 +545,8 @@ class SuperAdminController extends Controller
     {
         /** @var User $currentUser */
         $currentUser = Auth::user();
-        if (!$currentUser->isSuperadmin() && !$currentUser->isAdmin()) {
-            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        if (!$currentUser->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Super Admin.');
         }
 
         \App\Services\GoogleSyncService::saveConfig($request->all());
@@ -561,8 +561,8 @@ class SuperAdminController extends Controller
     {
         /** @var User $currentUser */
         $currentUser = Auth::user();
-        if (!$currentUser->isSuperadmin() && !$currentUser->isAdmin()) {
-            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        if (!$currentUser->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Super Admin.');
         }
 
         $result = \App\Services\GoogleSyncService::syncFromGoogle(
@@ -583,8 +583,8 @@ class SuperAdminController extends Controller
     {
         /** @var User $currentUser */
         $currentUser = Auth::user();
-        if (!$currentUser->isSuperadmin() && !$currentUser->isAdmin()) {
-            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        if (!$currentUser->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Super Admin.');
         }
 
         $result = \App\Services\GoogleSyncService::pushToGoogle(
@@ -606,8 +606,8 @@ class SuperAdminController extends Controller
     {
         /** @var User $currentUser */
         $currentUser = Auth::user();
-        if (!$currentUser->isSuperadmin() && !$currentUser->isAdmin()) {
-            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        if (!$currentUser->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Super Admin.');
         }
 
         $testResults = \App\Services\GoogleSyncService::testConnection(

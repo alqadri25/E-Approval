@@ -168,25 +168,20 @@
                 }
             }
 
-            // Helper format nilai untuk 07-006 (kosong jika belum dinilai, tidak menampilkan '-' atau '0')
-            $formatScoreCell = function($val) use ($isGol4Up) {
-                if ($isGol4Up) {
-                    if ($val === null || $val === '' || (float)$val <= 0) {
-                        return '';
-                    }
-                    $n = (float)$val;
-                    return fmod($n, 1) == 0 ? number_format($n, 0) : number_format($n, 2);
-                }
-                return (isset($val) && (float)$val > 0) ? (fmod((float)$val, 1) == 0 ? number_format((float)$val, 0) : number_format((float)$val, 2)) : '-';
+            // Helper format nilai
+            $formatScoreCell = function($val) {
+                return (isset($val) && (float)$val > 0)
+                    ? (fmod((float)$val, 1) == 0 ? number_format((float)$val, 0) : number_format((float)$val, 2))
+                    : '-';
             };
 
-            $formatDecimalCell = function($val) use ($isGol4Up) {
-                if ($isGol4Up) {
-                    if ($val === null || $val === '' || (float)$val <= 0) {
-                        return '';
-                    }
-                    return number_format((float)$val, 2);
-                }
+            $formatTotalCell = function($val) {
+                return (isset($val) && (float)$val > 0)
+                    ? (fmod((float)$val, 1) == 0 ? number_format((float)$val, 0) : number_format((float)$val, 2))
+                    : '0';
+            };
+
+            $formatDecimalCell = function($val) {
                 return (isset($val) && (float)$val > 0) ? number_format((float)$val, 2) : '0.00';
             };
         @endphp
@@ -497,7 +492,7 @@
         <!-- ========================================================================= -->
         <div>
             <!-- LEFT COLUMN (FLOAT LEFT) -->
-            <div style="width: {{ $isGol4Up ? '55%' : '58%' }}; float: left; border-right: 1.5px solid #000000;">
+            <div style="width: 58%; float: left; border-right: 1.5px solid #000000;">
                 
                 <table style="width: 100%; border: none;">
                     <thead>
@@ -510,11 +505,15 @@
                             </th>
                         </tr>
                         <tr class="bg-gray-header font-bold text-center" style="font-size: 5.5pt;">
-                            @if(!$isGol4Up && $subFormVariant === 'div_head')
+                            @if($isGol4Up)
+                            <th style="width: 12%; padding: 1px;">Mandiri / 自分</th>
+                            <th style="width: 13%; padding: 1px;">Dept. head</th>
+                            <th style="width: 13%; border-right: none; padding: 1px;">Div. Head</th>
+                            @elseif($subFormVariant === 'div_head')
                             <th class="bg-blocked-gray" style="width: 12%; padding: 1px;"></th>
                             <th class="bg-blocked-gray" style="width: 13%; padding: 1px;"></th>
                             <th style="width: 13%; border-right: none; padding: 1px;">{{ $col3Title }}</th>
-                            @elseif(!$isGol4Up && $subFormVariant === 'dept_head')
+                            @elseif($subFormVariant === 'dept_head')
                             <th style="width: 12%; padding: 1px;">{{ $col1Title }}</th>
                             <th class="bg-blocked-gray" style="width: 13%; padding: 1px;"></th>
                             <th style="width: 13%; border-right: none; padding: 1px;">{{ $col3Title }}</th>
@@ -563,13 +562,23 @@
                                     {{ $displayAspectName }}
                                 </td>
 
-                                @if(!$isGol4Up && $subFormVariant === 'div_head')
+                                @if($isGol4Up)
+                                <td class="text-center font-mono font-bold" style="font-size: 7pt; padding: 1px;">
+                                    {{ $formatScoreCell($scoresByLevel['foreman'][$aspectCode] ?? null) }}
+                                </td>
+                                <td class="text-center font-mono font-bold" style="font-size: 7pt; padding: 1px;">
+                                    {{ $formatScoreCell($scoresByLevel['section_head'][$aspectCode] ?? null) }}
+                                </td>
+                                <td class="text-center font-mono font-bold" style="font-size: 7pt; border-right: none; padding: 1px;">
+                                    {{ $formatScoreCell($scoresByLevel['dept_head'][$aspectCode] ?? null) }}
+                                </td>
+                                @elseif($subFormVariant === 'div_head')
                                 <td class="bg-blocked-gray" style="padding: 1px;"></td>
                                 <td class="bg-blocked-gray" style="padding: 1px;"></td>
                                 <td class="text-center font-mono font-bold" style="font-size: 7pt; border-right: none; padding: 1px;">
                                     {{ $formatScoreCell($scoresByLevel['dept_head'][$aspectCode] ?? null) }}
                                 </td>
-                                @elseif(!$isGol4Up && $subFormVariant === 'dept_head')
+                                @elseif($subFormVariant === 'dept_head')
                                 <td class="text-center font-mono font-bold bg-excel-green" style="font-size: 7pt; padding: 1px;">
                                     {{ $formatScoreCell($scoresByLevel['foreman'][$aspectCode] ?? null) }}
                                 </td>
@@ -594,18 +603,22 @@
                             <!-- Group TOTAL Row -->
                             <tr class="font-bold text-center" style="font-size: 6.2pt; background: #ffffff;">
                                 <td colspan="2" class="text-right uppercase" style="border-left: none; padding: 1.5px 4px;">{{ $isGol4Up ? 'TOTAL 合計' : 'TOTAL' }}</td>
-                                @if(!$isGol4Up && $subFormVariant === 'div_head')
+                                @if($isGol4Up)
+                                <td class="font-mono">{{ $formatTotalCell($calcForeman['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                <td class="font-mono">{{ $formatTotalCell($calcSectionHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                <td class="font-mono" style="border-right: none;">{{ $formatTotalCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                @elseif($subFormVariant === 'div_head')
                                 <td class="bg-blocked-gray"></td>
                                 <td class="bg-blocked-gray"></td>
-                                <td class="font-mono" style="border-right: none;">{{ $formatScoreCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
-                                @elseif(!$isGol4Up && $subFormVariant === 'dept_head')
-                                <td class="font-mono">{{ $formatScoreCell($calcForeman['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                <td class="font-mono" style="border-right: none;">{{ $formatTotalCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                @elseif($subFormVariant === 'dept_head')
+                                <td class="font-mono">{{ $formatTotalCell($calcForeman['groups'][$groupKey]['total_sum'] ?? null) }}</td>
                                 <td class="bg-blocked-gray"></td>
-                                <td class="font-mono" style="border-right: none;">{{ $formatScoreCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                <td class="font-mono" style="border-right: none;">{{ $formatTotalCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
                                 @else
-                                <td class="font-mono">{!! ($isTanpaForemanStd && !$showForemanData) ? '&nbsp;' : $formatScoreCell($calcForeman['groups'][$groupKey]['total_sum'] ?? null) !!}</td>
-                                <td class="font-mono">{{ $formatScoreCell($calcSectionHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
-                                <td class="font-mono" style="border-right: none;">{{ $formatScoreCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                <td class="font-mono">{!! ($isTanpaForemanStd && !$showForemanData) ? '&nbsp;' : $formatTotalCell($calcForeman['groups'][$groupKey]['total_sum'] ?? null) !!}</td>
+                                <td class="font-mono">{{ $formatTotalCell($calcSectionHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                <td class="font-mono" style="border-right: none;">{{ $formatTotalCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
                                 @endif
                             </tr>
 
@@ -631,11 +644,15 @@
                                 <td colspan="2" class="text-left" style="border-left: none; padding: 1.5px 3px;">
                                     {{ $rataTitle }}
                                 </td>
-                                @if(!$isGol4Up && $subFormVariant === 'div_head')
+                                @if($isGol4Up)
+                                <td class="font-mono">{{ $formatDecimalCell($calcForeman['groups'][$groupKey]['average'] ?? null) }}</td>
+                                <td class="font-mono">{{ $formatDecimalCell($calcSectionHead['groups'][$groupKey]['average'] ?? null) }}</td>
+                                <td class="font-mono" style="border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['average'] ?? null) }}</td>
+                                @elseif($subFormVariant === 'div_head')
                                 <td class="bg-blocked-gray"></td>
                                 <td class="bg-blocked-gray"></td>
                                 <td class="font-mono" style="border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['average'] ?? null) }}</td>
-                                @elseif(!$isGol4Up && $subFormVariant === 'dept_head')
+                                @elseif($subFormVariant === 'dept_head')
                                 <td class="font-mono">{{ $formatDecimalCell($calcForeman['groups'][$groupKey]['average'] ?? null) }}</td>
                                 <td class="bg-blocked-gray"></td>
                                 <td class="font-mono" style="border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['average'] ?? null) }}</td>
@@ -651,11 +668,15 @@
                                 <td colspan="2" class="text-left" style="border-left: none; padding: 1.5px 3px;">
                                     {{ $nilaiAkhirTitle }}
                                 </td>
-                                @if(!$isGol4Up && $subFormVariant === 'div_head')
+                                @if($isGol4Up)
+                                <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcForeman['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
+                                <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcSectionHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
+                                <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
+                                @elseif($subFormVariant === 'div_head')
                                 <td class="bg-blocked-gray"></td>
                                 <td class="bg-blocked-gray"></td>
                                 <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
-                                @elseif(!$isGol4Up && $subFormVariant === 'dept_head')
+                                @elseif($subFormVariant === 'dept_head')
                                 <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcForeman['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
                                 <td class="bg-blocked-gray"></td>
                                 <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
@@ -769,21 +790,21 @@
             </div>
 
             <!-- RIGHT COLUMN (FLOAT RIGHT) -->
-            <div style="width: {{ $isGol4Up ? '44.8%' : '41.8%' }}; float: right;">
+            <div style="width: 41.8%; float: right;">
                 
                 <!-- Header Bar -->
-                <div class="bg-gray-bar text-center font-bold uppercase" style="padding: 2.5px; font-size: {{ $isGol4Up ? '6.8pt' : '6.5pt' }}; border-bottom: 1px solid #000000; background-color: #d9d9d9 !important;">
+                <div class="bg-gray-bar text-center font-bold uppercase" style="padding: 2px; font-size: 6.5pt; border-bottom: 1px solid #000000; background-color: #d9d9d9 !important;">
                     {{ $isGol4Up ? 'INDIKATOR EVALUASI POTENSI KARYAWAN / 従業員の発展' : 'INDIKATOR EVALUASI POTENSI KARYAWAN' }}
                 </div>
 
                 <!-- Petunjuk Pengisian -->
-                <div style="padding: 2.5px 4px; border-bottom: 1px solid #cbd5e1; background: #f8fafc; font-size: 5.8pt; line-height: 1.15;">
+                <div style="padding: 2px 4px; border-bottom: 1px solid #cbd5e1; background: #f8fafc; font-size: 5.6pt; line-height: 1.15;">
                     <span style="font-weight: bold;">{{ $isGol4Up ? 'Petunjuk Pengisian / 記入方法' : 'Petunjuk Pengisian.' }}</span>
                     <div style="text-align: justify; color: #334155;">
                         Setiap Atasan diharapkan mengisi dengan seksama kolom ini untuk mengetahui seberapa jauh potensi karyawan dapat dikembangkan ke posisi &amp; tanggung jawab yang lebih besar sesuai dengan ketentuan yang berlaku dan selagi ada kesempatan dalam struktur organisasi.
                     </div>
                     @if($isGol4Up)
-                    <div style="color: #475569; font-size: 5.2pt; margin-top: 1px;">
+                    <div style="color: #475569; font-size: 5.1pt; margin-top: 1px;">
                         各上司が部下の能力を把握し今より高い職位ともっと重い責任を任せれるかどうかを記入する
                     </div>
                     @endif
@@ -803,121 +824,30 @@
                     $pilPotensi = (int)($indikator['pilihan_potensi'] ?? 0);
                 @endphp
 
-                @if($isGol4Up)
-                <!-- ======================================================== -->
-                <!-- FORM 07-006 SPECIFIC LAYOUT: 3 LARGE BORDERED EXCEL BOXES -->
-                <!-- ======================================================== -->
-                <div style="padding: 4px; font-size: 6.2pt;">
-                    
-                    <!-- BOX 1: Memenuhi standard untuk dipromosikan -->
-                    <div class="box-07006">
-                        <table style="width: 98%; margin: 0 auto; border: none; border-collapse: collapse;">
-                            <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 16px; vertical-align: top;">
-                                    <span class="check-07006">{!! $pilPotensi === 1 ? '&#10003;' : '&nbsp;' !!}</span>
-                                </td>
-                                <td style="border: none; padding: 0 4px 0 0; vertical-align: top;">
-                                    <div style="font-size: 6.2pt; line-height: 1.25; color: #000000;">
-                                        Memenuhi standard untuk dipromosikan pada level diatasnya, saran pada posisi :
-                                        <span style="border-bottom: 0.8px solid #000000; display: inline-block; min-width: 60px; padding: 0 2px;">
-                                            {{ $pilPotensi === 1 && !empty($catatanPotensiDisplay) ? $catatanPotensiDisplay : '' }}
-                                        </span>
-                                    </div>
-                                    <div style="font-size: 5.5pt; color: #334155; line-height: 1.2; margin-top: 2px;">
-                                        能力が高く、今より上のレベルの上がれる。お勧めとなる職位は
-                                    </div>
-                                    <div style="border-bottom: 0.8px solid #000000; min-height: 12px; margin-top: 4px; width: 100%;">
-                                        @if($pilPotensi === 1 && !empty($catatanPotensiDisplay) && strlen($catatanPotensiDisplay) > 25)
-                                            <span style="font-size: 6pt; color: #000000;">{{ $catatanPotensiDisplay }}</span>
-                                        @else
-                                            &nbsp;
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <!-- BOX 2: Sesuai dengan posisi saat ini -->
-                    <div class="box-07006" style="padding-top: 5px; padding-bottom: 5px;">
-                        <table style="width: 98%; margin: 0 auto; border: none; border-collapse: collapse;">
-                            <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 16px; vertical-align: top;">
-                                    <span class="check-07006">{!! $pilPotensi === 2 ? '&#10003;' : '&nbsp;' !!}</span>
-                                </td>
-                                <td style="border: none; padding: 0 4px 0 0; vertical-align: top;">
-                                    <div style="font-size: 5.9pt; line-height: 1.25; color: #000000;">
-                                        Sesuai dengan posisi saat ini dan masih bisa dikembangkan dengan pengalaman dan pelatihan sesuai matriks.
-                                    </div>
-                                    <div style="font-size: 5.3pt; color: #334155; line-height: 1.2; margin-top: 2px;">
-                                        今の能力よりもまだ発展することができるがトレーニングと経験を高める為に今のままでいい
-                                    </div>
-                                    <div style="border-bottom: 0.8px solid #000000; min-height: 12px; margin-top: 4px; width: 100%;">
-                                        @if($pilPotensi === 2 && !empty($catatanPotensiDisplay))
-                                            <span style="font-size: 6pt; color: #000000;">{{ $catatanPotensiDisplay }}</span>
-                                        @else
-                                            &nbsp;
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <!-- BOX 3: Yang bersangkutan kurang sesuai dengan posisi saat ini -->
-                    <div class="box-07006">
-                        <table style="width: 98%; margin: 0 auto; border: none; border-collapse: collapse;">
-                            <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 16px; vertical-align: top;">
-                                    <span class="check-07006">{!! in_array($pilPotensi, [3, 4]) ? '&#10003;' : '&nbsp;' !!}</span>
-                                </td>
-                                <td style="border: none; padding: 0 4px 0 0; vertical-align: top;">
-                                    <div style="font-size: 6.2pt; line-height: 1.25; color: #000000;">
-                                        Yang bersangkutan kurang sesuai dengan posisi saat ini, dengan alasan :
-                                        <span style="border-bottom: 0.8px solid #000000; display: inline-block; min-width: 60px; padding: 0 2px;">
-                                            {{ in_array($pilPotensi, [3, 4]) && !empty($catatanPotensiDisplay) ? $catatanPotensiDisplay : '' }}
-                                        </span>
-                                    </div>
-                                    <div style="font-size: 5.5pt; color: #334155; line-height: 1.2; margin-top: 2px;">
-                                        能力のキャパーがマックスであり発展する事は出来ないので今のままで残す理由：
-                                    </div>
-                                    <div style="border-bottom: 0.8px solid #000000; min-height: 12px; margin-top: 4px; width: 100%;">
-                                        @if(in_array($pilPotensi, [3, 4]) && !empty($catatanPotensiDisplay) && strlen($catatanPotensiDisplay) > 25)
-                                            <span style="font-size: 6pt; color: #000000;">{{ $catatanPotensiDisplay }}</span>
-                                        @else
-                                            &nbsp;
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-
-                    <!-- Watermark / Footer label as shown in Excel Scan -->
-                    <div style="text-align: center; font-size: 24pt; color: #94a3b8; font-weight: bold; margin-top: 45px; opacity: 0.35; letter-spacing: 1.5px; font-family: 'Arial', sans-serif;">
-                        Page 1
-                    </div>
-
-                </div>
-
-                @else
-                <!-- ======================================================== -->
-                <!-- STANDARD FORM LAYOUT (07-001 s/d 07-004)                 -->
-                <!-- ======================================================== -->
-                <div style="padding: 4px; font-size: 6.2pt;">
+                <!-- 4 PILIHAN POTENSI -->
+                <div style="padding: 2.5px 4px; font-size: 5.9pt;">
                     
                     <!-- Option 1 -->
-                    <div style="margin-bottom: 3.5px;">
+                    <div style="margin-bottom: 2.5px;">
                         <table style="width: 100%; border: none; border-collapse: collapse;">
                             <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 12px; vertical-align: top;">
+                                <td style="border: none; padding: 0 4px 0 0; width: 13px; vertical-align: top;">
                                     <span class="potensi-box {{ $pilPotensi == 1 ? 'checked' : 'unchecked' }}">{!! $pilPotensi == 1 ? '&#10003;' : '&nbsp;' !!}</span>
                                 </td>
                                 <td style="border: none; padding: 0; vertical-align: top;">
-                                    <span style="font-size: 6.2pt; line-height: 1.2;">Memenuhi standard untuk dipromosikan pada level diatasnya, saran pada posisi :</span>
+                                    <div style="font-size: 5.9pt; line-height: 1.15; color: #000000;">
+                                        Memenuhi standard untuk dipromosikan pada level diatasnya, saran pada posisi :
+                                    </div>
+                                    @if($isGol4Up)
+                                    <div style="font-size: 5pt; color: #475569; line-height: 1.1;">
+                                        能力が高く、今より上のレベルの上がれる。お勧めとなる職位は
+                                    </div>
+                                    @endif
                                     <div class="line-underline">
                                         @if($pilPotensi == 1 && !empty($catatanPotensiDisplay))
-                                            <span style="color: #000000; font-weight: normal; font-size: 6.2pt;">{{ $catatanPotensiDisplay }}</span>
+                                            <span style="color: #000000; font-weight: normal; font-size: 5.8pt;">{{ $catatanPotensiDisplay }}</span>
+                                        @elseif($isGol4Up)
+                                            <span style="color: #94a3b8; font-style: italic; font-size: 5.3pt;">Tuliskan saran posisi promosi...</span>
                                         @else
                                             &nbsp;
                                         @endif
@@ -928,17 +858,26 @@
                     </div>
 
                     <!-- Option 2 -->
-                    <div style="margin-bottom: 3.5px;">
+                    <div style="margin-bottom: 2.5px;">
                         <table style="width: 100%; border: none; border-collapse: collapse;">
                             <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 12px; vertical-align: top;">
+                                <td style="border: none; padding: 0 4px 0 0; width: 13px; vertical-align: top;">
                                     <span class="potensi-box {{ $pilPotensi == 2 ? 'checked' : 'unchecked' }}">{!! $pilPotensi == 2 ? '&#10003;' : '&nbsp;' !!}</span>
                                 </td>
                                 <td style="border: none; padding: 0; vertical-align: top;">
-                                    <span style="font-size: 6.2pt; line-height: 1.2;">Sesuai dengan posisi saat ini dan masih bisa dikembangkan dengan pengalaman dan pelatihan sesuai matriks.</span>
+                                    <div style="font-size: 5.9pt; line-height: 1.15; color: #000000;">
+                                        Sesuai dengan posisi saat ini dan masih bisa dikembangkan dengan pengalaman dan pelatihan sesuai matriks.
+                                    </div>
+                                    @if($isGol4Up)
+                                    <div style="font-size: 5pt; color: #475569; line-height: 1.1;">
+                                        今の能力よりもまだ発展することができるがトレーニングと経験を高める為に今のままでいい
+                                    </div>
+                                    @endif
                                     <div class="line-underline">
                                         @if($pilPotensi == 2 && !empty($catatanPotensiDisplay))
-                                            <span style="color: #000000; font-weight: normal; font-size: 6.2pt;">{{ $catatanPotensiDisplay }}</span>
+                                            <span style="color: #000000; font-weight: normal; font-size: 5.8pt;">{{ $catatanPotensiDisplay }}</span>
+                                        @elseif($isGol4Up)
+                                            <span style="color: #94a3b8; font-style: italic; font-size: 5.3pt;">Tuliskan catatan pelatihan / pengembangan...</span>
                                         @else
                                             &nbsp;
                                         @endif
@@ -949,17 +888,26 @@
                     </div>
 
                     <!-- Option 3 -->
-                    <div style="margin-bottom: 3.5px;">
+                    <div style="margin-bottom: 2.5px;">
                         <table style="width: 100%; border: none; border-collapse: collapse;">
                             <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 12px; vertical-align: top;">
+                                <td style="border: none; padding: 0 4px 0 0; width: 13px; vertical-align: top;">
                                     <span class="potensi-box {{ $pilPotensi == 3 ? 'checked' : 'unchecked' }}">{!! $pilPotensi == 3 ? '&#10003;' : '&nbsp;' !!}</span>
                                 </td>
                                 <td style="border: none; padding: 0; vertical-align: top;">
-                                    <span style="font-size: 6.2pt; line-height: 1.2;">Sesuai untuk posisi saat ini dan tidak bisa dikembangkan lagi, alasan :</span>
+                                    <div style="font-size: 5.9pt; line-height: 1.15; color: #000000;">
+                                        Sesuai untuk posisi saat ini dan tidak bisa dikembangkan lagi, alasan :
+                                    </div>
+                                    @if($isGol4Up)
+                                    <div style="font-size: 5pt; color: #475569; line-height: 1.1;">
+                                        今の能力でキャパーマックスであり発展する事は出来ないような理由：
+                                    </div>
+                                    @endif
                                     <div class="line-underline">
                                         @if($pilPotensi == 3 && !empty($catatanPotensiDisplay))
-                                            <span style="color: #000000; font-weight: normal; font-size: 6.2pt;">{{ $catatanPotensiDisplay }}</span>
+                                            <span style="color: #000000; font-weight: normal; font-size: 5.8pt;">{{ $catatanPotensiDisplay }}</span>
+                                        @elseif($isGol4Up)
+                                            <span style="color: #94a3b8; font-style: italic; font-size: 5.3pt;">Tuliskan alasan...</span>
                                         @else
                                             &nbsp;
                                         @endif
@@ -970,17 +918,26 @@
                     </div>
 
                     <!-- Option 4 -->
-                    <div style="margin-bottom: 3.5px;">
+                    <div style="margin-bottom: 2.5px;">
                         <table style="width: 100%; border: none; border-collapse: collapse;">
                             <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 12px; vertical-align: top;">
+                                <td style="border: none; padding: 0 4px 0 0; width: 13px; vertical-align: top;">
                                     <span class="potensi-box {{ $pilPotensi == 4 ? 'checked' : 'unchecked' }}">{!! $pilPotensi == 4 ? '&#10003;' : '&nbsp;' !!}</span>
                                 </td>
                                 <td style="border: none; padding: 0; vertical-align: top;">
-                                    <span style="font-size: 6.2pt; line-height: 1.2;">Yang bersangkutan kurang sesuai dengan posisi saat ini, dengan alasan :</span>
+                                    <div style="font-size: 5.9pt; line-height: 1.15; color: #000000;">
+                                        Yang bersangkutan kurang sesuai dengan posisi saat ini, dengan alasan :
+                                    </div>
+                                    @if($isGol4Up)
+                                    <div style="font-size: 5pt; color: #475569; line-height: 1.1;">
+                                        能力のキャパーがマックスであり発展する事は出来ないので今のままで残す理由：
+                                    </div>
+                                    @endif
                                     <div class="line-underline">
                                         @if($pilPotensi == 4 && !empty($catatanPotensiDisplay))
-                                            <span style="color: #000000; font-weight: normal; font-size: 6.2pt;">{{ $catatanPotensiDisplay }}</span>
+                                            <span style="color: #000000; font-weight: normal; font-size: 5.8pt;">{{ $catatanPotensiDisplay }}</span>
+                                        @elseif($isGol4Up)
+                                            <span style="color: #94a3b8; font-style: italic; font-size: 5.3pt;">Tuliskan alasan...</span>
                                         @else
                                             &nbsp;
                                         @endif
@@ -1033,60 +990,81 @@
 
                     $pdfKelebihanLines = $formatCommentLines($commentMeta['allKelebihan'] ?? [], $indikator['kelebihan'] ?? '');
                     $pdfKekuranganLines = $formatCommentLines($commentMeta['allKekurangan'] ?? [], $indikator['kekurangan'] ?? '');
+
+                    $hasKelebihan = false;
+                    foreach ($pdfKelebihanLines as $l) {
+                        if (trim($l) !== '') { $hasKelebihan = true; break; }
+                    }
+
+                    $hasKekurangan = false;
+                    foreach ($pdfKekuranganLines as $l) {
+                        if (trim($l) !== '') { $hasKekurangan = true; break; }
+                    }
                 @endphp
 
                 <!-- KELEBIHAN KARYAWAN -->
                 <div style="border-top: 1px solid #000000;">
-                    <div class="bg-gray-bar font-bold uppercase text-center" style="padding: 1.5px; font-size: 6.5pt; border-bottom: 1px solid #000000;">
-                        KELEBIHAN KARYAWAN
+                    <div class="bg-gray-bar font-bold uppercase text-center" style="padding: 1.5px; font-size: 6.2pt; border-bottom: 1px solid #000000; background-color: #d9d9d9 !important;">
+                        {{ $isGol4Up ? 'KELEBIHAN KARYAWAN | 従業員のプラス所' : 'KELEBIHAN KARYAWAN' }}
                     </div>
-                    <div style="padding: 2px 4px; height: 56px;">
-                        @foreach($pdfKelebihanLines as $line)
-                            <div class="ruled-line" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @if(trim($line) !== '')
-                                    @php
-                                        $parts = explode(':', $line, 2);
-                                    @endphp
-                                    @if(count($parts) === 2 && str_starts_with($parts[0], 'Dikomentari oleh'))
-                                        <span style="font-weight: bold; color: #1e293b;">{{ $parts[0] }}:</span>
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $parts[1] }}</span>
+                    <div style="padding: 2px 4px; height: 50px;">
+                        @if($hasKelebihan)
+                            @foreach($pdfKelebihanLines as $line)
+                                <div class="ruled-line" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    @if(trim($line) !== '')
+                                        @php
+                                            $parts = explode(':', $line, 2);
+                                        @endphp
+                                        @if(count($parts) === 2 && str_starts_with($parts[0], 'Dikomentari oleh'))
+                                            <span style="font-weight: bold; color: #1e293b;">{{ $parts[0] }}:</span>
+                                            <span style="font-weight: normal; color: #0f172a;">{{ $parts[1] }}</span>
+                                        @else
+                                            <span style="font-weight: normal; color: #0f172a;">{{ $line }}</span>
+                                        @endif
                                     @else
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $line }}</span>
+                                        &nbsp;
                                     @endif
-                                @else
-                                    &nbsp;
-                                @endif
+                                </div>
+                            @endforeach
+                        @else
+                            <div style="text-align: center; color: #94a3b8; font-style: italic; font-size: 6pt; padding-top: 15px;">
+                                ~ Belum ada catatan kelebihan ~
                             </div>
-                        @endforeach
+                        @endif
                     </div>
                 </div>
 
                 <!-- KEKURANGAN KARYAWAN -->
                 <div style="border-top: 1px solid #000000;">
-                    <div class="bg-gray-bar font-bold uppercase text-center" style="padding: 1.5px; font-size: 6.5pt; border-bottom: 1px solid #000000;">
-                        KEKURANGAN KARYAWAN
+                    <div class="bg-gray-bar font-bold uppercase text-center" style="padding: 1.5px; font-size: 6.2pt; border-bottom: 1px solid #000000; background-color: #d9d9d9 !important;">
+                        {{ $isGol4Up ? 'KEKURANGAN KARYAWAN | 従業員のマイナス所' : 'KEKURANGAN KARYAWAN' }}
                     </div>
-                    <div style="padding: 2px 4px; height: 56px;">
-                        @foreach($pdfKekuranganLines as $line)
-                            <div class="ruled-line" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @if(trim($line) !== '')
-                                    @php
-                                        $parts = explode(':', $line, 2);
-                                    @endphp
-                                    @if(count($parts) === 2 && str_starts_with($parts[0], 'Dikomentari oleh'))
-                                        <span style="font-weight: bold; color: #1e293b;">{{ $parts[0] }}:</span>
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $parts[1] }}</span>
+                    <div style="padding: 2px 4px; height: 50px;">
+                        @if($hasKekurangan)
+                            @foreach($pdfKekuranganLines as $line)
+                                <div class="ruled-line" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    @if(trim($line) !== '')
+                                        @php
+                                            $parts = explode(':', $line, 2);
+                                        @endphp
+                                        @if(count($parts) === 2 && str_starts_with($parts[0], 'Dikomentari oleh'))
+                                            <span style="font-weight: bold; color: #1e293b;">{{ $parts[0] }}:</span>
+                                            <span style="font-weight: normal; color: #0f172a;">{{ $parts[1] }}</span>
+                                        @else
+                                            <span style="font-weight: normal; color: #0f172a;">{{ $line }}</span>
+                                        @endif
                                     @else
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $line }}</span>
+                                        &nbsp;
                                     @endif
-                                @else
-                                    &nbsp;
-                                @endif
+                                </div>
+                            @endforeach
+                        @else
+                            <div style="text-align: center; color: #94a3b8; font-style: italic; font-size: 6pt; padding-top: 15px;">
+                                ~ Belum ada catatan kekurangan ~
                             </div>
-                        @endforeach
+                        @endif
                     </div>
                 </div>
-                @endif
 
             </div>
 
