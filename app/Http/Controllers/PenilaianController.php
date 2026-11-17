@@ -7423,20 +7423,9 @@ class PenilaianController extends Controller
                 $isDirectSH = empty($k['nrp_foreman']) || $isGol4UpForm;
 
                 // Evaluation status calculation per role level
-                // Admin & Superadmin: see actual evaluation state — only "dinilai" when there are
-                // real scores in the database AND the workflow has actually progressed past draft
+                // Admin & Superadmin: Yang sudah dinilai adalah yang sudah dinilai oleh Dept Head atau Div Head (final)
                 if ($user->isAdmin() || $user->isSuperadmin() || $user->isHr()) {
-                    // Admin sees the real state: employee is "dinilai" only when actual score data exists
-                    $hasRealScores = !empty($scores) && $calc['grand_total'] > 0;
-                    $hasStoredTotal = !empty($doc) && ($doc['total_nilai'] ?? 0) > 0;
-                    $statusPastDraft = !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']);
-
-                    $isDinilai = !empty($doc) && (
-                        // Has real calculated scores and is past draft
-                        ($hasRealScores && $statusPastDraft)
-                        // Or has a stored total_nilai and status confirms evaluation happened
-                        || ($hasStoredTotal && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']))
-                    );
+                    $isDinilai = !empty($doc) && in_array($status, ['menunggu_div_head', 'selesai']);
                 } elseif ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
                     $isDinilai = !empty($doc) && ($status === 'selesai');
                 } elseif ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
@@ -7487,13 +7476,13 @@ class PenilaianController extends Controller
                         ?? ($calc['grand_total'] > 0 ? $this->calcService->scoreToGrade($calc['grand_total']) : ($doc['grade_original'] ?? '-'));
                 }
 
-                // Only populate numeric values when actual scores exist; use null for "belum dinilai"
-                $hasActualValues = $isDinilai && (($calc['grand_total'] ?? 0) > 0 || ($doc['total_nilai'] ?? 0) > 0);
+                // Populate numeric values when actual scores exist
+                $hasActualValues = (($calc['grand_total'] ?? 0) > 0 || ($doc['total_nilai'] ?? 0) > 0);
                 $totalNilaiVal = $hasActualValues ? (float)($doc['total_nilai'] ?? $calc['grand_total']) : null;
-                $hasilKerjaVal = ($isDinilai && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['hasil_kerja']['weighted_score'] ?? 0.00) : null;
-                $prosesKerjaVal = ($isDinilai && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['proses_kerja']['weighted_score'] ?? 0.00) : null;
-                $sikapKerjaVal = ($isDinilai && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['sikap_kerja']['weighted_score'] ?? 0.00) : null;
-                $manMgtVal = ($isDinilai && $hasManMgt && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['man_management']['weighted_score'] ?? 0.00) : null;
+                $hasilKerjaVal = (($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['hasil_kerja']['weighted_score'] ?? 0.00) : null;
+                $prosesKerjaVal = (($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['proses_kerja']['weighted_score'] ?? 0.00) : null;
+                $sikapKerjaVal = (($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['sikap_kerja']['weighted_score'] ?? 0.00) : null;
+                $manMgtVal = ($hasManMgt && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['man_management']['weighted_score'] ?? 0.00) : null;
             }
 
             if ($filterGrade && strtoupper($filterGrade) !== 'SEMUA') {
@@ -7561,29 +7550,78 @@ class PenilaianController extends Controller
 
             // Values (hasilKerjaVal, etc.) assigned above per role context
 
-            $pkOriginal = '-';
-            $pkDept = '-';
-            $pkDiv = '-';
-            $pkFinal = '-';
+            $isGol4UpForm = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $hasForemanStructure = !empty($k['nrp_foreman']) && !$isGol4UpForm;
 
-            if ($isDinilai) {
-                // PK Original: dari penilaian awal — hanya isi jika ada data grade asli
-                $calcGrade = ($calc['grand_total'] ?? 0) > 0 ? $this->calcService->scoreToGrade($calc['grand_total']) : null;
-                $pkOriginal = $doc['grade_original'] ?? $calcGrade ?? ($grade !== '-' ? $grade : '-');
-
-                // PK Dept: dari review / docking Department Head
-                if (in_array($status, ['menunggu_div_head', 'selesai'])) {
-                    $pkDept = $doc['docking_dept'] ?? $doc['docking_final'] ?? $doc['grade_original'] ?? $pkOriginal;
+            // 1. NILAI PK FOREMAN (JIKA ADA)
+            $pkForeman = '-';
+            if ($hasForemanStructure) {
+                $fScores = ($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : [];
+                if (!empty($fScores)) {
+                    $calcFM = $this->calcService->calculate($kodeForm, $fScores);
+                    $pkForeman = ($calcFM['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcFM['grand_total']) : '-';
+                } elseif (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman'])) {
+                    $pkForeman = $doc['grade_original'] ?? '-';
                 }
-
-                // PK Div: dari review / pengesahan Division Head
-                if ($status === 'selesai') {
-                    $pkDiv = $doc['docking_div'] ?? $doc['docking_final'] ?? $doc['grade_original'] ?? $pkDept;
-                }
-
-                // PK Final: docking final atau predikat resmi yang berlaku saat ini
-                $pkFinal = $doc['docking_final'] ?? ($status === 'selesai' ? ($pkDiv !== '-' ? $pkDiv : $pkDept) : $pkOriginal);
             }
+
+            // 2. NILAI PK SECT (Section Head)
+            $pkSection = '-';
+            if ($isGol4UpForm) {
+                $shScores = ($docId && isset($nilaiByDoc[$docId]['section_head'])) ? $nilaiByDoc[$docId]['section_head'] : (($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : []);
+                if (!empty($shScores)) {
+                    $calcSH = $this->calcService->calculate($kodeForm, $shScores);
+                    $pkSection = ($calcSH['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcSH['grand_total']) : '-';
+                } elseif (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
+                    $pkSection = $doc['grade_original'] ?? '-';
+                }
+            } else {
+                $shScores = ($docId && isset($nilaiByDoc[$docId]['section_head'])) ? $nilaiByDoc[$docId]['section_head'] : [];
+                if (!empty($shScores)) {
+                    $calcSH = $this->calcService->calculate($kodeForm, $shScores);
+                    $pkSection = ($calcSH['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcSH['grand_total']) : '-';
+                } elseif (!$hasForemanStructure && $docId && isset($nilaiByDoc[$docId]['foreman'])) {
+                    $calcSH = $this->calcService->calculate($kodeForm, $nilaiByDoc[$docId]['foreman']);
+                    $pkSection = ($calcSH['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcSH['grand_total']) : '-';
+                } elseif (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
+                    $pkSection = $doc['grade_original'] ?? (($doc['total_nilai'] ?? 0) > 0 ? $this->calcService->scoreToGrade((float)$doc['total_nilai']) : '-');
+                }
+            }
+
+            // 3. NILAI PK DEPT (Department Head)
+            $pkDept = '-';
+            if (in_array($status, ['menunggu_div_head', 'selesai'])) {
+                $dhScores = ($docId && isset($nilaiByDoc[$docId]['dept_head'])) ? $nilaiByDoc[$docId]['dept_head'] : [];
+                if (!empty($dhScores)) {
+                    $calcDH = $this->calcService->calculate($kodeForm, $dhScores);
+                    $calcDeptGrade = ($calcDH['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcDH['grand_total']) : null;
+                } else {
+                    $calcDeptGrade = null;
+                }
+                $pkDept = $doc['docking_dept'] ?? $doc['docking_final'] ?? $calcDeptGrade ?? $doc['grade_original'] ?? ($pkSection !== '-' ? $pkSection : '-');
+            }
+
+            // 4. NILAI PK DIV (Division Head)
+            $pkDiv = '-';
+            if ($status === 'selesai') {
+                $divScores = ($docId && isset($nilaiByDoc[$docId]['div_head'])) ? $nilaiByDoc[$docId]['div_head'] : [];
+                if (!empty($divScores)) {
+                    $calcDiv = $this->calcService->calculate($kodeForm, $divScores);
+                    $calcDivGrade = ($calcDiv['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcDiv['grand_total']) : null;
+                } else {
+                    $calcDivGrade = null;
+                }
+                $pkDiv = $doc['docking_div'] ?? $doc['docking_final'] ?? $calcDivGrade ?? $doc['grade_original'] ?? ($pkDept !== '-' ? $pkDept : '-');
+            }
+
+            // 5. NILAI PK FINAL
+            $pkFinal = '-';
+            if ($status === 'selesai') {
+                $pkFinal = $doc['docking_final'] ?? ($pkDiv !== '-' ? $pkDiv : ($pkDept !== '-' ? $pkDept : '-'));
+            }
+
+            // PK Original (dipertahankan untuk backward compatibility)
+            $pkOriginal = $doc['grade_original'] ?? ($pkSection !== '-' ? $pkSection : ($pkForeman !== '-' ? $pkForeman : '-'));
 
             $employeeRows[] = [
                 'nrp' => $nrp,
@@ -7604,6 +7642,8 @@ class PenilaianController extends Controller
                 'man_management_bobot' => $manMgtVal,
                 'total_nilai' => $totalNilaiVal,
                 'grade' => $grade,
+                'pk_foreman' => $pkForeman,
+                'pk_sect' => $pkSection,
                 'pk_original' => $pkOriginal,
                 'pk_dept' => $pkDept,
                 'pk_div' => $pkDiv,
@@ -8129,15 +8169,8 @@ class PenilaianController extends Controller
                     $docIdVal = $doc['id'] ?? null;
                     $hasNilaiRows = !empty($docIdVal) && isset($nilaiByDoc[$docIdVal]);
                     $docStatus = $doc['status'] ?? '';
-                    $isAdvancedStatus = in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
-
-                    if ($isAdvancedStatus) {
-                        $isRealEvaluated = true;
-                    } elseif ($hasStoredTotal && !in_array($docStatus, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
-                        $isRealEvaluated = true;
-                    } elseif ($hasNilaiRows && !in_array($docStatus, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
-                        $isRealEvaluated = true;
-                    }
+                    // Yang sudah dinilai di Tabel Target & Pemantauan adalah dokumen yang sudah dinilai oleh Dept Head atau Div Head (final)
+                    $isRealEvaluated = in_array($docStatus, ['menunggu_div_head', 'selesai']);
                 }
                 if ($isRealEvaluated) {
                     $dinilai++;
@@ -8326,7 +8359,8 @@ class PenilaianController extends Controller
             'SIKAP KERJA',
             'MAN MANAGEMENT',
             'TOTAL NILAI',
-            'NILAI PK ORIGINAL',
+            'NILAI PK FOREMAN (JIKA ADA)',
+            'NILAI PK SECT',
             'NILAI PK DEPT',
             'NILAI PK DIV',
             'NILAI PK FINAL',
@@ -8348,19 +8382,20 @@ class PenilaianController extends Controller
                 (string)($k['start_work'] ?? '-'),
                 (string)($k['kj'] ?? '-'),
                 (string)($k['sub_gol'] ?? '-'),
-                $k['is_dinilai'] && $k['hasil_kerja_bobot'] !== null ? number_format((float)$k['hasil_kerja_bobot'], 2) : '-',
-                $k['is_dinilai'] && $k['proses_kerja_bobot'] !== null ? number_format((float)$k['proses_kerja_bobot'], 2) : '-',
-                $k['is_dinilai'] && $k['sikap_kerja_bobot'] !== null ? number_format((float)$k['sikap_kerja_bobot'], 2) : '-',
-                $k['is_dinilai'] && $k['man_management_bobot'] !== null ? number_format((float)$k['man_management_bobot'], 2) : '-',
-                $k['is_dinilai'] && $k['total_nilai'] !== null ? number_format((float)$k['total_nilai'], 2) : '-',
-                (string)($k['pk_original'] ?? '-'),
+                $k['hasil_kerja_bobot'] !== null ? number_format((float)$k['hasil_kerja_bobot'], 2) : '-',
+                $k['proses_kerja_bobot'] !== null ? number_format((float)$k['proses_kerja_bobot'], 2) : '-',
+                $k['sikap_kerja_bobot'] !== null ? number_format((float)$k['sikap_kerja_bobot'], 2) : '-',
+                $k['man_management_bobot'] !== null ? number_format((float)$k['man_management_bobot'], 2) : '-',
+                $k['total_nilai'] !== null ? number_format((float)$k['total_nilai'], 2) : '-',
+                (string)($k['pk_foreman'] ?? '-'),
+                (string)($k['pk_sect'] ?? '-'),
                 (string)($k['pk_dept'] ?? '-'),
                 (string)($k['pk_div'] ?? '-'),
                 (string)($k['pk_final'] ?? '-'),
             ];
         }
 
-        $centeredCols = [0, 1, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+        $centeredCols = [0, 1, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
         $xlsxBinary = ExcelKaryawanExporter::buildXlsxBinary('Laporan Penilaian', $headers, $exportRows, $centeredCols);
 
         $deptLabel = $data['filterDept'] ? strtoupper(Str::slug($data['filterDept'], '_')) : 'SEMUA';

@@ -926,7 +926,8 @@
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">Sikap Kerja</th>
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">Man Management</th>
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">Total Nilai</th>
-                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK ORIGINAL</th>
+                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK FOREMAN (JIKA ADA)</th>
+                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK SECT</th>
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK DEPT</th>
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK DIV</th>
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK FINAL</th>
@@ -1013,38 +1014,53 @@
 
                         <!-- Hasil Kerja -->
                         <td class="py-2.5 px-3.5 border-b border-r border-slate-300 text-center font-mono font-semibold text-slate-800 whitespace-nowrap">
-                            {{ $row['is_dinilai'] && $row['hasil_kerja_bobot'] !== null ? number_format($row['hasil_kerja_bobot'], 2) : '-' }}
+                            {{ $row['hasil_kerja_bobot'] !== null ? number_format($row['hasil_kerja_bobot'], 2) : '-' }}
                         </td>
 
                         <!-- Proses Kerja -->
                         <td class="py-2.5 px-3.5 border-b border-r border-slate-300 text-center font-mono font-semibold text-slate-800 whitespace-nowrap">
-                            {{ $row['is_dinilai'] && $row['proses_kerja_bobot'] !== null ? number_format($row['proses_kerja_bobot'], 2) : '-' }}
+                            {{ $row['proses_kerja_bobot'] !== null ? number_format($row['proses_kerja_bobot'], 2) : '-' }}
                         </td>
 
                         <!-- Sikap Kerja -->
                         <td class="py-2.5 px-3.5 border-b border-r border-slate-300 text-center font-mono font-semibold text-slate-800 whitespace-nowrap">
-                            {{ $row['is_dinilai'] && $row['sikap_kerja_bobot'] !== null ? number_format($row['sikap_kerja_bobot'], 2) : '-' }}
+                            {{ $row['sikap_kerja_bobot'] !== null ? number_format($row['sikap_kerja_bobot'], 2) : '-' }}
                         </td>
 
                         <!-- Man Management -->
                         <td class="py-2.5 px-3.5 border-b border-r border-slate-300 text-center font-mono font-semibold text-slate-800 whitespace-nowrap">
-                            {{ $row['is_dinilai'] && $row['man_management_bobot'] !== null ? number_format($row['man_management_bobot'], 2) : '-' }}
+                            {{ $row['man_management_bobot'] !== null ? number_format($row['man_management_bobot'], 2) : '-' }}
                         </td>
 
                         <!-- Total Nilai -->
                         <td class="py-2.5 px-3.5 border-b border-r border-slate-300 text-center font-mono font-black text-slate-900 bg-slate-50/70 whitespace-nowrap">
-                            {{ $row['is_dinilai'] && $row['total_nilai'] !== null ? number_format($row['total_nilai'], 2) : '-' }}
+                            {{ $row['total_nilai'] !== null ? number_format($row['total_nilai'], 2) : '-' }}
                         </td>
 
-                        <!-- NILAI PK ORIGINAL -->
+                        <!-- NILAI PK FOREMAN (JIKA ADA) -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
-                            @if(($row['pk_original'] ?? '-') !== '-')
+                            @if(($row['pk_foreman'] ?? '-') !== '-')
                             <span class="inline-block px-2 py-0.5 border text-xs font-mono font-bold rounded-none
-                                {{ ($row['pk_original'] ?? '') === 'S' ? 'bg-emerald-50 text-emerald-800 border-emerald-400' :
-                                  (($row['pk_original'] ?? '') === 'A' ? 'bg-sky-50 text-sky-800 border-sky-400' :
-                                  (($row['pk_original'] ?? '') === 'B' ? 'bg-amber-50 text-amber-800 border-amber-400' :
-                                  (($row['pk_original'] ?? '') === 'C' ? 'bg-slate-100 text-slate-700 border-slate-400' : 'bg-rose-50 text-rose-800 border-rose-400'))) }}">
-                                {{ $row['pk_original'] }}
+                                {{ ($row['pk_foreman'] ?? '') === 'S' ? 'bg-emerald-50 text-emerald-800 border-emerald-400' :
+                                  (($row['pk_foreman'] ?? '') === 'A' ? 'bg-sky-50 text-sky-800 border-sky-400' :
+                                  (($row['pk_foreman'] ?? '') === 'B' ? 'bg-amber-50 text-amber-800 border-amber-400' :
+                                  (($row['pk_foreman'] ?? '') === 'C' ? 'bg-slate-100 text-slate-700 border-slate-400' : 'bg-rose-50 text-rose-800 border-rose-400'))) }}">
+                                {{ $row['pk_foreman'] }}
+                            </span>
+                            @else
+                            <span class="text-slate-400 font-mono font-bold">-</span>
+                            @endif
+                        </td>
+
+                        <!-- NILAI PK SECT -->
+                        <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
+                            @if(($row['pk_sect'] ?? '-') !== '-')
+                            <span class="inline-block px-2 py-0.5 border text-xs font-mono font-bold rounded-none
+                                {{ ($row['pk_sect'] ?? '') === 'S' ? 'bg-emerald-50 text-emerald-800 border-emerald-400' :
+                                  (($row['pk_sect'] ?? '') === 'A' ? 'bg-sky-50 text-sky-800 border-sky-400' :
+                                  (($row['pk_sect'] ?? '') === 'B' ? 'bg-amber-50 text-amber-800 border-amber-400' :
+                                  (($row['pk_sect'] ?? '') === 'C' ? 'bg-slate-100 text-slate-700 border-slate-400' : 'bg-rose-50 text-rose-800 border-rose-400'))) }}">
+                                {{ $row['pk_sect'] }}
                             </span>
                             @else
                             <span class="text-slate-400 font-mono font-bold">-</span>
