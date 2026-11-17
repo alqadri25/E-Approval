@@ -114,20 +114,29 @@ class SheetRepository implements SheetRepositoryInterface
     }
 
     /**
-     * Fetch all records with caching
+     * Fetch all records with caching (Local SQLite First)
      */
-    public function all(string $table, ?int $cacheTtl = 60): array
+    public function all(string $table, ?int $cacheTtl = 3600): array
     {
         $cacheKey = "sheet_all_{$table}";
-        $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 60);
+        $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 3600);
 
         return Cache::remember($cacheKey, $cacheTtl, function () use ($table) {
             $localTable = $this->getLocalTableName($table);
+
+            // 1. FAST LOCAL-FIRST: Check local SQLite database first (< 1ms)
+            if (Schema::hasTable($localTable)) {
+                $localRows = $this->getFromLocal($table);
+                if (!empty($localRows)) {
+                    return $localRows;
+                }
+            }
+
+            // 2. Fetch fresh data from Google Apps Script Web App only if local DB is empty
             $appscriptTables = [
                 'karyawan', 'dokumen', 'users', 'kuota_departemen', 'nilai', 'indikator', 'tanda_tangan', 'pengaturan', 'audit_log'
             ];
 
-            // 1. Fetch fresh data from Google Apps Script Web App for operational tables
             if ($this->hasAppscript() && in_array($table, $appscriptTables)) {
                 try {
                     $config = GoogleSyncService::getConfig();
@@ -160,7 +169,7 @@ class SheetRepository implements SheetRepositoryInterface
                 }
             }
 
-            // 2. Direct Google Sheets API if service account configured
+            // 3. Direct Google Sheets API if service account configured and local is empty
             if ($this->googleService->isConfigured()) {
                 try {
                     $sheets = $this->googleService->getSheetsService();
@@ -192,7 +201,7 @@ class SheetRepository implements SheetRepositoryInterface
                 }
             }
 
-            // 3. Fallback to local SQLite database (sub-millisecond)
+            // 4. Return local DB (even if empty)
             if (Schema::hasTable($localTable)) {
                 return $this->getFromLocal($table);
             }
@@ -202,7 +211,7 @@ class SheetRepository implements SheetRepositoryInterface
     }
 
     /**
-     * Find single record by column
+     * Find single record by column (Local SQLite First)
      */
     public function find(string $table, string $column, $value): ?array
     {
@@ -213,9 +222,15 @@ class SheetRepository implements SheetRepositoryInterface
             if ($row) {
                 return (array)$row;
             }
+
+            // If the local table exists and has rows, and the record wasn't found,
+            // then it genuinely does not exist! Do NOT make blocking network calls.
+            if (DB::table($localTable)->exists()) {
+                return null;
+            }
         }
 
-        // 2. Secondary check via all() (which fetches fresh Google Sheets data if needed)
+        // 2. Secondary check via all() only if table does not exist or has 0 rows
         $records = $this->all($table);
         foreach ($records as $record) {
             if (isset($record[$column]) && (string)$record[$column] === (string)$value) {
@@ -227,7 +242,7 @@ class SheetRepository implements SheetRepositoryInterface
     }
 
     /**
-     * Filter records matching multiple criteria
+     * Filter records matching multiple criteria (Local SQLite First)
      */
     public function where(string $table, array $criteria): array
     {
@@ -238,13 +253,11 @@ class SheetRepository implements SheetRepositoryInterface
             foreach ($criteria as $col => $val) {
                 $query->where($col, $val);
             }
-            $results = $query->get()->map(fn($r) => (array)$r)->toArray();
-            if (!empty($results)) {
-                return $results;
-            }
+            // Return local database results immediately (even if empty array [])
+            return $query->get()->map(fn($r) => (array)$r)->toArray();
         }
 
-        // 2. Fallback to all()
+        // 2. Fallback to all() only if schema table does not exist
         $records = $this->all($table);
         return array_values(array_filter($records, function ($record) use ($criteria) {
             foreach ($criteria as $col => $val) {
@@ -295,11 +308,16 @@ class SheetRepository implements SheetRepositoryInterface
 
                 // Auto-increment ID if missing and needed
                 if (in_array('id', $columns) && empty($data['id'])) {
-                    $all = $this->all($table, 0);
-                    $maxId = 0;
-                    foreach ($all as $item) {
-                        if (isset($item['id']) && is_numeric($item['id'])) {
-                            $maxId = max($maxId, (int)$item['id']);
+                    $localTable = $this->getLocalTableName($table);
+                    if (Schema::hasTable($localTable)) {
+                        $maxId = (int)DB::table($localTable)->max('id');
+                    } else {
+                        $all = $this->all($table);
+                        $maxId = 0;
+                        foreach ($all as $item) {
+                            if (isset($item['id']) && is_numeric($item['id'])) {
+                                $maxId = max($maxId, (int)$item['id']);
+                            }
                         }
                     }
                     $data['id'] = $maxId + 1;
