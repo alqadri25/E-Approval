@@ -335,7 +335,7 @@
 
                         <!-- NILAI AKHIR / GRADE -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap bg-slate-50/40">
-                            @if(($item->total_nilai ?? 0) > 0)
+                            @if(!in_array($item->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) && ($item->total_nilai ?? 0) > 0)
                                 <div class="font-black text-slate-900 font-mono text-xs">{{ number_format($item->total_nilai, 2) }}</div>
                                 @if(!empty($item->grade_original))
                                     <span class="px-1.5 py-0.2 text-[9.5px] font-bold bg-slate-800 text-white inline-block mt-0.5">{{ $item->grade_original }}</span>

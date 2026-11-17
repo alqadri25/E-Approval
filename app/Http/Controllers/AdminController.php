@@ -3613,9 +3613,9 @@ class AdminController extends Controller
                 'golongan' => $doc->golongan,
                 'kode_form' => $kodeForm,
                 'status' => $doc->status,
-                'total_nilai' => $doc->total_nilai,
-                'grade_original' => $doc->grade_original,
-                'docking_final' => $doc->docking_final,
+                'total_nilai' => in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) ? null : $doc->total_nilai,
+                'grade_original' => in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) ? null : $doc->grade_original,
+                'docking_final' => in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) ? null : $doc->docking_final,
                 'updated_at' => $doc->updated_at,
                 'needs_foreman' => $needsForeman,
 
