@@ -31,12 +31,22 @@ foreach ($tmpDirs as $dir) {
 // Copy pre-seeded SQLite database to writable /tmp
 $dbSource = __DIR__ . '/../database/database.sqlite';
 $tmpDb = '/tmp/database.sqlite';
-if (!file_exists($tmpDb)) {
-    if (file_exists($dbSource)) {
-        @copy($dbSource, $tmpDb);
-    } else {
-        @touch($tmpDb);
+$shouldCopy = !file_exists($tmpDb);
+if (!$shouldCopy && file_exists($dbSource)) {
+    if (filemtime($dbSource) > filemtime($tmpDb) || filesize($dbSource) !== filesize($tmpDb)) {
+        $shouldCopy = true;
     }
+}
+
+if ($shouldCopy && file_exists($dbSource)) {
+    @copy($dbSource, $tmpDb);
+    @touch($tmpDb, filemtime($dbSource));
+    // Clear stale compiled blade views on new deploy / DB update
+    foreach (glob('/tmp/storage/framework/views/*.php') ?: [] as $vFile) {
+        @unlink($vFile);
+    }
+} elseif (!file_exists($tmpDb)) {
+    @touch($tmpDb);
 }
 
 putenv('DB_CONNECTION=sqlite');
