@@ -41,12 +41,16 @@ if (!$shouldCopy && file_exists($dbSource)) {
 if ($shouldCopy && file_exists($dbSource)) {
     @copy($dbSource, $tmpDb);
     @touch($tmpDb, filemtime($dbSource));
-    // Clear stale compiled blade views on new deploy / DB update
-    foreach (glob('/tmp/storage/framework/views/*.php') ?: [] as $vFile) {
-        @unlink($vFile);
-    }
 } elseif (!file_exists($tmpDb)) {
     @touch($tmpDb);
+}
+
+// Always clear stale compiled blade views on new invocations/deploys
+foreach (glob('/tmp/storage/framework/views/*.php') ?: [] as $vFile) {
+    @unlink($vFile);
+}
+foreach (glob('/tmp/views/*.php') ?: [] as $vFile) {
+    @unlink($vFile);
 }
 
 putenv('DB_CONNECTION=sqlite');
