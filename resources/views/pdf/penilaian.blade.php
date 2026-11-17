@@ -282,7 +282,7 @@
                 @else
                 <td class="bg-gray-header text-center font-bold" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; font-size: 5.5pt; vertical-align: middle; line-height: 1.15;">
                     @if($isGol4Up)
-                        Atasan Langsung<br><span style="font-size: 4.8pt; font-weight: normal;">直属の監督者</span>
+                        Atasan Langsung<br><span style="font-size: 4.8pt; font-weight: normal;">直属の上司</span>
                     @else
                         Section Head
                     @endif
@@ -346,7 +346,7 @@
                     @if(!empty($shPdfImg))
                         <img src="{{ $shPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan' : 'Section Head' }}" style="max-height: 48px; max-width: 48px; width: 48px; height: 48px; display: block; margin: 0 auto; padding: 1px;">
                     @else
-                        <span style="color: #94a3b8; font-style: normal; font-size: 6pt;">{{ $isGol4Up ? 'Dept. Head' : 'Belum TTD' }}</span>
+                        <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif
                 </td>
                 @endif
@@ -362,7 +362,7 @@
                     @if(!empty($dhPdfImg))
                         <img src="{{ $dhPdfImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" style="max-height: 48px; max-width: 48px; width: 48px; height: 48px; display: block; margin: 0 auto; padding: 1px;">
                     @else
-                        <span style="color: #94a3b8; font-style: normal; font-size: 6pt;">{{ $isGol4Up ? 'Div. Head' : 'Belum TTD' }}</span>
+                        <span style="color: #cbd5e1; font-style: italic; font-size: 5.5pt;">Belum TTD</span>
                     @endif
                 </td>
                 @endif
@@ -396,7 +396,7 @@
                     <div style="font-size: 5.5pt; color: #0f172a; font-weight: bold; line-height: 1;">DEPARTEMEN / 部門</div>
                 </td>
                 <td style="width: 15.5%; border-right: 1.2px solid #000000; border-bottom: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px 1px;">
-                    <div style="font-size: 5.5pt; color: #0f172a; font-weight: bold; line-height: 1;">DIVISION / 部門</div>
+                    <div style="font-size: 5.5pt; color: #0f172a; font-weight: bold; line-height: 1;">DIVISION</div>
                 </td>
                 @else
                 <td style="width: 15.5%; border-right: 1px solid #000000; border-bottom: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px 1px;">
@@ -471,8 +471,12 @@
                         $rawSignSh = $ttdByLevel['section_head']['user']['nama'] ?? '';
                         $col7Name = !empty($rawSignSh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignSh)) : ($isGol4Up ? ($dhNama ?: '') : $shNama);
                     @endphp
-                    <div style="font-size: 5pt; font-weight: bold; color: #0f172a; line-height: 1;">{{ $col7Name ?: ($isGol4Up ? '' : '-') }}</div>
-                    @if($isGol4Up && empty($col7Name))<div style="font-size: 4.5pt; color: #94a3b8; line-height: 1;">Dept. Head</div>@endif
+                    @if($isGol4Up && empty($rawSignSh))
+                        <div style="font-size: 6.5pt; font-weight: bold; color: #0f172a; line-height: 1;">-</div>
+                        <div style="font-size: 4.5pt; color: #94a3b8; line-height: 1.1; margin-top: 1px;">Dept. Head</div>
+                    @else
+                        <div style="font-size: 5.5pt; font-weight: bold; color: #0f172a; line-height: 1;">{{ $col7Name ?: '-' }}</div>
+                    @endif
                 </td>
                 @endif
                 <!-- Col 8: Dept Head / Div Head Name (rowspan 2 for rows 4 & 5) -->
@@ -491,8 +495,12 @@
                             ? (!empty($rawSignDh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDh)) : $divHeadFallback)
                             : ($isGol4Up ? '' : $dhNama);
                     @endphp
-                    <div style="font-size: 5pt; font-weight: bold; color: #0f172a; line-height: 1;">{{ $col8Name ?: ($isGol4Up ? '' : '-') }}</div>
-                    @if($isGol4Up && empty($col8Name))<div style="font-size: 4.5pt; color: #94a3b8; line-height: 1;">Div. Head</div>@endif
+                    @if($isGol4Up && empty($rawSignDh))
+                        <div style="font-size: 6.5pt; font-weight: bold; color: #0f172a; line-height: 1;">-</div>
+                        <div style="font-size: 4.5pt; color: #94a3b8; line-height: 1.1; margin-top: 1px;">Div. Head</div>
+                    @else
+                        <div style="font-size: 5.5pt; font-weight: bold; color: #0f172a; line-height: 1;">{{ $col8Name ?: '-' }}</div>
+                    @endif
                 </td>
                 @endif
             </tr>
@@ -850,26 +858,26 @@
 
                 <!-- PILIHAN POTENSI -->
                 @if($isGol4Up)
-                <!-- 3 KOTAK PILIHAN POTENSI (SESUAI SCAN EXCEL RESMI FORM 07-006) -->
-                <div style="padding: 2.5px 3.5px; font-size: 5.6pt;">
+                <!-- 4 KOTAK PILIHAN POTENSI BILINGUAL (SESUAI SCAN EXCEL RESMI FORM 07-006) -->
+                <div style="padding: 2px 3px; font-size: 5.3pt;">
                     
                     <!-- Kotak 1 -->
-                    <div style="border: 1px solid #000000; padding: 2px 3px; margin-bottom: 3.5px; background: #ffffff;">
+                    <div style="border: 1px solid #000000; padding: 1.5px 3px; margin-bottom: 2px; background: #ffffff;">
                         <table style="width: 100%; border: none; border-collapse: collapse;">
                             <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 14px; vertical-align: top;">
+                                <td style="border: none; padding: 0 4px 0 0; width: 13px; vertical-align: top;">
                                     <span class="potensi-box {{ $pilPotensi == 1 ? 'checked' : 'unchecked' }}">{!! $pilPotensi == 1 ? '&#10003;' : '&nbsp;' !!}</span>
                                 </td>
                                 <td style="border: none; padding: 0; vertical-align: top;">
-                                    <div style="font-size: 5.6pt; line-height: 1.15; color: #000000;">
+                                    <div style="font-size: 5.3pt; line-height: 1.15; color: #000000;">
                                         Memenuhi standard untuk dipromosikan pada level diatasnya, saran pada posisi :
                                     </div>
-                                    <div style="font-size: 4.9pt; color: #334155; line-height: 1.1;">
-                                        能力が高く、今より上のレベルの上がれる。お勧めとなる職位は
+                                    <div style="font-size: 4.7pt; color: #334155; line-height: 1.1; margin-top: 0.5px;">
+                                        能力が高く、今より上のレベルに上がれる。お勧めとなる職位は
                                     </div>
-                                    <div class="line-underline" style="border-bottom: 0.8px solid #000000; min-height: 10px; margin-top: 1px;">
+                                    <div class="line-underline" style="border-bottom: 0.8px solid #000000; min-height: 9px; margin-top: 1px;">
                                         @if($pilPotensi == 1 && !empty($catatanPotensiDisplay))
-                                            <span style="color: #000000; font-weight: normal; font-size: 5.8pt;">{{ $catatanPotensiDisplay }}</span>
+                                            <span style="color: #000000; font-weight: normal; font-size: 5.5pt;">{{ $catatanPotensiDisplay }}</span>
                                         @else
                                             &nbsp;
                                         @endif
@@ -880,19 +888,22 @@
                     </div>
 
                     <!-- Kotak 2 -->
-                    <div style="border: 1px solid #000000; padding: 2px 3px; margin-bottom: 3.5px; background: #ffffff;">
+                    <div style="border: 1px solid #000000; padding: 1.5px 3px; margin-bottom: 2px; background: #ffffff;">
                         <table style="width: 100%; border: none; border-collapse: collapse;">
                             <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 14px; vertical-align: top;">
+                                <td style="border: none; padding: 0 4px 0 0; width: 13px; vertical-align: top;">
                                     <span class="potensi-box {{ $pilPotensi == 2 ? 'checked' : 'unchecked' }}">{!! $pilPotensi == 2 ? '&#10003;' : '&nbsp;' !!}</span>
                                 </td>
                                 <td style="border: none; padding: 0; vertical-align: top;">
-                                    <div style="font-size: 5.5pt; line-height: 1.15; color: #000000;">
-                                        Sesuai dengan posisi saat ini dan masih bisa dikembangkan dengan pengalaman dan pelatihan sesuai matriks. 今の能力よりもまだ発展することができるがトレーニングと経験を高める為に今のままでいい
+                                    <div style="font-size: 5.3pt; line-height: 1.15; color: #000000;">
+                                        Sesuai dengan posisi saat ini dan masih bisa dikembangkan dengan pengalaman dan pelatihan sesuai matriks.
                                     </div>
-                                    <div class="line-underline" style="border-bottom: 0.8px solid #000000; min-height: 10px; margin-top: 1px;">
+                                    <div style="font-size: 4.7pt; color: #334155; line-height: 1.1; margin-top: 0.5px;">
+                                        今の能力よりもまだ発展することがなるためトレーニングと経験を高める為に今のままでいい
+                                    </div>
+                                    <div class="line-underline" style="border-bottom: 0.8px solid #000000; min-height: 9px; margin-top: 1px;">
                                         @if($pilPotensi == 2 && !empty($catatanPotensiDisplay))
-                                            <span style="color: #000000; font-weight: normal; font-size: 5.8pt;">{{ $catatanPotensiDisplay }}</span>
+                                            <span style="color: #000000; font-weight: normal; font-size: 5.5pt;">{{ $catatanPotensiDisplay }}</span>
                                         @else
                                             &nbsp;
                                         @endif
@@ -903,22 +914,48 @@
                     </div>
 
                     <!-- Kotak 3 -->
-                    <div style="border: 1px solid #000000; padding: 2px 3px; margin-bottom: 2px; background: #ffffff;">
+                    <div style="border: 1px solid #000000; padding: 1.5px 3px; margin-bottom: 2px; background: #ffffff;">
                         <table style="width: 100%; border: none; border-collapse: collapse;">
                             <tr>
-                                <td style="border: none; padding: 0 4px 0 0; width: 14px; vertical-align: top;">
-                                    <span class="potensi-box {{ ($pilPotensi == 3 || $pilPotensi == 4) ? 'checked' : 'unchecked' }}">{!! ($pilPotensi == 3 || $pilPotensi == 4) ? '&#10003;' : '&nbsp;' !!}</span>
+                                <td style="border: none; padding: 0 4px 0 0; width: 13px; vertical-align: top;">
+                                    <span class="potensi-box {{ $pilPotensi == 3 ? 'checked' : 'unchecked' }}">{!! $pilPotensi == 3 ? '&#10003;' : '&nbsp;' !!}</span>
                                 </td>
                                 <td style="border: none; padding: 0; vertical-align: top;">
-                                    <div style="font-size: 5.6pt; line-height: 1.15; color: #000000;">
+                                    <div style="font-size: 5.3pt; line-height: 1.15; color: #000000;">
+                                        Sesuai untuk posisi saat ini dan tidak bisa dikembangkan lagi, alasan :
+                                    </div>
+                                    <div style="font-size: 4.7pt; color: #334155; line-height: 1.1; margin-top: 0.5px;">
+                                        能力のキャパがマックスであり発揮する事は来ないので今のままで残す理由：
+                                    </div>
+                                    <div class="line-underline" style="border-bottom: 0.8px solid #000000; min-height: 9px; margin-top: 1px;">
+                                        @if($pilPotensi == 3 && !empty($catatanPotensiDisplay))
+                                            <span style="color: #000000; font-weight: normal; font-size: 5.5pt;">{{ $catatanPotensiDisplay }}</span>
+                                        @else
+                                            &nbsp;
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Kotak 4 -->
+                    <div style="border: 1px solid #000000; padding: 1.5px 3px; margin-bottom: 1.5px; background: #ffffff;">
+                        <table style="width: 100%; border: none; border-collapse: collapse;">
+                            <tr>
+                                <td style="border: none; padding: 0 4px 0 0; width: 13px; vertical-align: top;">
+                                    <span class="potensi-box {{ $pilPotensi == 4 ? 'checked' : 'unchecked' }}">{!! $pilPotensi == 4 ? '&#10003;' : '&nbsp;' !!}</span>
+                                </td>
+                                <td style="border: none; padding: 0; vertical-align: top;">
+                                    <div style="font-size: 5.3pt; line-height: 1.15; color: #000000;">
                                         Yang bersangkutan kurang sesuai dengan posisi saat ini, dengan alasan :
                                     </div>
-                                    <div style="font-size: 4.9pt; color: #334155; line-height: 1.1;">
-                                        能力のキャパーがマックスであり発展する事は出来ないので今のままで残す理由：
+                                    <div style="font-size: 4.7pt; color: #334155; line-height: 1.1; margin-top: 0.5px;">
+                                        現在の職位に合わない。その理由：
                                     </div>
-                                    <div class="line-underline" style="border-bottom: 0.8px solid #000000; min-height: 10px; margin-top: 1px;">
-                                        @if(($pilPotensi == 3 || $pilPotensi == 4) && !empty($catatanPotensiDisplay))
-                                            <span style="color: #000000; font-weight: normal; font-size: 5.8pt;">{{ $catatanPotensiDisplay }}</span>
+                                    <div class="line-underline" style="border-bottom: 0.8px solid #000000; min-height: 9px; margin-top: 1px;">
+                                        @if($pilPotensi == 4 && !empty($catatanPotensiDisplay))
+                                            <span style="color: #000000; font-weight: normal; font-size: 5.5pt;">{{ $catatanPotensiDisplay }}</span>
                                         @else
                                             &nbsp;
                                         @endif

@@ -8459,9 +8459,20 @@ class PenilaianController extends Controller
                         continue;
                     }
                     $kodeForm = self::determineKodeForm($karyawan);
-                    $initialStatus = (empty($karyawan['nrp_foreman']) || in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']))
-                        ? 'menunggu_section_head'
-                        : 'menunggu_foreman';
+                    $isDiv = $kodeForm === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIV HEAD') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION HEAD');
+                    $isDept = $kodeForm === '07-006-DH' || ($karyawan['level_form'] ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPT HEAD') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPARTMENT HEAD');
+                    $isSect = $kodeForm === '07-006-SH' || ($karyawan['level_form'] ?? '') === 'SECTION_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'SECTION HEAD') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'SECT HEAD');
+                    
+                    if ($isDiv) {
+                        $initialStatus = 'menunggu_div_head';
+                    } elseif ($isDept) {
+                        $initialStatus = 'menunggu_dept_head';
+                    } elseif ($isSect) {
+                        $initialStatus = 'menunggu_section_head';
+                    } else {
+                        $hasForeman = !empty($karyawan['nrp_foreman']) && trim((string)$karyawan['nrp_foreman']) !== '-' && strcasecmp(trim((string)$karyawan['nrp_foreman']), $nrp) !== 0;
+                        $initialStatus = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
+                    }
                     $row['doc_id'] = DB::table('dokumen')->insertGetId([
                         'periode_id' => $periodeId,
                         'nrp' => $nrp,

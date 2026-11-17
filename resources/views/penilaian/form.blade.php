@@ -141,7 +141,15 @@
                     {{ $dokumen['status'] === 'selesai' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 
                       ($dokumen['status'] === 'revisi' ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300') }}">
                     <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $dokumen['status'] === 'selesai' ? 'bg-emerald-500' : ($dokumen['status'] === 'revisi' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse') }}"></span>
-                    {{ strtoupper(str_replace('_', ' ', $dokumen['status'])) }}
+                    {{ match($dokumen['status'] ?? '') {
+                        'menunggu_div_head' => 'MENUNGGU DIVISION HEAD',
+                        'menunggu_dept_head' => 'MENUNGGU DEPARTMENT HEAD',
+                        'menunggu_section_head' => 'MENUNGGU SECTION HEAD',
+                        'menunggu_foreman' => 'MENUNGGU FOREMAN',
+                        'selesai' => 'SELESAI',
+                        'revisi' => 'PERLU REVISI',
+                        default => strtoupper(str_replace('_', ' ', $dokumen['status'] ?? 'DRAFT'))
+                    } }}
                 </span>
             </div>
 

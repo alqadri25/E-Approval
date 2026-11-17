@@ -83,8 +83,20 @@ class DatabaseSyncService
                 $kodeForm = PenilaianController::determineKodeForm($kArray);
                 
                 // Determine appropriate initial status
-                $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
-                $status = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
+                $isDiv = $kodeForm === '07-006-DIV' || ($k->level_form ?? '') === 'DIV_HEAD' || str_contains(strtoupper($k->jabatan ?? ''), 'DIV HEAD') || str_contains(strtoupper($k->jabatan ?? ''), 'DIVISION HEAD');
+                $isDept = $kodeForm === '07-006-DH' || ($k->level_form ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($k->jabatan ?? ''), 'DEPT HEAD') || str_contains(strtoupper($k->jabatan ?? ''), 'DEPARTMENT HEAD');
+                $isSect = $kodeForm === '07-006-SH' || ($k->level_form ?? '') === 'SECTION_HEAD' || str_contains(strtoupper($k->jabatan ?? ''), 'SECTION HEAD') || str_contains(strtoupper($k->jabatan ?? ''), 'SECT HEAD');
+                
+                if ($isDiv) {
+                    $status = 'menunggu_div_head';
+                } elseif ($isDept) {
+                    $status = 'menunggu_dept_head';
+                } elseif ($isSect) {
+                    $status = 'menunggu_section_head';
+                } else {
+                    $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
+                    $status = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
+                }
 
                 DB::table('dokumen')->insert([
                     'periode_id' => $periodeId,
