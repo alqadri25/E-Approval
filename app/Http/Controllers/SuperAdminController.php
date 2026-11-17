@@ -139,14 +139,13 @@ class SuperAdminController extends Controller
             abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
         }
 
+        // Auto sync with master karyawan & clean up phantom accounts so users are always 100% connected
+        \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+        \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
+
         $karyawanNrps = DB::table('karyawan')->pluck('nrp')->map(fn($n) => trim((string)$n))->filter()->toArray();
 
         $allUsers = User::orderBy('id', 'asc')->get();
-
-        if (!$user->isSuperadmin()) {
-            // Admin cannot see or manage Superadmin accounts
-            $allUsers = $allUsers->reject(fn($u) => $u->role === 'superadmin');
-        }
 
         // Only display system administrators and active leadership accounts found in Master Karyawan
         $allUsers = $allUsers->filter(function ($u) use ($karyawanNrps) {
@@ -222,34 +221,22 @@ class SuperAdminController extends Controller
             'SA-001' => ['alias' => 'superadmin@musashi.co.id', 'label' => 'Super Administrator', 'scope' => 'Hak Akses Penuh Sistem'],
         ];
 
-        if (!$user->isSuperadmin()) {
-            unset($loginAliases['SA-001']);
-        }
-
         // Filter role tab & dropdown
         $rawRole = $request->input('role');
         $activeRole = ($rawRole === null || $rawRole === '' || $rawRole === 'semua') ? 'semua' : trim($rawRole);
         $search = trim($request->input('q', '') ?? '');
         $statusFilter = trim($request->input('status', '') ?? '');
 
-        // Reset activeRole if non-superadmin tries to filter superadmin
-        if (!$user->isSuperadmin() && $activeRole === 'superadmin') {
-            $activeRole = 'semua';
-        }
-
         // Tab counts
         $counts = [
             'semua' => $allUsers->count(),
+            'superadmin' => $allUsers->where('role', 'superadmin')->count(),
             'admin' => $allUsers->where('role', 'admin')->count(),
             'foreman' => $allUsers->whereIn('role', ['foreman', 'ketua'])->count(),
             'section_head' => $allUsers->where('role', 'section_head')->count(),
             'dept_head' => $allUsers->where('role', 'department_head')->count(),
             'div_head' => $allUsers->where('role', 'division_head')->count(),
         ];
-
-        if ($user->isSuperadmin()) {
-            $counts['superadmin'] = User::where('role', 'superadmin')->count();
-        }
 
         $filteredUsers = $allUsers;
 

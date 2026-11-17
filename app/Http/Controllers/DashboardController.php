@@ -48,11 +48,74 @@ class DashboardController extends Controller
             $karyawanMap[$k['nrp']] = $k;
         }
 
+        // 1. Bersihkan dokumen orphan dan pastikan setiap karyawan aktif memiliki dokumen
+        $activeNrps = array_unique(array_filter(array_map('strval', array_column($allKaryawan, 'nrp'))));
+        if (!empty($activeNrps)) {
+            $orphanDocIds = DB::table('dokumen')->whereNotIn('nrp', $activeNrps)->pluck('id')->toArray();
+            if (!empty($orphanDocIds)) {
+                if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                DB::table('dokumen')->whereIn('id', $orphanDocIds)->delete();
+                $this->repository->clearCache('dokumen');
+                $this->repository->clearCache('nilai');
+            }
+        }
+
         // 2. Documents query & scores
         $allDocs = $this->repository->all('dokumen');
         $docsByNrp = [];
         foreach ($allDocs as $doc) {
-            $docsByNrp[$doc['nrp']] = $doc;
+            $docsByNrp[(string)$doc['nrp']] = $doc;
+        }
+
+        $missingDocEmployees = [];
+        foreach ($allKaryawan as $k) {
+            $nrpStr = (string)($k['nrp'] ?? '');
+            if ($nrpStr !== '' && !isset($docsByNrp[$nrpStr])) {
+                $missingDocEmployees[] = $k;
+            }
+        }
+
+        if (!empty($missingDocEmployees)) {
+            $maxDocId = (int)(DB::table('dokumen')->max('id') ?? 0);
+            $activePeriodRow = DB::table('periode')->where('status', 'aktif')->first() ?? (object)['id' => 1];
+            $nowStr = now()->toDateTimeString();
+
+            foreach ($missingDocEmployees as $k) {
+                $maxDocId++;
+                $status = 'menunggu_section_head';
+                if (!empty($k['nrp_foreman'])) {
+                    $status = 'menunggu_foreman';
+                } elseif (!empty($k['nrp_section_head'])) {
+                    $status = 'menunggu_section_head';
+                } elseif (!empty($k['nrp_dept_head'])) {
+                    $status = 'menunggu_dept_head';
+                } elseif (!empty($k['nrp_div_head'])) {
+                    $status = 'menunggu_div_head';
+                }
+
+                $newDoc = [
+                    'id' => $maxDocId,
+                    'periode_id' => $activePeriodRow->id ?? 1,
+                    'nrp' => $k['nrp'],
+                    'kode_form' => PenilaianController::determineKodeForm($k),
+                    'status' => $status,
+                    'total_nilai' => null,
+                    'grade_original' => null,
+                    'docking_final' => null,
+                    'kode_verifikasi' => 'VERIF-' . strtoupper(\Illuminate\Support\Str::random(10)),
+                    'created_at' => $nowStr,
+                    'updated_at' => $nowStr,
+                ];
+
+                DB::table('dokumen')->insert($newDoc);
+                $docsByNrp[(string)$k['nrp']] = $newDoc;
+            }
+            $this->repository->clearCache('dokumen');
+            $allDocs = $this->repository->all('dokumen');
         }
 
         $allNilai = $this->repository->all('nilai');
@@ -1603,7 +1666,26 @@ class DashboardController extends Controller
         $uniqueSectionHeads = array_unique(array_filter(array_map(fn($k) => trim((string)($k['nrp_section_head'] ?? '')), $allKaryawan)));
         $totalSectionHeadCount = count($uniqueSectionHeads);
 
-        $totalDinilaiCount = count(array_filter($allDocs, fn($d) => in_array($d['status'] ?? '', ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($d['total_nilai'] ?? 0) > 0));
+        $docIdsWithNilai = DB::table('nilai')->whereNotNull('nilai')->where('nilai', '>', 0)->pluck('dokumen_id')->unique()->toArray();
+        $docIdsWithTtd = DB::table('tanda_tangan')->whereNotNull('signature_data')->where('signature_data', '!=', '')->pluck('dokumen_id')->unique()->toArray();
+
+        $isDocEvaluated = function($doc) use ($docIdsWithNilai, $docIdsWithTtd) {
+            if (!$doc) return false;
+            if (($doc['status'] ?? '') === 'selesai') return true;
+            if (!empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0) return true;
+            if (!empty($doc['docking_final']) || !empty($doc['grade_original'])) return true;
+            $docId = $doc['id'] ?? null;
+            if ($docId && (in_array($docId, $docIdsWithNilai) || in_array($docId, $docIdsWithTtd))) return true;
+            return false;
+        };
+
+        $totalDinilaiCount = 0;
+        foreach ($allKaryawan as $k) {
+            $doc = $docsByNrp[(string)$k['nrp']] ?? null;
+            if ($isDocEvaluated($doc)) {
+                $totalDinilaiCount++;
+            }
+        }
         $totalBelumCount = max(0, $totalKaryawanPerusahaan - $totalDinilaiCount);
         $pctDinilai = $totalKaryawanPerusahaan > 0 ? round(($totalDinilaiCount / $totalKaryawanPerusahaan) * 100) : 0;
         $pctBelum = $totalKaryawanPerusahaan > 0 ? (100 - $pctDinilai) : 0;
@@ -1635,17 +1717,21 @@ class DashboardController extends Controller
             if ($fNrp !== '') {
                 if (!isset($foremenMap[$fNrp])) {
                     $u = $userMap[$fNrp] ?? null;
-                    $div = trim((string)($k['division'] ?? ''));
+                    $leadEmp = $karyawanMap[$fNrp] ?? null;
+                    $nama = $u ? $u->nama : ($leadEmp['nama_lengkap'] ?? ($leadEmp['nama'] ?? ($k['nama_foreman'] ?? "Foreman {$fNrp}")));
+                    $div = trim((string)($leadEmp['division'] ?? ($k['division'] ?? '')));
                     if (empty($div) || $div === '-') {
                         $div = 'PRODUCTION A DIV';
                     }
+                    $dept = $leadEmp['departemen'] ?? ($k['departemen'] ?? 'PROD 2');
+                    $seksi = $leadEmp['seksi'] ?? ($k['seksi'] ?? '');
                     $foremenMap[$fNrp] = [
                         'level' => 'Foreman',
                         'nrp' => $fNrp,
-                        'nama' => $u ? $u->nama : ($k['nama_foreman'] ?? "Foreman {$fNrp}"),
+                        'nama' => $nama,
                         'division' => $div,
-                        'departemen' => $k['departemen'] ?? 'PROD 2',
-                        'seksi' => $k['seksi'] ?? '',
+                        'departemen' => $dept,
+                        'seksi' => $seksi,
                         'count' => 0,
                     ];
                 }
@@ -1661,18 +1747,21 @@ class DashboardController extends Controller
             if ($shNrp !== '') {
                 if (!isset($shMap[$shNrp])) {
                     $u = $userMap[$shNrp] ?? null;
-                    $dept = $k['departemen'] ?? '';
-                    $div = trim((string)($k['division'] ?? ''));
+                    $leadEmp = $karyawanMap[$shNrp] ?? null;
+                    $nama = $u ? $u->nama : ($leadEmp['nama_lengkap'] ?? ($leadEmp['nama'] ?? ($k['nama_section_head'] ?? "Section Head {$shNrp}")));
+                    $dept = $leadEmp['departemen'] ?? ($k['departemen'] ?? 'PROD 2');
+                    $div = trim((string)($leadEmp['division'] ?? ($k['division'] ?? '')));
                     if (empty($div) || $div === '-') {
                         $div = ($dept === 'PROD 4') ? 'PRODUCTION B DIV' : 'PRODUCTION A DIV';
                     }
+                    $seksi = $leadEmp['seksi'] ?? ($k['seksi'] ?? ($dept === 'PROD 1' ? 'ASSEMBLY 1 SEC.' : 'FACTORY'));
                     $shMap[$shNrp] = [
                         'level' => 'Section Head',
                         'nrp' => $shNrp,
-                        'nama' => $u ? $u->nama : ($k['nama_section_head'] ?? "Section Head {$shNrp}"),
+                        'nama' => $nama,
                         'division' => $div,
-                        'departemen' => $dept ?: 'PROD 2',
-                        'seksi' => $k['seksi'] ?? ($dept === 'PROD 1' ? 'ASSEMBLY 1 SEC.' : 'FACTORY'),
+                        'departemen' => $dept,
+                        'seksi' => $seksi,
                         'count' => 0,
                     ];
                 }
@@ -1688,17 +1777,19 @@ class DashboardController extends Controller
             if ($dhNrp !== '') {
                 if (!isset($dhMap[$dhNrp])) {
                     $u = $userMap[$dhNrp] ?? null;
-                    $dept = $k['departemen'] ?? '';
-                    $div = trim((string)($k['division'] ?? ''));
+                    $leadEmp = $karyawanMap[$dhNrp] ?? null;
+                    $nama = $u ? $u->nama : ($leadEmp['nama_lengkap'] ?? ($leadEmp['nama'] ?? ($k['nama_dept_head'] ?? "Dept Head {$dhNrp}")));
+                    $dept = $leadEmp['departemen'] ?? ($k['departemen'] ?? 'PROD 2');
+                    $div = trim((string)($leadEmp['division'] ?? ($k['division'] ?? '')));
                     if (empty($div) || $div === '-') {
                         $div = 'PRODUCTION A DIV';
                     }
                     $dhMap[$dhNrp] = [
                         'level' => 'Dept Head',
                         'nrp' => $dhNrp,
-                        'nama' => $u ? $u->nama : ($k['nama_dept_head'] ?? "Dept Head {$dhNrp}"),
+                        'nama' => $nama,
                         'division' => $div,
-                        'departemen' => $dept ?: 'PROD 1, 3, 4',
+                        'departemen' => $dept,
                         'seksi' => '-',
                         'count' => 0,
                     ];
@@ -1715,17 +1806,19 @@ class DashboardController extends Controller
             if ($divNrp !== '') {
                 if (!isset($divMap[$divNrp])) {
                     $u = $userMap[$divNrp] ?? null;
-                    $dept = $k['departemen'] ?? '';
-                    $div = trim((string)($k['division'] ?? ''));
+                    $leadEmp = $karyawanMap[$divNrp] ?? null;
+                    $nama = $u ? $u->nama : ($leadEmp['nama_lengkap'] ?? ($leadEmp['nama'] ?? ($k['nama_div_head'] ?? "Division Head {$divNrp}")));
+                    $dept = $leadEmp['departemen'] ?? ($k['departemen'] ?? 'PROD 2');
+                    $div = trim((string)($leadEmp['division'] ?? ($k['division'] ?? '')));
                     if (empty($div) || $div === '-') {
-                        $div = ($divNrp === '10') ? 'PRODUCTION B DIV' : (($divNrp === 'DIV-12000') ? 'TECHNICAL DIV' : 'PRODUCTION A DIV');
+                        $div = 'PRODUCTION A DIV';
                     }
                     $divMap[$divNrp] = [
                         'level' => 'Division Head',
                         'nrp' => $divNrp,
-                        'nama' => $u ? $u->nama : ($k['nama_div_head'] ?? "Division Head {$divNrp}"),
+                        'nama' => $nama,
                         'division' => $div,
-                        'departemen' => ($divNrp === '10') ? 'PROD 4' : (($divNrp === 'DIV-11000') ? 'PROD 1' : (($divNrp === 'DIV-12000') ? 'QA' : 'PROD 1, 2, 3')),
+                        'departemen' => $dept,
                         'seksi' => 'Seluruh Seksi',
                         'count' => 0,
                     ];
@@ -1902,8 +1995,8 @@ class DashboardController extends Controller
             $dinilai = 0;
             $deptRealS = 0; $deptRealA = 0; $deptRealB = 0; $deptRealC = 0; $deptRealK = 0;
             foreach ($matchingKaryawan as $mk) {
-                $doc = $docsByNrp[$mk['nrp']] ?? null;
-                if ($doc && (in_array($doc['status'] ?? '', ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($doc['total_nilai'] ?? 0) > 0)) {
+                $doc = $docsByNrp[(string)$mk['nrp']] ?? null;
+                if ($isDocEvaluated($doc)) {
                     $dinilai++;
                     $score = $doc['total_nilai'] ?? 0;
                     $g = $doc['docking_final'] ?? (($score > 0) ? $this->calcService->scoreToGrade($score) : ($doc['grade_original'] ?? 'B'));
@@ -2017,12 +2110,11 @@ class DashboardController extends Controller
             'C' => 0,
             'K' => 0,
         ];
-        foreach ($allDocs as $doc) {
-            $status = $doc['status'] ?? '';
-            $hasScore = ($doc['total_nilai'] ?? 0) > 0;
-            if (in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']) || $hasScore) {
+        foreach ($allKaryawan as $k) {
+            $doc = $docsByNrp[(string)$k['nrp']] ?? null;
+            if ($isDocEvaluated($doc)) {
                 $score = $doc['total_nilai'] ?? 0;
-                $g = $doc['docking_final'] ?? ($hasScore ? $this->calcService->scoreToGrade($score) : ($doc['grade_original'] ?? 'B'));
+                $g = $doc['docking_final'] ?? (($score > 0) ? $this->calcService->scoreToGrade($score) : ($doc['grade_original'] ?? 'B'));
                 if (isset($totalPenilaianCompany[$g])) {
                     $totalPenilaianCompany[$g]++;
                 } else {

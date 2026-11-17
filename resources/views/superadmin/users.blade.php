@@ -53,17 +53,15 @@
     @php
         $tabs = [
             'semua' => ['label' => 'Semua', 'count' => $counts['semua'] ?? 0, 'sub' => 'Total Akun Sistem', 'code' => 'ALL'],
+            'superadmin' => ['label' => 'Super Admin', 'count' => $counts['superadmin'] ?? 0, 'sub' => 'Akses Tertinggi', 'code' => 'SPR'],
+            'admin' => ['label' => 'Admin', 'count' => $counts['admin'] ?? 0, 'sub' => 'Admin Penilaian', 'code' => 'ADM'],
+            'foreman' => ['label' => 'Foreman', 'count' => $counts['foreman'] ?? 0, 'sub' => 'Penilai Tingkat 1', 'code' => 'FRM'],
+            'section_head' => ['label' => 'Section Head', 'count' => $counts['section_head'] ?? 0, 'sub' => 'Penilai Tingkat 2', 'code' => 'SH'],
+            'dept_head' => ['label' => 'Dept. Head', 'count' => $counts['dept_head'] ?? 0, 'sub' => 'Penilai Tingkat 3', 'code' => 'DH'],
+            'div_head' => ['label' => 'Div. Head', 'count' => $counts['div_head'] ?? 0, 'sub' => 'Penilai Final Divisi', 'code' => 'DIV'],
         ];
-        if (Auth::user()->isSuperadmin()) {
-            $tabs['superadmin'] = ['label' => 'Super Admin', 'count' => $counts['superadmin'] ?? 0, 'sub' => 'Akses Tertinggi', 'code' => 'SPR'];
-        }
-        $tabs['admin'] = ['label' => 'Admin', 'count' => $counts['admin'] ?? 0, 'sub' => 'Admin Penilaian', 'code' => 'ADM'];
-        $tabs['foreman'] = ['label' => 'Foreman', 'count' => $counts['foreman'] ?? 0, 'sub' => 'Penilai Tingkat 1', 'code' => 'FRM'];
-        $tabs['section_head'] = ['label' => 'Section Head', 'count' => $counts['section_head'] ?? 0, 'sub' => 'Penilai Tingkat 2', 'code' => 'SH'];
-        $tabs['dept_head'] = ['label' => 'Dept. Head', 'count' => $counts['dept_head'] ?? 0, 'sub' => 'Penilai Tingkat 3', 'code' => 'DH'];
-        $tabs['div_head'] = ['label' => 'Div. Head', 'count' => $counts['div_head'] ?? 0, 'sub' => 'Penilai Final Divisi', 'code' => 'DIV'];
         $currentRoute = request()->routeIs('admin.*') ? 'admin.users' : 'superadmin.users';
-        $gridCols = count($tabs) >= 7 ? 'lg:grid-cols-7' : 'lg:grid-cols-6';
+        $gridCols = 'lg:grid-cols-7';
     @endphp
 
     <div class="grid grid-cols-2 sm:grid-cols-3 {{ $gridCols }} gap-3">
@@ -105,9 +103,7 @@
             <!-- Filter Role (Sebelum Filter Semua Status) -->
             <select name="role" onchange="this.form.submit()" class="py-2 px-3 border border-slate-300 hover:border-slate-400 text-xs font-semibold text-slate-700 bg-white rounded-none focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] transition shadow-xs">
                 <option value="semua" {{ $activeRole === 'semua' ? 'selected' : '' }}>Semua Role</option>
-                @if(Auth::user()->isSuperadmin())
                 <option value="superadmin" {{ $activeRole === 'superadmin' ? 'selected' : '' }}>Super Admin</option>
-                @endif
                 <option value="admin" {{ $activeRole === 'admin' ? 'selected' : '' }}>Admin</option>
                 <option value="foreman" {{ $activeRole === 'foreman' ? 'selected' : '' }}>Foreman</option>
                 <option value="section_head" {{ $activeRole === 'section_head' ? 'selected' : '' }}>Section Head</option>
@@ -179,6 +175,7 @@
                             <span class="inline-flex items-center px-2.5 py-1 text-[11px] font-bold 
                                 @if($u->isSuperadmin()) bg-purple-100 text-purple-900 border border-purple-200
                                 @elseif($u->isAdmin()) bg-blue-100 text-blue-900 border border-blue-200
+                                @elseif($u->isDivisionHead() || in_array($u->role, ['div_head', 'division_head'])) bg-indigo-100 text-indigo-900 border border-indigo-200
                                 @elseif($u->isDepartmentHead()) bg-amber-100 text-amber-900 border border-amber-200
                                 @elseif($u->isSectionHead()) bg-teal-100 text-teal-900 border border-teal-200
                                 @elseif($u->isForeman()) bg-emerald-100 text-emerald-900 border border-emerald-200
@@ -217,6 +214,11 @@
 
                         <!-- Aksi Buttons (Edit, Reset Password, Nonaktifkan) - Compact Icon Buttons -->
                         <td class="py-2.5 px-3 border border-slate-300 text-center whitespace-nowrap">
+                            @if($u->isSuperadmin() && !auth()->user()->isSuperadmin())
+                                <span class="px-2 py-0.5 text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                    Terproteksi
+                                </span>
+                            @else
                             <div class="inline-flex items-center justify-center gap-1.5">
                                 <!-- 1. Edit User (Pencil Icon) -->
                                 <button type="button" 
@@ -291,6 +293,7 @@
                                 </form>
                                 @endif
                             </div>
+                            @endif
                         </td>
                     </tr>
                     @empty
