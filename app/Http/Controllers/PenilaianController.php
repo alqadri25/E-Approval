@@ -7203,12 +7203,14 @@ class PenilaianController extends Controller
                 }
             }
 
-            // Search (NRP, Nama, or Jabatan)
+            // Search (NRP, Nama, Jabatan, Posisi, or Foreman)
             if ($search !== '') {
                 $nrpMatch = stripos($k['nrp'] ?? '', $search) !== false;
                 $namaMatch = stripos($k['nama_lengkap'] ?? '', $search) !== false;
                 $jabatanMatch = stripos($k['jabatan'] ?? '', $search) !== false;
-                if (!$nrpMatch && !$namaMatch && !$jabatanMatch) {
+                $posisiMatch = stripos($k['posisi'] ?? '', $search) !== false;
+                $foremanMatch = stripos($k['nama_foreman'] ?? ($k['foreman_nama'] ?? ''), $search) !== false;
+                if (!$nrpMatch && !$namaMatch && !$jabatanMatch && !$posisiMatch && !$foremanMatch) {
                     return false;
                 }
             }
@@ -7219,9 +7221,16 @@ class PenilaianController extends Controller
         // Hierarchy Cards counts based on the active filtered scope
         $totalKaryawan = count($filteredKaryawan);
 
-        // Foremen
-        $foremanNrps = array_unique(array_filter(array_column($filteredKaryawan, 'nrp_foreman')));
-        $countForemanPenilai = count($foremanNrps);
+        // Foremen: hitung karyawan yang memegang posisi/jabatan Foreman ATAU bertindak sebagai penilai Foreman
+        $foremenByPosition = array_filter($filteredKaryawan, function($k) {
+            $jab = strtoupper($k['jabatan'] ?? '');
+            $pos = strtoupper($k['posisi'] ?? '');
+            return str_contains($jab, 'FOREMAN') || str_contains($pos, 'FOREMAN');
+        });
+        $foremanPositionNrps = array_unique(array_filter(array_column($foremenByPosition, 'nrp')));
+        $foremanEvaluatorNrps = array_unique(array_filter(array_column($filteredKaryawan, 'nrp_foreman')));
+        $allForemanNrps = array_unique(array_merge($foremanPositionNrps, $foremanEvaluatorNrps));
+        $countForemanPenilai = count($allForemanNrps);
         $countBinaanForeman = count(array_filter($filteredKaryawan, fn($k) => !empty($k['nrp_foreman'])));
 
         // Section Heads

@@ -497,8 +497,8 @@
 
 
     @else
-    <!-- Hierarchy Cards (Total Karyawan, Total Section Head, Total Dept Head, Total Div Head + Optional Total Foreman) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 {{ ($hasForeman ?? true) ? 'lg:grid-cols-5' : 'lg:grid-cols-4' }} gap-3">
+    <!-- Hierarchy Cards (Total Karyawan, Total Foreman, Total Section Head, Total Dept Head, Total Div Head) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         
         <!-- Card 1: Total Karyawan -->
         <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
@@ -517,8 +517,7 @@
             </div>
         </div>
 
-        @if($hasForeman ?? true)
-        <!-- Card 2: Total Foreman (Hanya ditampilkan jika terdapat struktur Foreman) -->
+        <!-- Card 2: Total Foreman (Selalu ditampilkan, bernilai 0 jika tidak ada posisi/struktur foreman) -->
         <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Total Foreman</span>
@@ -531,7 +530,6 @@
                 {{ $hierarchyCards['binaan_foreman'] }} karyawan binaan
             </div>
         </div>
-        @endif
 
         <!-- Card 3: Total Section Head -->
         <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
