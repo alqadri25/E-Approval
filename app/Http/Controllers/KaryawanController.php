@@ -742,12 +742,24 @@ class KaryawanController extends Controller
             'nrp_div_head' => $nrpDivVal,
         ];
 
+        // Bersihkan data dokumen/nilai/ttd residual lama untuk NRP ini agar karyawan baru mulai bersih total
+        $oldDocIds = DB::table('dokumen')->where('nrp', $newEmployee['nrp'])->pluck('id')->toArray();
+        if (!empty($oldDocIds)) {
+            if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $oldDocIds)->delete();
+            if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $oldDocIds)->delete();
+            if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $oldDocIds)->delete();
+            if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $oldDocIds)->delete();
+            if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $oldDocIds)->delete();
+            DB::table('dokumen')->whereIn('id', $oldDocIds)->delete();
+            $this->repository->clearCache('dokumen');
+            $this->repository->clearCache('nilai');
+        }
+
         $this->repository->insert('karyawan', $newEmployee);
         $this->repository->clearCache('karyawan');
 
-        if (!empty($hierarchy['auto_create_doc'])) {
-            $this->ensureInitialDocument($newEmployee, $hierarchy['default_status'] ?? 'menunggu_section_head');
-        }
+        // Pastikan SELALU dibuatkan initial document untuk karyawan baru
+        $this->ensureInitialDocument($newEmployee, $hierarchy['default_status'] ?? null);
 
         // Sinkronisasi tambah karyawan ke Google Spreadsheet secara background non-blocking
         if (function_exists('defer')) {
@@ -882,7 +894,10 @@ class KaryawanController extends Controller
 
     private function ensureInitialDocument(array $employee, ?string $status = null): void
     {
-        $exists = DB::table('dokumen')->where('nrp', $employee['nrp'])->exists();
+        $nrp = (string)($employee['nrp'] ?? '');
+        if ($nrp === '') return;
+
+        $exists = DB::table('dokumen')->where('nrp', $nrp)->exists();
         if ($exists) {
             return;
         }
@@ -905,10 +920,14 @@ class KaryawanController extends Controller
             'nrp' => $employee['nrp'],
             'kode_form' => PenilaianController::determineKodeForm($employee),
             'status' => $status,
+            'total_nilai' => null,
+            'grade_original' => null,
+            'docking_final' => null,
             'kode_verifikasi' => 'VERIF-' . strtoupper(Str::random(10)),
             'created_at' => now()->toDateTimeString(),
             'updated_at' => now()->toDateTimeString(),
         ]);
+        $this->repository->clearCache('dokumen');
     }
 
     /**
@@ -1499,8 +1518,8 @@ class KaryawanController extends Controller
                 $karyawanInserts[] = $newEmployee;
                 $dbKaryawanMap[$lowerNrp] = (object)$newEmployee;
 
-                // Automatically create initial appraisal document for direct subordinate
-                if (!empty($hierarchy['auto_create_doc']) && !isset($existingDocNrps[$lowerNrp])) {
+                // Automatically create initial appraisal document for ALL imported employees
+                if (!isset($existingDocNrps[$lowerNrp])) {
                     $maxDocId++;
                     $docStatus = 'menunggu_section_head';
                     if (!empty($nrpForemanVal)) {
@@ -1850,6 +1869,14 @@ class KaryawanController extends Controller
                     DB::table('dokumen')->whereIn('id', $docIds)->delete();
                 }
                 $deletedCount = DB::table('karyawan')->whereIn('nrp', $targetNrps)->delete();
+
+                // Bersihkan record nilai/dokumen orphan yang tidak memiliki induk dokumen/karyawan
+                $remainingDocIds = DB::table('dokumen')->pluck('id')->toArray();
+                if (Schema::hasTable('nilai')) DB::table('nilai')->whereNotIn('dokumen_id', $remainingDocIds)->delete();
+                if (Schema::hasTable('indikator')) DB::table('indikator')->whereNotIn('dokumen_id', $remainingDocIds)->delete();
+                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereNotIn('dokumen_id', $remainingDocIds)->delete();
+                if (Schema::hasTable('signature')) DB::table('signature')->whereNotIn('dokumen_id', $remainingDocIds)->delete();
+                if (Schema::hasTable('history_status')) DB::table('history_status')->whereNotIn('dokumen_id', $remainingDocIds)->delete();
 
                 // If deleting all employees, completely wipe out kuota_departemen and any remaining appraisal records
                 if ($scope === 'all') {

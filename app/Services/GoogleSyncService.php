@@ -1409,6 +1409,17 @@ class GoogleSyncService
                         }
                         if (!empty($sheetNrps)) {
                             DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
+
+                            // Hapus juga dokumen & nilai orphan jika karyawan telah dihapus dari Google Sheets
+                            $orphanDocs = DB::table('dokumen')->whereNotIn('nrp', $sheetNrps)->pluck('id')->toArray();
+                            if (!empty($orphanDocs)) {
+                                if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $orphanDocs)->delete();
+                                if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $orphanDocs)->delete();
+                                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $orphanDocs)->delete();
+                                if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $orphanDocs)->delete();
+                                if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $orphanDocs)->delete();
+                                DB::table('dokumen')->whereIn('id', $orphanDocs)->delete();
+                            }
                         }
                     });
                 }

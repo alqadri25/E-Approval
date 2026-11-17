@@ -6953,13 +6953,77 @@ class PenilaianController extends Controller
     protected function getFilteredLaporanData(Request $request, User $user): array
     {
         $allKaryawan = $this->repository->all('karyawan');
-        $allDocs = $this->repository->all('dokumen');
-        $allNilai = $this->repository->all('nilai');
 
+        // 1. Bersihkan dokumen orphan (yang NRP-nya sudah tidak ada di master karyawan)
+        $activeNrps = array_unique(array_filter(array_map('strval', array_column($allKaryawan, 'nrp'))));
+        if (!empty($activeNrps)) {
+            $orphanDocIds = DB::table('dokumen')->whereNotIn('nrp', $activeNrps)->pluck('id')->toArray();
+            if (!empty($orphanDocIds)) {
+                if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $orphanDocIds)->delete();
+                DB::table('dokumen')->whereIn('id', $orphanDocIds)->delete();
+                $this->repository->clearCache('dokumen');
+                $this->repository->clearCache('nilai');
+            }
+        }
+
+        $allDocs = $this->repository->all('dokumen');
         $docsByNrp = [];
         foreach ($allDocs as $d) {
-            $docsByNrp[$d['nrp']] = $d;
+            $docsByNrp[(string)$d['nrp']] = $d;
         }
+
+        // 2. Pastikan SEMUA karyawan memiliki dokumen (dokumen awal), agar kolom Aksi selalu memiliki doc_id untuk View & PDF
+        $missingDocEmployees = [];
+        foreach ($allKaryawan as $k) {
+            $nrpStr = (string)($k['nrp'] ?? '');
+            if ($nrpStr !== '' && !isset($docsByNrp[$nrpStr])) {
+                $missingDocEmployees[] = $k;
+            }
+        }
+
+        if (!empty($missingDocEmployees)) {
+            $maxDocId = (int)(DB::table('dokumen')->max('id') ?? 0);
+            $activePeriod = DB::table('periode')->where('status', 'aktif')->first() ?? (object)['id' => 1];
+            $now = now()->toDateTimeString();
+
+            foreach ($missingDocEmployees as $k) {
+                $maxDocId++;
+                $status = 'menunggu_section_head';
+                if (!empty($k['nrp_foreman'])) {
+                    $status = 'menunggu_foreman';
+                } elseif (!empty($k['nrp_section_head'])) {
+                    $status = 'menunggu_section_head';
+                } elseif (!empty($k['nrp_dept_head'])) {
+                    $status = 'menunggu_dept_head';
+                } elseif (!empty($k['nrp_div_head'])) {
+                    $status = 'menunggu_div_head';
+                }
+
+                $newDoc = [
+                    'id' => $maxDocId,
+                    'periode_id' => $activePeriod->id ?? 1,
+                    'nrp' => $k['nrp'],
+                    'kode_form' => self::determineKodeForm($k),
+                    'status' => $status,
+                    'total_nilai' => null,
+                    'grade_original' => null,
+                    'docking_final' => null,
+                    'kode_verifikasi' => 'VERIF-' . strtoupper(Str::random(10)),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+
+                DB::table('dokumen')->insert($newDoc);
+                $docsByNrp[(string)$k['nrp']] = $newDoc;
+            }
+            $this->repository->clearCache('dokumen');
+        }
+
+        $allNilai = $this->repository->all('nilai');
 
         $nilaiByDoc = [];
         foreach ($allNilai as $n) {
@@ -7532,13 +7596,13 @@ class PenilaianController extends Controller
                         ?? ($calc['grand_total'] > 0 ? $this->calcService->scoreToGrade($calc['grand_total']) : ($doc['grade_original'] ?? '-'));
                 }
 
-                // Populate numeric values when actual scores exist
+                // Populate numeric values when actual scores exist and document has been evaluated
                 $hasActualValues = (($calc['grand_total'] ?? 0) > 0 || ($doc['total_nilai'] ?? 0) > 0);
-                $totalNilaiVal = $hasActualValues ? (float)($doc['total_nilai'] ?? $calc['grand_total']) : null;
-                $hasilKerjaVal = (($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['hasil_kerja']['weighted_score'] ?? 0.00) : null;
-                $prosesKerjaVal = (($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['proses_kerja']['weighted_score'] ?? 0.00) : null;
-                $sikapKerjaVal = (($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['sikap_kerja']['weighted_score'] ?? 0.00) : null;
-                $manMgtVal = ($hasManMgt && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['man_management']['weighted_score'] ?? 0.00) : null;
+                $totalNilaiVal = ($isDinilai && $hasActualValues) ? (float)($doc['total_nilai'] ?? $calc['grand_total']) : null;
+                $hasilKerjaVal = ($isDinilai && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['hasil_kerja']['weighted_score'] ?? 0.00) : null;
+                $prosesKerjaVal = ($isDinilai && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['proses_kerja']['weighted_score'] ?? 0.00) : null;
+                $sikapKerjaVal = ($isDinilai && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['sikap_kerja']['weighted_score'] ?? 0.00) : null;
+                $manMgtVal = ($isDinilai && $hasManMgt && ($calc['grand_total'] ?? 0) > 0) ? ($calc['groups']['man_management']['weighted_score'] ?? 0.00) : null;
             }
 
             if ($filterGrade && strtoupper($filterGrade) !== 'SEMUA') {
@@ -7625,7 +7689,7 @@ class PenilaianController extends Controller
             $pkSection = '-';
             if ($isGol4UpForm) {
                 $shScores = ($docId && isset($nilaiByDoc[$docId]['section_head'])) ? $nilaiByDoc[$docId]['section_head'] : (($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : []);
-                if (!empty($shScores)) {
+                if (!empty($shScores) && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
                     $calcSH = $this->calcService->calculate($kodeForm, $shScores);
                     $pkSection = ($calcSH['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcSH['grand_total']) : '-';
                 } elseif (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
@@ -7633,10 +7697,10 @@ class PenilaianController extends Controller
                 }
             } else {
                 $shScores = ($docId && isset($nilaiByDoc[$docId]['section_head'])) ? $nilaiByDoc[$docId]['section_head'] : [];
-                if (!empty($shScores)) {
+                if (!empty($shScores) && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
                     $calcSH = $this->calcService->calculate($kodeForm, $shScores);
                     $pkSection = ($calcSH['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcSH['grand_total']) : '-';
-                } elseif (!$hasForemanStructure && $docId && isset($nilaiByDoc[$docId]['foreman'])) {
+                } elseif (!$hasForemanStructure && $docId && isset($nilaiByDoc[$docId]['foreman']) && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
                     $calcSH = $this->calcService->calculate($kodeForm, $nilaiByDoc[$docId]['foreman']);
                     $pkSection = ($calcSH['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcSH['grand_total']) : '-';
                 } elseif (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
