@@ -4348,6 +4348,21 @@ class PenilaianController extends Controller
         $formStructure = $this->calcService->getFormStructure($kodeForm);
         $periode = $sharedAssets['periode'] ?? $this->repository->find('periode', 'id', $dokumen['periode_id'] ?? 1);
 
+        $docStatus = $dokumen['status'] ?? 'draft';
+        $isGol4UpTemp = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+        if (in_array($docStatus, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi'])) {
+            if ($isGol4UpTemp) {
+                $scoresByLevel['section_head'] = [];
+                $scoresByLevel['dept_head'] = [];
+            } else {
+                $scoresByLevel['dept_head'] = [];
+            }
+        } elseif (in_array($docStatus, ['menunggu_dept_head'])) {
+            if ($isGol4UpTemp) {
+                $scoresByLevel['dept_head'] = [];
+            }
+        }
+
         if (isset($sharedAssets['formSettings'])) {
             $formSettings = $sharedAssets['formSettings'];
         } else {

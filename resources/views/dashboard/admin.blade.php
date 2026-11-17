@@ -16,13 +16,23 @@
         
         <!-- Action Buttons (Kelola Karyawan & Sinkron DB) -->
         <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ $user->isSuperadmin() ? route('superadmin.pengaturan') : route('admin.pengaturan') }}" 
+            @if($user->isSuperadmin())
+            <a href="{{ route('superadmin.pengaturan') }}" 
                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-none bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 shadow-xs transition">
                 <svg class="w-3.5 h-3.5 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                 </svg>
-                <span>Sinkron &amp; Database</span>
+                <span>Pengaturan Sistem</span>
             </a>
+            @else
+            <a href="{{ route('admin.historyPenilaian') }}" 
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-none bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/30 shadow-xs transition">
+                <svg class="w-3.5 h-3.5 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>History Penilaian</span>
+            </a>
+            @endif
             <a href="{{ route('admin.karyawan') }}" 
                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-none bg-white hover:bg-slate-100 text-[#92302e] text-xs font-bold shadow-xs transition">
                 <svg class="w-3.5 h-3.5 text-[#92302e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -698,8 +708,8 @@
                     Aturan Kuota &rarr;
                 </a>
                 <span class="text-slate-300">&bull;</span>
-                <a href="{{ route('laporan.index') }}" class="font-bold text-emerald-700 hover:underline">
-                    Buka Laporan Lengkap &rarr;
+                <a href="{{ $user->isSuperadmin() ? route('laporan.index') : route('admin.historyPenilaian') }}" class="font-bold text-emerald-700 hover:underline">
+                    {{ $user->isSuperadmin() ? 'Buka Laporan Lengkap →' : 'Buka History Penilaian →' }}
                 </a>
             </div>
         </div>
