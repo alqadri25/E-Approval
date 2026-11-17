@@ -1,15 +1,5 @@
 # ==========================================
-# Stage 1: Build frontend assets (Vite/Node)
-# ==========================================
-FROM node:22-alpine AS frontend
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-
-# ==========================================
-# Stage 2: FrankenPHP Laravel Runtime
+# FrankenPHP Laravel Runtime
 # ==========================================
 FROM dunglas/frankenphp:1-php8.3-bookworm
 
@@ -46,9 +36,6 @@ ENV PORT=80 \
 # Copy repository files
 COPY . .
 
-# Copy compiled frontend assets from frontend stage
-COPY --from=frontend /app/public/build ./public/build
-
 # Configure optimal OPcache and PHP settings for production
 RUN echo "opcache.enable=1\n\
 opcache.enable_cli=1\n\
@@ -68,7 +55,7 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-di
 COPY Caddyfile /etc/frankenphp/Caddyfile
 
 # Ensure storage, cache, and database directories exist and have proper permissions
-RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+RUN mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache public/build \
     && chmod -R 777 storage bootstrap/cache database
 
 # Precompile Laravel configuration, routes, and views for instantaneous execution
