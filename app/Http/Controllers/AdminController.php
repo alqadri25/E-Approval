@@ -3538,7 +3538,12 @@ class AdminController extends Controller
             $hasForemanValue = (!empty($foremanScores) && $foremanTotal > 0) || $foremanSigned;
 
             // 2. Section Head scores & signature
-            $sectionScores = $scoresByDoc[$docId]['section_head'] ?? [];
+            // Pada Form 07-006 (07-006-SH / Mandiri Section Head): nilai Mandiri ada di slot 'foreman'
+            if ($isGol4Up) {
+                $sectionScores = $scoresByDoc[$docId]['foreman'] ?? [];
+            } else {
+                $sectionScores = $scoresByDoc[$docId]['section_head'] ?? [];
+            }
             $sectionCalc = !empty($sectionScores) ? $calcService->calculate($kodeForm, $sectionScores) : null;
             $sectionTotal = $sectionCalc['grand_total'] ?? 0.00;
             if ($sectionTotal <= 0 && $isGol4Up && !empty($foremanTotal)) {
@@ -3547,13 +3552,22 @@ class AdminController extends Controller
             $sectionSigned = !empty($ttdByDoc[$docId]['section_head'])
                 || ($isGol4Up && !empty($ttdByDoc[$docId]['foreman']))
                 || in_array($doc->status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
-            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi'])) {
+            if (in_array($doc->status, ['menunggu_foreman', 'draft'])) {
                 $sectionSigned = false;
+                $hasSectionValue = false;
+                $sectionTotal = 0.00;
+            } else {
+                $hasSectionValue = (!empty($sectionScores) && $sectionTotal > 0) || $sectionSigned;
             }
-            $hasSectionValue = (!empty($sectionScores) && $sectionTotal > 0) || $sectionSigned;
 
             // 3. Dept Head scores & signature
-            $deptScores = $scoresByDoc[$docId]['dept_head'] ?? [];
+            // Pada Form 07-006: Atasan Langsung (Dept Head) disimpan di slot 'section_head'
+            // Pada Form standar: Dept Head disimpan di slot 'dept_head'
+            if ($isGol4Up) {
+                $deptScores = $scoresByDoc[$docId]['section_head'] ?? [];
+            } else {
+                $deptScores = $scoresByDoc[$docId]['dept_head'] ?? [];
+            }
             $deptCalc = !empty($deptScores) ? $calcService->calculate($kodeForm, $deptScores) : null;
             $deptTotal = $deptCalc['grand_total'] ?? 0.00;
             if ($deptTotal <= 0 && ($doc->total_nilai ?? 0) > 0 && in_array($doc->status, ['menunggu_div_head', 'selesai'])) {
@@ -3562,13 +3576,18 @@ class AdminController extends Controller
             $deptSigned = !empty($ttdByDoc[$docId]['dept_head'])
                 || ($isGol4Up && !empty($ttdByDoc[$docId]['section_head']))
                 || in_array($doc->status, ['menunggu_div_head', 'selesai']);
-            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'menunggu_dept_head', 'revisi'])) {
+
+            // JIKA status masih menunggu foreman / draft / menunggu section head / revisi, Dept Head BELUM mengisi!
+            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi'])) {
                 $deptSigned = false;
+                $hasDeptValue = false;
+                $deptTotal = 0.00;
+            } else {
+                $hasDeptValue = (!empty($deptScores) && $deptTotal > 0) || $deptSigned;
             }
-            $hasDeptValue = (!empty($deptScores) && $deptTotal > 0) || $deptSigned;
 
             // 4. Div Head scores & signature
-            $divScores = $scoresByDoc[$docId]['div_head'] ?? [];
+            $divScores = $scoresByDoc[$docId]['div_head'] ?? ($isGol4Up ? ($scoresByDoc[$docId]['dept_head'] ?? []) : []);
             $divSigned = !empty($ttdByDoc[$docId]['div_head']) || ($doc->status === 'selesai');
             $hasDivValue = !empty($divScores) || $divSigned || ($doc->status === 'selesai' && $isGol4Up);
 
@@ -3760,25 +3779,78 @@ class AdminController extends Controller
         }
         DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->delete();
 
-        // Jika opsi reset nilai dicentang oleh admin, hapus nilai level terkait
-        if ($resetNilai) {
-            DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->delete();
+        // Tentukan tingkat penilaian (nilai) yang HARUS DIHAPUS dari database:
+        // Aturan ketat:
+        // - Revisi ke Section Head (atau Foreman): Nilai Dept Head dan Division Head WAJIB DIHAPUS dari DB!
+        // - Revisi ke Dept Head: Nilai Division Head WAJIB DIHAPUS dari DB!
+        // - Jika opsi $resetNilai dicentang: Nilai pada level target itu sendiri JUGA dihapus bersih!
+        $scoresToWipe = [];
+        if ($isGol4Up) {
+            // Form 07-006:
+            // Slot 'foreman' = Mandiri (Section Head)
+            // Slot 'section_head' = Dept Head
+            // Slot 'dept_head' = Div Head
+            if (in_array($primaryTarget, ['foreman', 'section_head'])) {
+                $scoresToWipe = ['section_head', 'dept_head', 'div_head', 'division_head'];
+                if ($resetNilai) {
+                    $scoresToWipe[] = 'foreman';
+                }
+            } elseif ($primaryTarget === 'dept_head') {
+                $scoresToWipe = ['dept_head', 'div_head', 'division_head'];
+                if ($resetNilai) {
+                    $scoresToWipe[] = 'section_head';
+                }
+            } elseif ($primaryTarget === 'div_head') {
+                if ($resetNilai) {
+                    $scoresToWipe[] = 'dept_head';
+                }
+            }
+        } else {
+            // Form Standar:
+            // Slot 'foreman' = Foreman
+            // Slot 'section_head' = Section Head
+            // Slot 'dept_head' = Dept Head
+            if ($primaryTarget === 'foreman') {
+                $scoresToWipe = ['section_head', 'dept_head', 'div_head', 'division_head'];
+                if ($resetNilai) {
+                    $scoresToWipe[] = 'foreman';
+                }
+            } elseif ($primaryTarget === 'section_head') {
+                $scoresToWipe = ['dept_head', 'div_head', 'division_head'];
+                if ($resetNilai) {
+                    $scoresToWipe[] = 'section_head';
+                }
+            } elseif ($primaryTarget === 'dept_head') {
+                $scoresToWipe = ['div_head', 'division_head'];
+                if ($resetNilai) {
+                    $scoresToWipe[] = 'dept_head';
+                }
+            } elseif ($primaryTarget === 'div_head') {
+                if ($resetNilai) {
+                    $scoresToWipe[] = 'div_head';
+                }
+            }
         }
 
-        // Update status dokumen
-        DB::table('dokumen')->where('id', $id)->update([
-            'status' => $newStatus,
-            'docking_final' => null,
-            'hash_dokumen' => null,
-            'updated_at' => now()->toDateTimeString(),
-        ]);
+        if (!empty($scoresToWipe)) {
+            DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', array_unique($scoresToWipe))->delete();
+        }
 
-        $this->repository->update('dokumen', 'id', $id, [
+        // Update status dokumen & bersihkan nilai akhir jika kembali ke tahap awal
+        $docUpdates = [
             'status' => $newStatus,
             'docking_final' => null,
             'hash_dokumen' => null,
             'updated_at' => now()->toDateTimeString(),
-        ]);
+        ];
+        if (in_array($newStatus, ['menunggu_foreman', 'draft', 'menunggu_section_head'])) {
+            $docUpdates['total_nilai'] = null;
+            $docUpdates['grade_original'] = null;
+        }
+
+        DB::table('dokumen')->where('id', $id)->update($docUpdates);
+
+        $this->repository->update('dokumen', 'id', $id, $docUpdates);
 
         // Clear cache
         $this->repository->clearCache('dokumen');

@@ -2280,12 +2280,54 @@ class PenilaianController extends Controller
             $scoresByLevel[$lvl][$n['aspek_kode']] = (float)$n['skor'];
         }
 
-        // For Division Head doing re-assessment/penyesuaian, pre-fill dept_head with previous evaluator scores if empty
+        $status = $dokumen['status'] ?? 'draft';
+        $isGol4Up = self::isForm07006($kodeForm);
+
+        // STAGE ENFORCEMENT & DISPLAY SANITIZATION
+        // Jika dokumen pada status belum mencapai Dept Head / Div Head, atau jika direvisi kembali ke level bawah,
+        // nilai dan tanda tangan tingkat di atasnya WAJIB KOSONG!
+
+        // 1. Jika dokumen masih tahap Foreman / Draft:
+        if (in_array($status, ['menunggu_foreman', 'draft'])) {
+            $scoresByLevel['section_head'] = [];
+            $scoresByLevel['dept_head'] = [];
+        }
+
+        // 2. Jika dokumen pada tahap Section Head (menunggu_section_head, draft, atau revisi ke section head),
+        // ATAU jika pengguna login sebagai Section Head yang sedang menilai (mandiri atau bawahan):
+        // - Form 07-006: Kolom 2 (Dept Head / slot 'section_head') & Kolom 3 (Div Head / slot 'dept_head') WAJIB KOSONG!
+        // - Form standar: Kolom 3 (Dept Head / slot 'dept_head') WAJIB KOSONG!
+        $isSecHeadStage = in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi'])
+            || ($user->isSectionHead() && ($dokumen['nrp'] === $user->nrp || $user->nrp === ($karyawan['nrp_section_head'] ?? '')));
+
+        if ($isSecHeadStage) {
+            if ($isGol4Up) {
+                $scoresByLevel['section_head'] = [];
+                $scoresByLevel['dept_head'] = [];
+            } else {
+                $scoresByLevel['dept_head'] = [];
+            }
+        }
+
+        // 3. Jika dokumen pada tahap Dept Head (menunggu_dept_head atau revisi ke dept head):
+        // - Form 07-006: Kolom 3 (Div Head / slot 'dept_head') WAJIB KOSONG!
+        $isDeptHeadStage = in_array($status, ['menunggu_dept_head', 'revisi'])
+            || ($user->isDepartmentHead() && ($dokumen['nrp'] === $user->nrp || $user->nrp === ($karyawan['nrp_dept_head'] ?? '')));
+
+        if ($isDeptHeadStage) {
+            if ($isGol4Up) {
+                $scoresByLevel['dept_head'] = [];
+            }
+        }
+
+        // For Division Head doing re-assessment/penyesuaian, pre-fill dept_head with previous evaluator scores ONLY if status is menunggu_div_head or selesai
         if (($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && $dokumen['nrp'] !== $user->nrp && empty($scoresByLevel['dept_head'])) {
-            if (!empty($scoresByLevel['section_head'])) {
-                $scoresByLevel['dept_head'] = $scoresByLevel['section_head'];
-            } elseif (!empty($scoresByLevel['foreman'])) {
-                $scoresByLevel['dept_head'] = $scoresByLevel['foreman'];
+            if (in_array($status, ['menunggu_div_head', 'selesai'])) {
+                if (!empty($scoresByLevel['section_head'])) {
+                    $scoresByLevel['dept_head'] = $scoresByLevel['section_head'];
+                } elseif (!empty($scoresByLevel['foreman'])) {
+                    $scoresByLevel['dept_head'] = $scoresByLevel['foreman'];
+                }
             }
         }
 
@@ -2304,22 +2346,12 @@ class PenilaianController extends Controller
         $commentMeta = self::enrichIndikatorComments($indikator, $dokumen, $karyawan, $user);
 
         // 8b. Clean up stale signatures if document was revised back to an earlier stage
-        $isGol4Up = self::isForm07006($kodeForm);
-        $status = $dokumen['status'] ?? 'draft';
         if (in_array($status, ['menunggu_foreman', 'draft'])) {
             DB::table('tanda_tangan')->where('dokumen_id', $id)->delete();
         } elseif ($status === 'menunggu_section_head') {
-            if ($isGol4Up) {
-                DB::table('tanda_tangan')->where('dokumen_id', $id)->delete();
-            } else {
-                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
-            }
+            DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
         } elseif ($status === 'menunggu_dept_head') {
-            if ($isGol4Up) {
-                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
-            } else {
-                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
-            }
+            DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
         } elseif ($status === 'menunggu_div_head') {
             if ($isGol4Up) {
                 DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
@@ -2330,6 +2362,26 @@ class PenilaianController extends Controller
 
         // 9. Fetch Complete Signatures for all evaluated levels (guaranteed valid Data URIs)
         $ttdByLevel = $this->buildCompleteTtdByLevel($id, $dokumen, $karyawan, $calcForeman, $calcSectionHead, $calcDeptHead);
+
+        // Sanitize signatures by stage: Jangan tampilkan barcode Dept Head / Div Head jika belum saatnya atau sedang direvisi!
+        if ($isSecHeadStage) {
+            if ($isGol4Up) {
+                unset($ttdByLevel['section_head'], $ttdByLevel['dept_head'], $ttdByLevel['div_head']);
+            } else {
+                unset($ttdByLevel['dept_head'], $ttdByLevel['div_head']);
+            }
+            $dokumen['total_nilai'] = null;
+            $dokumen['grade_original'] = null;
+            $dokumen['docking_final'] = null;
+        }
+        if ($isDeptHeadStage) {
+            if ($isGol4Up) {
+                unset($ttdByLevel['dept_head'], $ttdByLevel['div_head']);
+            } else {
+                unset($ttdByLevel['div_head']);
+            }
+            $dokumen['docking_final'] = null;
+        }
 
         // 10. Determine Role Permissions for Editing
         $isDirectSubordinate = !empty($karyawan['nrp_section_head']) && strcasecmp($karyawan['nrp_section_head'], $user->nrp) === 0;
@@ -3689,18 +3741,42 @@ class PenilaianController extends Controller
         }
         DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->delete();
 
-        DB::table('dokumen')->where('id', $id)->update([
+        // Wipe downstream evaluation scores from database (nilai)
+        // Nilai Dept Head dan Division Head wajib kosong jika direvisi ke Section Head / Foreman
+        $scoresToWipe = [];
+        if ($isGol4UpRevisi) {
+            if ($targetLevel === 'dept_head') {
+                $scoresToWipe = ['dept_head', 'div_head', 'division_head'];
+            } else {
+                // Section Head / Foreman target
+                $scoresToWipe = ['section_head', 'dept_head', 'div_head', 'division_head'];
+            }
+        } else {
+            if ($targetLevel === 'dept_head') {
+                $scoresToWipe = ['div_head', 'division_head'];
+            } elseif ($targetLevel === 'section_head') {
+                $scoresToWipe = ['dept_head', 'div_head', 'division_head'];
+            } else {
+                $scoresToWipe = ['section_head', 'dept_head', 'div_head', 'division_head'];
+            }
+        }
+        if (!empty($scoresToWipe)) {
+            DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', array_unique($scoresToWipe))->delete();
+        }
+
+        $docUpdates = [
             'status' => $newStatus,
             'docking_final' => null,
             'hash_dokumen' => null,
             'updated_at' => now()->toDateTimeString(),
-        ]);
-        $this->repository->update('dokumen', 'id', $id, [
-            'status' => $newStatus,
-            'docking_final' => null,
-            'hash_dokumen' => null,
-            'updated_at' => now()->toDateTimeString(),
-        ]);
+        ];
+        if (in_array($newStatus, ['menunggu_foreman', 'draft', 'menunggu_section_head'])) {
+            $docUpdates['total_nilai'] = null;
+            $docUpdates['grade_original'] = null;
+        }
+
+        DB::table('dokumen')->where('id', $id)->update($docUpdates);
+        $this->repository->update('dokumen', 'id', $id, $docUpdates);
 
         // Instantly clear all cache keys
         $this->repository->clearCache('dokumen');
@@ -3778,6 +3854,13 @@ class PenilaianController extends Controller
                 }
             }
             DB::table('tanda_tangan')->where('dokumen_id', $id)->delete();
+
+            // Hapus nilai downstream (atasan) agar saat buka kembali penilaian mandiri, nilai Dept Head & Div Head bersih!
+            if ($isGol4Up) {
+                DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
+            } else {
+                DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', ['section_head', 'dept_head', 'div_head'])->delete();
+            }
         } else {
             // Dokumen Bawahan yang telah difinalisasi
             if ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
