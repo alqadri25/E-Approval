@@ -277,8 +277,8 @@
                     @endif
                 </td>
                 <!-- Col 7: Section Head / Atasan Langsung Header -->
-                @if(!$isGol4Up && ($subFormVariant === 'div_head' || $subFormVariant === 'dept_head'))
-                <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000;"></td>
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_head')
+                <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
                 @else
                 <td class="bg-gray-header text-center font-bold" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; font-size: 5.5pt; vertical-align: middle; line-height: 1.15;">
                     @if($isGol4Up)
@@ -289,8 +289,8 @@
                 </td>
                 @endif
                 <!-- Col 8: Dept Head / Penilai Final Header -->
-                @if(!$isGol4Up && $subFormVariant === 'div_head')
-                <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: none;"></td>
+                @if($subFormVariant === 'div_head')
+                <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: none; background-color: #bfbfbf !important;"></td>
                 @else
                 <td class="bg-gray-header text-center font-bold" style="width: 8%; border-bottom: 1px solid #000000; border-right: none; padding: 2px 1px; font-size: 5.5pt; vertical-align: middle; line-height: 1.15;">
                     @if($isGol4Up)
@@ -336,8 +336,8 @@
                 </td>
 
                 <!-- Col 7: Section Head / Atasan Langsung Signature (rowspan 2 for rows 2 & 3) -->
-                @if(!$isGol4Up && ($subFormVariant === 'div_head' || $subFormVariant === 'dept_head'))
-                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000;"></td>
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_head')
+                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
                 @else
                 <td rowspan="2" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
@@ -352,8 +352,8 @@
                 @endif
 
                 <!-- Col 8: Dept Head / Penilai Final Signature (rowspan 2 for rows 2 & 3) -->
-                @if(!$isGol4Up && $subFormVariant === 'div_head')
-                <td rowspan="2" class="bg-blocked-gray" style="border-right: none; border-bottom: 1px solid #000000;"></td>
+                @if($subFormVariant === 'div_head')
+                <td rowspan="2" class="bg-blocked-gray" style="border-right: none; border-bottom: 1px solid #000000; background-color: #bfbfbf !important;"></td>
                 @else
                 <td rowspan="2" style="border-right: none; border-bottom: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
@@ -463,8 +463,8 @@
                     @endif
                 </td>
                 <!-- Col 7: Section Head / Dept Head Name (rowspan 2 for rows 4 & 5) -->
-                @if(!$isGol4Up && ($subFormVariant === 'div_head' || $subFormVariant === 'dept_head'))
-                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000;"></td>
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_head')
+                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
                 @else
                 <td rowspan="2" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
@@ -476,8 +476,8 @@
                 </td>
                 @endif
                 <!-- Col 8: Dept Head / Div Head Name (rowspan 2 for rows 4 & 5) -->
-                @if(!$isGol4Up && $subFormVariant === 'div_head')
-                <td rowspan="2" class="bg-blocked-gray" style="border-right: none; border-bottom: 1.5px solid #000000;"></td>
+                @if($subFormVariant === 'div_head')
+                <td rowspan="2" class="bg-blocked-gray" style="border-right: none; border-bottom: 1.5px solid #000000; background-color: #bfbfbf !important;"></td>
                 @else
                 <td rowspan="2" style="border-right: none; border-bottom: 1.5px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
