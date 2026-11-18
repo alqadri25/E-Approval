@@ -1140,21 +1140,25 @@
                     <div class="bg-gray-bar font-bold uppercase text-center" style="padding: 1.5px; font-size: 6.2pt; border-bottom: 1px solid #000000; background-color: #d9d9d9 !important;">
                         {{ $isGol4Up ? 'KELEBIHAN KARYAWAN | 従業員のプラス所' : 'KELEBIHAN KARYAWAN' }}
                     </div>
-                    <div style="padding: 1px 3px; min-height: 72px;">
-                        @foreach($pdfKelebihanLines as $line)
-                            <div class="ruled-line" style="overflow: hidden; height: 14px; line-height: 14px;">
-                                @if($line)
-                                    @if(!empty($line['prefix']))
-                                        <span style="font-weight: bold; color: #1e293b;">{{ $line['prefix'] }}</span>
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $line['text'] }}</span>
-                                    @else
-                                        <span style="font-weight: normal; color: #0f172a; padding-left: 8px;">{{ $line['text'] }}</span>
-                                    @endif
-                                @else
-                                    &nbsp;
-                                @endif
-                            </div>
-                        @endforeach
+                    <div style="padding: 0; min-height: 70px;">
+                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; padding: 0;">
+                            @foreach($pdfKelebihanLines as $line)
+                                <tr>
+                                    <td style="border-bottom: 0.8px solid #cbd5e1; height: 14px; padding: 0 4px; vertical-align: middle; font-size: 6.2pt; line-height: 1.1; white-space: nowrap;">
+                                        @if($line)
+                                            @if(!empty($line['prefix']))
+                                                <span style="font-weight: bold; color: #1e293b;">{{ $line['prefix'] }}</span>
+                                                <span style="font-weight: normal; color: #0f172a;">{{ $line['text'] }}</span>
+                                            @else
+                                                <span style="font-weight: normal; color: #0f172a; padding-left: 8px;">{{ $line['text'] }}</span>
+                                            @endif
+                                        @else
+                                            &nbsp;
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </table>
                     </div>
                 </div>
 
@@ -1163,21 +1167,25 @@
                     <div class="bg-gray-bar font-bold uppercase text-center" style="padding: 1.5px; font-size: 6.2pt; border-bottom: 1px solid #000000; background-color: #d9d9d9 !important;">
                         {{ $isGol4Up ? 'KEKURANGAN KARYAWAN | 従業員のマイナス所' : 'KEKURANGAN KARYAWAN' }}
                     </div>
-                    <div style="padding: 1px 3px; min-height: 72px;">
-                        @foreach($pdfKekuranganLines as $line)
-                            <div class="ruled-line" style="overflow: hidden; height: 14px; line-height: 14px;">
-                                @if($line)
-                                    @if(!empty($line['prefix']))
-                                        <span style="font-weight: bold; color: #1e293b;">{{ $line['prefix'] }}</span>
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $line['text'] }}</span>
-                                    @else
-                                        <span style="font-weight: normal; color: #0f172a; padding-left: 8px;">{{ $line['text'] }}</span>
-                                    @endif
-                                @else
-                                    &nbsp;
-                                @endif
-                            </div>
-                        @endforeach
+                    <div style="padding: 0; min-height: 70px;">
+                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; padding: 0;">
+                            @foreach($pdfKekuranganLines as $line)
+                                <tr>
+                                    <td style="border-bottom: 0.8px solid #cbd5e1; height: 14px; padding: 0 4px; vertical-align: middle; font-size: 6.2pt; line-height: 1.1; white-space: nowrap;">
+                                        @if($line)
+                                            @if(!empty($line['prefix']))
+                                                <span style="font-weight: bold; color: #1e293b;">{{ $line['prefix'] }}</span>
+                                                <span style="font-weight: normal; color: #0f172a;">{{ $line['text'] }}</span>
+                                            @else
+                                                <span style="font-weight: normal; color: #0f172a; padding-left: 8px;">{{ $line['text'] }}</span>
+                                            @endif
+                                        @else
+                                            &nbsp;
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </table>
                     </div>
                 </div>
 
