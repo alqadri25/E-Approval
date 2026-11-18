@@ -12,7 +12,7 @@ class SyncGoogleRowCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'google:sync-row {action : upsert, delete, or sync_all} {--nrp= : Employee NRP}';
+    protected $signature = 'google:sync-row {action : upsert, delete, sync_all, or upload_pdf} {--nrp= : Employee NRP} {--doc-id= : Document ID for PDF upload}';
 
     /**
      * The console command description.
@@ -35,6 +35,21 @@ class SyncGoogleRowCommand extends Command
                 return Command::SUCCESS;
             }
             $this->error("Failed syncing all tables: " . ($res['error'] ?? 'Unknown error'));
+            return Command::FAILURE;
+        }
+
+        if ($action === 'upload_pdf') {
+            $docId = (int)$this->option('doc-id');
+            if ($docId <= 0) {
+                $this->error('Option --doc-id is required for upload_pdf action.');
+                return Command::FAILURE;
+            }
+            $res = GoogleSyncService::uploadPdfToDrive($docId);
+            if ($res['success'] ?? false) {
+                $this->info("Successfully uploaded PDF for Document ID {$docId} to Google Drive.");
+                return Command::SUCCESS;
+            }
+            $this->error("Failed uploading PDF for Document ID {$docId}: " . ($res['error'] ?? $res['message'] ?? 'Unknown error'));
             return Command::FAILURE;
         }
 

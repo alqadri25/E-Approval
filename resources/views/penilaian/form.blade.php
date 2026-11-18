@@ -1969,15 +1969,12 @@
                         </div>
                     </div>
 
-                    <!-- Barcode Tanda Tangan Digital Section (Otomatis dari Sheet Users) -->
+                    <!-- Barcode Tanda Tangan Digital Section -->
                     <div class="space-y-3">
                         <div class="p-3.5 bg-slate-50 border border-slate-300 rounded-xl space-y-3">
                             <div class="flex items-center justify-between">
                                 <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                                     <span class="text-emerald-600 font-black">✓</span> Barcode Tanda Tangan Anda Siap
-                                </span>
-                                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded">
-                                    Tersinkronisasi dari Sheet Users
                                 </span>
                             </div>
 
@@ -1996,7 +1993,7 @@
                                 </div>
                             </div>
                             <p class="text-[11px] text-slate-500 text-center">
-                                Tanda tangan ini dibuat secara otomatis dari data akun Anda di sheet <strong>users</strong> (<code class="text-xs font-mono font-bold text-[#92302e]">barcodettd</code>) tanpa perlu mengunggah berkas tanda tangan manual.
+                                Tanda tangan digital resmi terverifikasi yang siap dibubuhkan langsung pada dokumen penilaian ini.
                             </p>
                         </div>
                     </div>

@@ -1066,56 +1066,73 @@
                 @endif
 
                 @php
-                    $formatCommentLines = function(array $commentList, ?string $fallback = '') {
+                    $formatCommentLines = function(array $commentList, ?string $fallback = '', int $maxLines = 5, int $charsPerLine = 48) {
                         $lines = [];
                         if (!empty($commentList)) {
-                            $totalComments = count($commentList);
                             foreach ($commentList as $item) {
-                                $roleLabel = $item['role_label'] ?? 'Penilai';
-                                $prefix = 'Dikomentari oleh ' . $roleLabel . ': ';
+                                $roleKey = strtolower($item['role'] ?? '');
+                                $roleShort = match($roleKey) {
+                                    'foreman' => 'Foreman',
+                                    'section_head' => 'Section Head',
+                                    'dept_head' => 'Dept. Head',
+                                    'div_head' => 'Div. Head',
+                                    default => ($item['role_label'] ?? 'Penilai')
+                                };
+                                $prefix = '• ' . $roleShort . ': ';
                                 $text = trim((string)($item['text'] ?? ''));
                                 if ($text === '') continue;
 
-                                if ($totalComments === 1 && mb_strlen($prefix . $text) > 55) {
-                                    $wrapped = wordwrap($prefix . $text, 55, "\n", true);
-                                    foreach (explode("\n", $wrapped) as $w) {
-                                        $lines[] = $w;
-                                    }
-                                } elseif ($totalComments === 2 && mb_strlen($prefix . $text) > 55 && count($lines) < 2) {
-                                    $wrapped = wordwrap($prefix . $text, 55, "\n", true);
-                                    foreach (explode("\n", $wrapped) as $w) {
-                                        $lines[] = $w;
-                                    }
+                                $fullComment = $prefix . $text;
+                                if (mb_strlen($fullComment) <= $charsPerLine) {
+                                    $lines[] = [
+                                        'prefix' => $prefix,
+                                        'text' => $text,
+                                    ];
                                 } else {
-                                    $lines[] = $prefix . $text;
+                                    $firstLineMaxTextLen = max(10, $charsPerLine - mb_strlen($prefix));
+                                    $wrapped = wordwrap($text, $firstLineMaxTextLen, "\n", true);
+                                    $parts = explode("\n", $wrapped);
+                                    
+                                    $lines[] = [
+                                        'prefix' => $prefix,
+                                        'text' => array_shift($parts),
+                                    ];
+
+                                    $subsequentText = implode(' ', $parts);
+                                    if (trim($subsequentText) !== '') {
+                                        $subWrapped = wordwrap($subsequentText, $charsPerLine - 4, "\n", true);
+                                        foreach (explode("\n", $subWrapped) as $subLine) {
+                                            if (count($lines) >= $maxLines) break;
+                                            $lines[] = [
+                                                'prefix' => '',
+                                                'text' => $subLine,
+                                            ];
+                                        }
+                                    }
                                 }
+                                if (count($lines) >= $maxLines) break;
                             }
                         } elseif (!empty($fallback)) {
-                            $wrapped = wordwrap(trim($fallback), 55, "\n", true);
-                            foreach (explode("\n", $wrapped) as $w) {
-                                $lines[] = $w;
+                            $wrapped = wordwrap(trim($fallback), $charsPerLine, "\n", true);
+                            foreach (explode("\n", $wrapped) as $idx => $w) {
+                                if (count($lines) >= $maxLines) break;
+                                $lines[] = [
+                                    'prefix' => ($idx === 0 ? '• ' : ''),
+                                    'text' => $w,
+                                ];
                             }
                         }
 
-                        $result = array_slice($lines, 0, 4);
-                        while (count($result) < 4) {
-                            $result[] = '';
+                        $result = array_slice($lines, 0, $maxLines);
+                        while (count($result) < $maxLines) {
+                            $result[] = null;
                         }
                         return $result;
                     };
 
-                    $pdfKelebihanLines = $formatCommentLines($commentMeta['allKelebihan'] ?? [], $indikator['kelebihan'] ?? '');
-                    $pdfKekuranganLines = $formatCommentLines($commentMeta['allKekurangan'] ?? [], $indikator['kekurangan'] ?? '');
-
-                    $hasKelebihan = false;
-                    foreach ($pdfKelebihanLines as $l) {
-                        if (trim($l) !== '') { $hasKelebihan = true; break; }
-                    }
-
-                    $hasKekurangan = false;
-                    foreach ($pdfKekuranganLines as $l) {
-                        if (trim($l) !== '') { $hasKekurangan = true; break; }
-                    }
+                    $slotCount = 5;
+                    $pdfKelebihanLines = $formatCommentLines($commentMeta['allKelebihan'] ?? [], $indikator['kelebihan'] ?? '', $slotCount, 48);
+                    $pdfKekuranganLines = $formatCommentLines($commentMeta['allKekurangan'] ?? [], $indikator['kekurangan'] ?? '', $slotCount, 48);
                 @endphp
 
                 <!-- KELEBIHAN KARYAWAN -->
@@ -1123,18 +1140,15 @@
                     <div class="bg-gray-bar font-bold uppercase text-center" style="padding: 1.5px; font-size: 6.2pt; border-bottom: 1px solid #000000; background-color: #d9d9d9 !important;">
                         {{ $isGol4Up ? 'KELEBIHAN KARYAWAN | 従業員のプラス所' : 'KELEBIHAN KARYAWAN' }}
                     </div>
-                    <div style="padding: 1px 3px; height: 52px;">
+                    <div style="padding: 1px 3px; min-height: 72px;">
                         @foreach($pdfKelebihanLines as $line)
-                            <div class="ruled-line" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @if(trim($line) !== '')
-                                    @php
-                                        $parts = explode(':', $line, 2);
-                                    @endphp
-                                    @if(count($parts) === 2 && str_starts_with($parts[0], 'Dikomentari oleh'))
-                                        <span style="font-weight: bold; color: #1e293b;">{{ $parts[0] }}:</span>
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $parts[1] }}</span>
+                            <div class="ruled-line" style="overflow: hidden; height: 14px; line-height: 14px;">
+                                @if($line)
+                                    @if(!empty($line['prefix']))
+                                        <span style="font-weight: bold; color: #1e293b;">{{ $line['prefix'] }}</span>
+                                        <span style="font-weight: normal; color: #0f172a;">{{ $line['text'] }}</span>
                                     @else
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $line }}</span>
+                                        <span style="font-weight: normal; color: #0f172a; padding-left: 8px;">{{ $line['text'] }}</span>
                                     @endif
                                 @else
                                     &nbsp;
@@ -1149,18 +1163,15 @@
                     <div class="bg-gray-bar font-bold uppercase text-center" style="padding: 1.5px; font-size: 6.2pt; border-bottom: 1px solid #000000; background-color: #d9d9d9 !important;">
                         {{ $isGol4Up ? 'KEKURANGAN KARYAWAN | 従業員のマイナス所' : 'KEKURANGAN KARYAWAN' }}
                     </div>
-                    <div style="padding: 1px 3px; height: 52px;">
+                    <div style="padding: 1px 3px; min-height: 72px;">
                         @foreach($pdfKekuranganLines as $line)
-                            <div class="ruled-line" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                @if(trim($line) !== '')
-                                    @php
-                                        $parts = explode(':', $line, 2);
-                                    @endphp
-                                    @if(count($parts) === 2 && str_starts_with($parts[0], 'Dikomentari oleh'))
-                                        <span style="font-weight: bold; color: #1e293b;">{{ $parts[0] }}:</span>
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $parts[1] }}</span>
+                            <div class="ruled-line" style="overflow: hidden; height: 14px; line-height: 14px;">
+                                @if($line)
+                                    @if(!empty($line['prefix']))
+                                        <span style="font-weight: bold; color: #1e293b;">{{ $line['prefix'] }}</span>
+                                        <span style="font-weight: normal; color: #0f172a;">{{ $line['text'] }}</span>
                                     @else
-                                        <span style="font-weight: normal; color: #0f172a;">{{ $line }}</span>
+                                        <span style="font-weight: normal; color: #0f172a; padding-left: 8px;">{{ $line['text'] }}</span>
                                     @endif
                                 @else
                                     &nbsp;

@@ -849,6 +849,27 @@ class GoogleSyncService
     }
 
     /**
+     * Non-blocking Async Dispatch for PDF Upload to Google Drive.
+     * Generates and uploads PDF in background immediately (< 5ms response time).
+     */
+    public static function uploadPdfToDriveAsync(int $dokumenId): void
+    {
+        try {
+            $artisanPath = base_path('artisan');
+
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                $cmd = "start /B \"\" php \"{$artisanPath}\" google:sync-row upload_pdf --doc-id={$dokumenId} > NUL 2>&1";
+                pclose(popen($cmd, "r"));
+            } else {
+                $cmd = "php \"{$artisanPath}\" google:sync-row upload_pdf --doc-id={$dokumenId} > /dev/null 2>&1 &";
+                exec($cmd);
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Async Google uploadPdfToDrive launch failed: " . $e->getMessage());
+        }
+    }
+
+    /**
      * Pull specific table data from Google Spreadsheet
      */
     public static function pullTable(string $table): array

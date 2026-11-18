@@ -3552,104 +3552,99 @@ class PenilaianController extends Controller
             $user->save();
         }
 
-        // 4. Save Scores to 'nilai'
-        if ($subFormVariant === 'div_head' && $dokumen['nrp'] === $user->nrp) {
-            $this->persistScores($id, 'dept_head', $scores);
-            $this->persistScores($id, 'foreman', $scores);
-            $signLevel = 'foreman';
-        } else {
-            $this->persistScores($id, $level, $scores);
-            $signLevel = $level;
-        }
+        // 4 - 9. Wrap entire persistence logic in withoutSync to eliminate all synchronous remote HTTP overhead
+        \App\Repositories\SheetRepository::withoutSync(function () use ($id, $scores, $subFormVariant, $dokumen, $user, $level, $signLevel, $request, $hashSnapshot, $signaturePath, &$nextStatus, &$levelTitle) {
+            // 4. Save Scores to 'nilai'
+            if ($subFormVariant === 'div_head' && $dokumen['nrp'] === $user->nrp) {
+                $this->persistScores($id, 'dept_head', $scores);
+                $this->persistScores($id, 'foreman', $scores);
+                $signLevel = 'foreman';
+            } else {
+                $this->persistScores($id, $level, $scores);
+                $signLevel = $level;
+            }
 
-        // 5. Save Indikator
-        $this->persistIndikator($id, $this->extractIndikatorPayload($request), $user);
+            // 5. Save Indikator
+            $this->persistIndikator($id, $this->extractIndikatorPayload($request), $user);
 
-        // 6. Compute Hash Snapshot (immutable integrity check)
-        $snapshotPayload = json_encode([
-            'dokumen_id' => $id,
-            'level' => $signLevel,
-            'user_id' => $user->id,
-            'nrp_user' => $user->nrp,
-            'scores' => $scores,
-            'timestamp' => now()->toIso8601String(),
-        ]);
-        $hashSnapshot = hash('sha256', $snapshotPayload);
+            // 7. Save to 'tanda_tangan'
+            $oldTtd = DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', $signLevel)->first();
+            if ($oldTtd && !empty($oldTtd->ttd_image) && Storage::disk('public')->exists($oldTtd->ttd_image)) {
+                try {
+                    Storage::disk('public')->delete($oldTtd->ttd_image);
+                } catch (\Throwable $e) {}
+            }
+            DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', $signLevel)->delete();
 
-        // 7. Save to 'tanda_tangan'
-        // Remove existing ttd file and record for this level if any (in case of re-sign after revision)
-        $oldTtd = DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', $signLevel)->first();
-        if ($oldTtd && !empty($oldTtd->ttd_image) && Storage::disk('public')->exists($oldTtd->ttd_image)) {
-            try {
-                Storage::disk('public')->delete($oldTtd->ttd_image);
-            } catch (\Throwable $e) {}
-        }
-        DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', $signLevel)->delete();
+            $this->repository->insert('tanda_tangan', [
+                'dokumen_id' => $id,
+                'level' => $signLevel,
+                'user_id' => $user->id,
+                'tgl_ttd' => now()->toDateTimeString(),
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'hash_snapshot' => $hashSnapshot,
+                'ttd_image' => $signaturePath,
+                'created_at' => now()->toDateTimeString(),
+            ]);
 
-        $this->repository->insert('tanda_tangan', [
-            'dokumen_id' => $id,
-            'level' => $signLevel,
-            'user_id' => $user->id,
-            'tgl_ttd' => now()->toDateTimeString(),
-            'ip' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'hash_snapshot' => $hashSnapshot,
-            'ttd_image' => $signaturePath,
-            'created_at' => now()->toDateTimeString(),
-        ]);
+            // 8. State Machine Progression
+            $isGol4Up = self::isForm07006($dokumen['kode_form'] ?? '');
+            $karyawan = DB::table('karyawan')->where('nrp', $dokumen['nrp'])->first();
+            $karyawanArr = $karyawan ? (array)$karyawan : [];
 
-        // 8. State Machine Progression
-        $nextStatus = match ($signLevel) {
-            'foreman' => (
-                $subFormVariant === 'div_head' ? 'selesai' : (
-                    $subFormVariant === 'dept_head' ? 'menunggu_div_head' : (
-                        empty($karyawan['nrp_foreman']) && !empty($karyawan['nrp_section_head']) ? 'menunggu_dept_head' : 'menunggu_section_head'
+            $nextStatus = match ($signLevel) {
+                'foreman' => (
+                    $subFormVariant === 'div_head' ? 'selesai' : (
+                        $subFormVariant === 'dept_head' ? 'menunggu_div_head' : (
+                            empty($karyawanArr['nrp_foreman']) && !empty($karyawanArr['nrp_section_head']) ? 'menunggu_dept_head' : 'menunggu_section_head'
+                        )
                     )
-                )
-            ),
-            'section_head' => ($isGol4Up ? 'menunggu_div_head' : 'menunggu_dept_head'),
-            'dept_head' => 'selesai',
-            default => $dokumen['status'],
-        };
+                ),
+                'section_head' => ($isGol4Up ? 'menunggu_div_head' : 'menunggu_dept_head'),
+                'dept_head' => 'selesai',
+                default => $dokumen['status'],
+            };
 
-        $calc = $this->calcService->calculate($kodeForm, $scores);
-        $grand = $calc['grand_total'];
-        $grade = $this->calcService->scoreToGrade($grand);
+            $calc = $this->calcService->calculate($dokumen['kode_form'] ?? '07-001', $scores);
+            $grand = $calc['grand_total'];
+            $grade = $this->calcService->scoreToGrade($grand);
 
-        $dockingFinalVal = $request->input('docking_final') ?: ($dokumen['docking_final'] ?? $grade);
-        if (!in_array($dockingFinalVal, ['S', 'A', 'B', 'C', 'K'])) {
-            $dockingFinalVal = $grade;
-        }
+            $dockingFinalVal = $request->input('docking_final') ?: ($dokumen['docking_final'] ?? $grade);
+            if (!in_array($dockingFinalVal, ['S', 'A', 'B', 'C', 'K'])) {
+                $dockingFinalVal = $grade;
+            }
 
-        $updateData = [
-            'status' => $nextStatus,
-            'total_nilai' => $grand,
-            'grade_original' => $grade,
-            'docking_final' => $dockingFinalVal,
-            'updated_at' => now()->toDateTimeString(),
-        ];
+            $updateData = [
+                'status' => $nextStatus,
+                'total_nilai' => $grand,
+                'grade_original' => $grade,
+                'docking_final' => $dockingFinalVal,
+                'updated_at' => now()->toDateTimeString(),
+            ];
 
-        if ($nextStatus === 'selesai' || $level === 'dept_head') {
-            $updateData['hash_dokumen'] = $hashSnapshot;
-        }
+            if ($nextStatus === 'selesai' || $level === 'dept_head') {
+                $updateData['hash_dokumen'] = $hashSnapshot;
+            }
 
-        $this->repository->update('dokumen', 'id', $id, $updateData);
+            $this->repository->update('dokumen', 'id', $id, $updateData);
 
-        // 9. Audit Log
-        $this->repository->insert('audit_log', [
-            'waktu' => now()->toDateTimeString(),
-            'user_id' => $user->id,
-            'aksi' => 'tanda_tangan_' . $level,
-            'dokumen_id' => $id,
-            'detail' => "User {$user->nama} ({$user->role}) menandatangani dokumen ID {$id} (NRP {$dokumen['nrp']}). Status beralih: {$dokumen['status']} -> {$nextStatus}.",
-            'created_at' => now()->toDateTimeString(),
-        ]);
+            // 9. Audit Log
+            $this->repository->insert('audit_log', [
+                'waktu' => now()->toDateTimeString(),
+                'user_id' => $user->id,
+                'aksi' => 'tanda_tangan_' . $level,
+                'dokumen_id' => $id,
+                'detail' => "User {$user->nama} ({$user->role}) menandatangani dokumen ID {$id} (NRP {$dokumen['nrp']}). Status beralih: {$dokumen['status']} -> {$nextStatus}.",
+                'created_at' => now()->toDateTimeString(),
+            ]);
 
-        $levelTitle = match ($level) {
-            'foreman' => ($isGol4Up && empty($karyawan['nrp_foreman']) ? 'Section Head' : 'Foreman'),
-            'section_head' => ($isGol4Up ? 'Department Head' : 'Section Head'),
-            'dept_head' => ($isGol4Up ? 'Division Head (Final)' : 'Department Head (Final)'),
-        };
+            $levelTitle = match ($level) {
+                'foreman' => ($isGol4Up && empty($karyawanArr['nrp_foreman']) ? 'Section Head' : 'Foreman'),
+                'section_head' => ($isGol4Up ? 'Department Head' : 'Section Head'),
+                'dept_head' => ($isGol4Up ? 'Division Head (Final)' : 'Department Head (Final)'),
+            };
+        });
 
         // Clear all caches on sign
         $this->repository->clearCache('dokumen');
@@ -3661,26 +3656,30 @@ class PenilaianController extends Controller
         Cache::forget("sheet_all_nilai");
         Cache::forget("sheet_all_indikator");
 
-        // Non-blocking background sync to Google Spreadsheet & Google Drive
-        if (function_exists('defer')) {
-            defer(function () use ($id, $level) {
-                try {
-                    GoogleSyncService::syncTables(['dokumen', 'nilai', 'tanda_tangan', 'indikator', 'audit_log']);
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Background sync on sign failed: " . $e->getMessage());
-                }
+        // Non-blocking background async sync to Google Spreadsheet (< 5ms response)
+        try {
+            GoogleSyncService::syncTablesAsync(['dokumen', 'nilai', 'tanda_tangan', 'indikator', 'audit_log']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Background async sync on sign failed: " . $e->getMessage());
+        }
 
-                try {
-                    GoogleSyncService::uploadPdfToDrive($id);
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Upload PDF to Google Drive on sign ({$level}) failed: " . $e->getMessage());
-                }
-            });
-        } else {
+        // Upload PDF to Google Drive ONLY when document is finalized ('selesai')
+        if ($nextStatus === 'selesai') {
             try {
-                GoogleSyncService::syncTables(['dokumen', 'nilai', 'tanda_tangan', 'indikator', 'audit_log']);
-                GoogleSyncService::uploadPdfToDrive($id);
-            } catch (\Throwable $e) {}
+                if (function_exists('defer')) {
+                    defer(function () use ($id, $level) {
+                        try {
+                            GoogleSyncService::uploadPdfToDrive($id);
+                        } catch (\Throwable $e) {
+                            \Illuminate\Support\Facades\Log::warning("Upload PDF to Google Drive on sign ({$level}) failed: " . $e->getMessage());
+                        }
+                    });
+                } else {
+                    GoogleSyncService::uploadPdfToDriveAsync($id);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Upload PDF dispatch failed: " . $e->getMessage());
+            }
         }
 
         return redirect(self::getFormUrlForUser($user, $id))
@@ -4853,90 +4852,92 @@ class PenilaianController extends Controller
         $penilaianData = $request->input('penilaian', []);
         $submittedCount = 0;
 
-        foreach ($penilaianData as $docId => $data) {
-            $grade = $data['grade'] ?? '';
-            $catatan = trim($data['catatan'] ?? '');
+        \App\Repositories\SheetRepository::withoutSync(function () use ($penilaianData, $user, &$submittedCount) {
+            foreach ($penilaianData as $docId => $data) {
+                $grade = $data['grade'] ?? '';
+                $catatan = trim($data['catatan'] ?? '');
 
-            $doc = $this->repository->find('dokumen', 'id', $docId);
-            if (!$doc) continue;
+                $doc = $this->repository->find('dokumen', 'id', $docId);
+                if (!$doc) continue;
 
-            $k = $this->repository->find('karyawan', 'nrp', $doc['nrp']);
-            $isSelfDoc = strcasecmp($doc['nrp'] ?? '', $user->nrp) === 0;
-            $isDirectDeptSub = !empty($k['nrp_dept_head']) && strcasecmp($k['nrp_dept_head'], $user->nrp) === 0;
-            if (!$isSelfDoc && !$user->canAccessDepartment($k['departemen'] ?? '') && !$user->isSuperadmin() && !$isDirectDeptSub) {
-                continue;
-            }
+                $k = $this->repository->find('karyawan', 'nrp', $doc['nrp']);
+                $isSelfDoc = strcasecmp($doc['nrp'] ?? '', $user->nrp) === 0;
+                $isDirectDeptSub = !empty($k['nrp_dept_head']) && strcasecmp($k['nrp_dept_head'], $user->nrp) === 0;
+                if (!$isSelfDoc && !$user->canAccessDepartment($k['departemen'] ?? '') && !$user->isSuperadmin() && !$isDirectDeptSub) {
+                    continue;
+                }
 
-            if (!empty($grade)) {
-                $score = match($grade) {
-                    'S' => 4.60,
-                    'A' => 4.00,
-                    'B' => 3.40,
-                    'C' => 2.50,
-                    'K' => 1.50,
-                    default => 3.00,
-                };
+                if (!empty($grade)) {
+                    $score = match($grade) {
+                        'S' => 4.60,
+                        'A' => 4.00,
+                        'B' => 3.40,
+                        'C' => 2.50,
+                        'K' => 1.50,
+                        default => 3.00,
+                    };
 
-                $formStruct = $this->calcService->getFormStructure($doc['kode_form'] ?? '07-001');
-                foreach ($formStruct['groups'] as $g) {
-                    foreach ($g['aspects'] as $aspekCode => $aspekName) {
-                        $this->repository->insert('nilai', [
+                    $formStruct = $this->calcService->getFormStructure($doc['kode_form'] ?? '07-001');
+                    foreach ($formStruct['groups'] as $g) {
+                        foreach ($g['aspects'] as $aspekCode => $aspekName) {
+                            $this->repository->insert('nilai', [
+                                'dokumen_id' => $docId,
+                                'level' => 'section_head',
+                                'aspek_kode' => $aspekCode,
+                                'skor' => $score,
+                                'created_at' => now(),
+                            ]);
+                        }
+                    }
+
+                    $this->repository->update('dokumen', 'id', $docId, [
+                        'status' => 'menunggu_dept_head',
+                        'total_nilai' => $score,
+                        'grade_original' => $grade,
+                        'docking_final' => $grade,
+                    ]);
+                    $submittedCount++;
+                } elseif ($doc['status'] === 'menunggu_section_head') {
+                    $this->repository->update('dokumen', 'id', $docId, [
+                        'status' => 'menunggu_dept_head',
+                    ]);
+                    $submittedCount++;
+                }
+
+                if (!empty($catatan)) {
+                    $existingInd = $this->repository->find('indikator', 'dokumen_id', $docId);
+                    if ($existingInd) {
+                        $this->repository->update('indikator', 'dokumen_id', $docId, [
+                            'kelebihan' => $catatan,
+                        ]);
+                    } else {
+                        $this->repository->insert('indikator', [
                             'dokumen_id' => $docId,
-                            'level' => 'section_head',
-                            'aspek_kode' => $aspekCode,
-                            'skor' => $score,
+                            'pilihan_potensi' => 2,
+                            'kelebihan' => $catatan,
+                            'kekurangan' => '',
                             'created_at' => now(),
                         ]);
                     }
                 }
 
-                $this->repository->update('dokumen', 'id', $docId, [
-                    'status' => 'menunggu_dept_head',
-                    'total_nilai' => $score,
-                    'grade_original' => $grade,
-                    'docking_final' => $grade,
+                // Audit log tracking real-time handoff to Dept Head
+                $this->repository->insert('audit_log', [
+                    'waktu' => now()->toDateTimeString(),
+                    'user_id' => Auth::id(),
+                    'aksi' => 'submit_section_head',
+                    'dokumen_id' => $docId,
+                    'detail' => "Section Head meneruskan penilaian dokumen ID {$docId} (NRP {$doc['nrp']}) secara realtime ke Department Head.",
+                    'created_at' => now()->toDateTimeString(),
                 ]);
-                $submittedCount++;
-            } elseif ($doc['status'] === 'menunggu_section_head') {
-                $this->repository->update('dokumen', 'id', $docId, [
-                    'status' => 'menunggu_dept_head',
-                ]);
-                $submittedCount++;
             }
+        });
 
-            if (!empty($catatan)) {
-                $existingInd = $this->repository->find('indikator', 'dokumen_id', $docId);
-                if ($existingInd) {
-                    $this->repository->update('indikator', 'dokumen_id', $docId, [
-                        'kelebihan' => $catatan,
-                    ]);
-                } else {
-                    $this->repository->insert('indikator', [
-                        'dokumen_id' => $docId,
-                        'pilihan_potensi' => 2,
-                        'kelebihan' => $catatan,
-                        'kekurangan' => '',
-                        'created_at' => now(),
-                    ]);
-                }
-            }
-
-            // Audit log tracking real-time handoff to Dept Head
-            $this->repository->insert('audit_log', [
-                'waktu' => now()->toDateTimeString(),
-                'user_id' => Auth::id(),
-                'aksi' => 'submit_section_head',
-                'dokumen_id' => $docId,
-                'detail' => "Section Head meneruskan penilaian dokumen ID {$docId} (NRP {$doc['nrp']}) secara realtime ke Department Head.",
-                'created_at' => now()->toDateTimeString(),
-            ]);
-        }
-
-        // Non-blocking background sync to Google Spreadsheet
-        if (function_exists('defer')) {
-            defer(fn() => GoogleSyncService::syncTables(['dokumen', 'nilai', 'indikator', 'audit_log']));
-        } else {
-            try { GoogleSyncService::syncTables(['dokumen', 'nilai', 'indikator', 'audit_log']); } catch (\Throwable $e) {}
+        // Non-blocking async background sync to Google Spreadsheet (< 5ms response)
+        try {
+            GoogleSyncService::syncTablesAsync(['dokumen', 'nilai', 'indikator', 'audit_log']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Background async sync on sectionSubmitDept failed: " . $e->getMessage());
         }
 
         return redirect()->back()->with('success', "Berhasil meneruskan {$submittedCount} dokumen penilaian ke Department Head!");
