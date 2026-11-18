@@ -830,6 +830,59 @@ class GoogleSyncService
     }
 
     /**
+     * Delete audit log entries from Google Spreadsheet sheet audit_log
+     *
+     * @param array<int|string>|int|string $ids
+     * @param bool $clearAll
+     * @return array<string, mixed>
+     */
+    public static function syncAuditLogDelete($ids = [], bool $clearAll = false): array
+    {
+        $config = self::getConfig();
+        $appscriptUrl = $config['appscript_url'] ?? '';
+
+        if (empty($appscriptUrl) || !filter_var($appscriptUrl, FILTER_VALIDATE_URL)) {
+            return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
+        }
+
+        $idList = is_array($ids) ? $ids : (empty($ids) ? [] : [$ids]);
+
+        try {
+            $payload = [
+                'action' => $clearAll ? 'clear_audit_log' : 'delete_audit_log',
+                'clear_all' => $clearAll,
+                'ids' => array_values(array_map('strval', $idList)),
+                'tables' => ['audit_log'],
+                'key_column' => 'id',
+                'key_value' => !empty($idList) ? (string)$idList[0] : '',
+            ];
+
+            $response = Http::timeout(8)->withoutVerifying()->post($appscriptUrl, $payload);
+            if ($response->successful()) {
+                $body = $response->json();
+                if (isset($body['status']) && $body['status'] === 'success') {
+                    $timestampNow = date('d F Y, H:i') . ' WIB';
+                    DB::table('pengaturan')->updateOrInsert(
+                        ['key' => 'terakhir_push_google'],
+                        ['value' => $timestampNow]
+                    );
+                    return ['success' => true, 'data' => $body];
+                }
+            }
+
+            // Fallback: sinkronkan tabel audit_log langsung ke sheet
+            self::syncTables(['audit_log']);
+            return ['success' => true, 'fallback' => true];
+        } catch (\Throwable $e) {
+            Log::warning("Fast audit_log delete in Google Sheet failed: " . $e->getMessage() . ", attempting syncTables");
+            try {
+                self::syncTables(['audit_log']);
+            } catch (\Throwable $ex) {}
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Non-blocking Async Dispatch for Full Tables Sync to Google Spreadsheet.
      * Fires artisan google:sync-row sync_all in background immediately (< 5ms response time).
      */

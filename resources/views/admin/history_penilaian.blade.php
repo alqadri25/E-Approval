@@ -23,8 +23,9 @@
             </p>
         </div>
 
-        <!-- Tombol Sinkronisasi Spreadsheet -->
+        <!-- Tombol Aksi Header: Sinkronisasi & Kosongkan Log -->
         <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            <!-- Sinkronkan Spreadsheet -->
             <form action="{{ request()->routeIs('superadmin.*') ? route('superadmin.historyPenilaian.sync') : route('admin.historyPenilaian.sync') }}" method="POST" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').classList.add('opacity-75');" class="m-0">
                 @csrf
                 <button type="submit" 
@@ -33,6 +34,22 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                     </svg>
                     <span>Sinkronkan Spreadsheet</span>
+                </button>
+            </form>
+
+            <!-- Kosongkan Seluruh Riwayat Log (Clear All Logs) -->
+            <form action="{{ request()->routeIs('superadmin.*') ? route('superadmin.historyPenilaian.clearAll') : route('admin.historyPenilaian.clearAll') }}" 
+                  method="POST" 
+                  onsubmit="return confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH catatan riwayat aktivitas penilaian?\n\nSeluruh data pada sheet audit_log di Google Spreadsheet juga akan ikut dihapus permanen.');" 
+                  class="m-0">
+                @csrf
+                <button type="submit" 
+                        class="inline-flex items-center gap-2 px-4 py-2.5 bg-[#781b1f] hover:bg-[#601418] text-white border border-red-300/30 text-xs font-bold rounded-none shadow-xs transition cursor-pointer"
+                        title="Kosongkan seluruh riwayat log aktivitas (lokal & spreadsheet)">
+                    <svg class="w-4 h-4 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    <span>Kosongkan Semua Log</span>
                 </button>
             </form>
         </div>
@@ -204,12 +221,24 @@
 
     <!-- Table Audit Log (Kotak Tajam, Border Slate-300, Konsisten dengan Tabel Lain) -->
     <div class="bg-white border border-slate-300 rounded-none shadow-sm overflow-hidden">
-        <div class="p-3.5 bg-slate-50 border-b border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <h2 class="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                <span class="w-2 h-2 bg-[#92302e] inline-block"></span>
-                <span>Daftar Riwayat Aktivitas Penilaian ({{ number_format($logs->total()) }} Data)</span>
-            </h2>
-            <span class="text-[11px] text-slate-700 font-mono font-bold bg-white px-3 py-1 border border-slate-300 shadow-2xs rounded-none">
+        <div class="p-3.5 bg-slate-50 border-b border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <h2 class="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                    <span class="w-2 h-2 bg-[#92302e] inline-block"></span>
+                    <span>Daftar Riwayat Aktivitas Penilaian ({{ number_format($logs->total()) }} Data)</span>
+                </h2>
+                <!-- Tombol Hapus Terpilih (Bulk Delete) -->
+                <button type="button" 
+                        id="btnBulkDelete" 
+                        onclick="submitBulkDelete()" 
+                        class="hidden items-center gap-1.5 px-3 py-1 bg-[#92302e] hover:bg-[#7e2524] text-white text-[11px] font-bold rounded-none shadow-xs transition cursor-pointer">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    <span>Hapus Terpilih (<span id="selectedCount">0</span>)</span>
+                </button>
+            </div>
+            <span class="text-[11px] text-slate-700 font-mono font-bold bg-white px-3 py-1 border border-slate-300 shadow-2xs rounded-none self-start sm:self-auto">
                 Halaman {{ $logs->currentPage() }} dari {{ $logs->lastPage() }}
             </span>
         </div>
@@ -218,12 +247,16 @@
             <table class="w-full text-left border-collapse border border-slate-300 text-xs">
                 <thead>
                     <tr class="bg-slate-100 text-slate-700 font-bold text-[11px] uppercase tracking-wider">
+                        <th class="py-3 px-2 border border-slate-300 bg-slate-100 text-center w-10 whitespace-nowrap">
+                            <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" class="rounded-none border-slate-300 text-[#92302e] focus:ring-[#92302e] cursor-pointer" title="Pilih Semua di Halaman Ini">
+                        </th>
                         <th class="py-3 px-3 border border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-12 whitespace-nowrap">No</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-36 whitespace-nowrap">Waktu</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700 w-52 whitespace-nowrap">Aktor / Pengguna</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-36 whitespace-nowrap">Aksi</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700 w-60 whitespace-nowrap">Karyawan Terkait</th>
                         <th class="py-3 px-4 border border-slate-300 bg-slate-100 font-bold text-slate-700 min-w-[280px]">Detail Riwayat Aktivitas</th>
+                        <th class="py-3 px-3 border border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-20 whitespace-nowrap">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
@@ -242,6 +275,11 @@
                             };
                         @endphp
                         <tr class="hover:bg-slate-50 transition-colors">
+                            <!-- Checkbox -->
+                            <td class="py-2.5 px-2 border border-slate-300 text-center whitespace-nowrap">
+                                <input type="checkbox" name="log_ids[]" value="{{ $log->id }}" onchange="updateSelectedCount()" class="log-checkbox rounded-none border-slate-300 text-[#92302e] focus:ring-[#92302e] cursor-pointer">
+                            </td>
+
                             <!-- No -->
                             <td class="py-2.5 px-3 border border-slate-300 text-center font-bold text-slate-600 font-mono text-xs">
                                 {{ $logs->firstItem() + $index }}
@@ -290,7 +328,7 @@
                                     <div class="flex items-center gap-1.5 text-[10.5px] text-slate-600 font-mono mt-0.5">
                                         <span class="font-semibold">NRP: {{ $log->karyawan_nrp }}</span>
                                         @if($log->doc_kode_form)
-                                            <span class="text-slate-300">&bull;</span>
+                                             <span class="text-slate-300">&bull;</span>
                                             <span class="px-1.5 py-0.2 rounded-none text-[9.5px] font-mono font-bold bg-[#fbe8e8] text-[#92302e] border border-rose-200">
                                                 {{ $log->doc_kode_form }}
                                             </span>
@@ -314,10 +352,28 @@
                             <td class="py-2.5 px-4 border border-slate-300 text-slate-800 leading-relaxed text-xs">
                                 {{ $log->detail }}
                             </td>
+
+                            <!-- Aksi (Tombol Hapus Baris) -->
+                            <td class="py-2.5 px-3 border border-slate-300 text-center whitespace-nowrap">
+                                <form action="{{ request()->routeIs('superadmin.*') ? route('superadmin.historyPenilaian.destroy', $log->id) : route('admin.historyPenilaian.destroy', $log->id) }}"
+                                      method="POST"
+                                      onsubmit="return confirm('Hapus catatan riwayat aktivitas ini? Data pada sheet audit_log di Google Spreadsheet juga akan ikut terhapus.');"
+                                      class="inline-block m-0">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit"
+                                            class="p-1.5 border border-rose-300 bg-rose-50 hover:bg-rose-100 text-[#92302e] rounded-none transition shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                                            title="Hapus catatan riwayat ini (lokal & spreadsheet)">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-12 text-center text-slate-500 border border-slate-300 bg-slate-50">
+                            <td colspan="8" class="py-12 text-center text-slate-500 border border-slate-300 bg-slate-50">
                                 <div class="flex flex-col items-center justify-center gap-2">
                                     <svg class="w-9 h-9 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -340,5 +396,66 @@
         @endif
     </div>
 
+    <!-- Form Tersembunyi untuk Hapus Terpilih (Bulk Delete) -->
+    <form id="bulkDeleteForm" action="{{ request()->routeIs('superadmin.*') ? route('superadmin.historyPenilaian.bulkDelete') : route('admin.historyPenilaian.bulkDelete') }}" method="POST" class="hidden">
+        @csrf
+        <div id="bulkDeleteInputs"></div>
+    </form>
+
 </div>
+
+<script>
+    function toggleSelectAll(master) {
+        const checkboxes = document.querySelectorAll('.log-checkbox');
+        checkboxes.forEach(cb => cb.checked = master.checked);
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        const checked = document.querySelectorAll('.log-checkbox:checked');
+        const count = checked.length;
+        const btn = document.getElementById('btnBulkDelete');
+        const countSpan = document.getElementById('selectedCount');
+        const master = document.getElementById('selectAllCheckbox');
+        const allCheckboxes = document.querySelectorAll('.log-checkbox');
+
+        if (countSpan) countSpan.textContent = count;
+        if (btn) {
+            if (count > 0) {
+                btn.classList.remove('hidden');
+                btn.classList.add('inline-flex');
+            } else {
+                btn.classList.add('hidden');
+                btn.classList.remove('inline-flex');
+            }
+        }
+        if (master && allCheckboxes.length > 0) {
+            master.checked = (count === allCheckboxes.length);
+        }
+    }
+
+    function submitBulkDelete() {
+        const checked = document.querySelectorAll('.log-checkbox:checked');
+        if (checked.length === 0) {
+            alert('Pilih setidaknya satu riwayat aktivitas untuk dihapus.');
+            return;
+        }
+
+        if (!confirm(`Hapus ${checked.length} catatan riwayat aktivitas terpilih?\n\nCatatan terkait pada sheet audit_log di Google Spreadsheet juga akan ikut terhapus.`)) {
+            return;
+        }
+
+        const container = document.getElementById('bulkDeleteInputs');
+        container.innerHTML = '';
+        checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'ids[]';
+            input.value = cb.value;
+            container.appendChild(input);
+        });
+
+        document.getElementById('bulkDeleteForm').submit();
+    }
+</script>
 @endsection

@@ -3939,4 +3939,78 @@ class AdminController extends Controller
             return back()->with('error', 'Gagal menyinkronkan dengan Google Spreadsheet: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Hapus satu baris riwayat audit log dan sinkronkan dengan sheet audit_log di Google Spreadsheet.
+     */
+    public function destroyAuditLog($id)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        }
+
+        $log = DB::table('audit_log')->where('id', $id)->first();
+        if (!$log) {
+            return back()->with('error', 'Catatan riwayat aktivitas tidak ditemukan.');
+        }
+
+        try {
+            DB::table('audit_log')->where('id', $id)->delete();
+            \App\Services\GoogleSyncService::syncAuditLogDelete([$id]);
+
+            return back()->with('success', 'Catatan riwayat aktivitas #' . $id . ' berhasil dihapus dari sistem dan sheet audit_log Google Spreadsheet.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Gagal menghapus riwayat aktivitas: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Hapus massal riwayat audit log terpilih dan sinkronkan dengan Google Spreadsheet.
+     */
+    public function bulkDestroyAuditLog(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        }
+
+        $ids = $request->input('ids', []);
+        if (empty($ids) || !is_array($ids)) {
+            return back()->with('error', 'Tidak ada data riwayat yang dipilih untuk dihapus.');
+        }
+
+        try {
+            $count = DB::table('audit_log')->whereIn('id', $ids)->delete();
+            \App\Services\GoogleSyncService::syncAuditLogDelete($ids);
+
+            return back()->with('success', "Sebanyak {$count} catatan riwayat aktivitas berhasil dihapus dari sistem dan sheet audit_log Google Spreadsheet.");
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Gagal menghapus riwayat aktivitas terpilih: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Kosongkan seluruh riwayat audit log (lokal & Google Spreadsheet).
+     */
+    public function clearAllAuditLog(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
+        }
+
+        try {
+            $totalCount = DB::table('audit_log')->count();
+            DB::table('audit_log')->delete();
+            \App\Services\GoogleSyncService::syncAuditLogDelete([], true);
+
+            return back()->with('success', "Seluruh riwayat aktivitas ({$totalCount} rekaman) berhasil dikosongkan dari sistem dan sheet audit_log Google Spreadsheet.");
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Gagal mengosongkan riwayat aktivitas: ' . $e->getMessage());
+        }
+    }
 }

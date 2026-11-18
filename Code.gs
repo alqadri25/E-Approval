@@ -39,6 +39,7 @@ function onOpen() {
     .addItem('👥 Sinkron & Bersihkan Sheet Users (Hapus Akun Non-Karyawan)', 'cleanupUsersSheetMenu')
     .addItem('📅 Rapikan Format Tanggal Masuk (dd-Mmm-yy)', 'formatAllDatesInSheets')
     .addItem('🗑️ Hapus Sheet yang Tidak Diperlukan', 'cleanUnusedSheets')
+    .addItem('🗑️ Kosongkan Riwayat Audit Log (audit_log)', 'clearAuditLogSheetMenu')
     .addSeparator()
     .addItem('⚠️ Kosongkan Data Penilaian & PDF Drive (Wipe Penilaian)', 'wipeAllDataAndPdfsMenu')
     .addItem('⚠️ Reset Total Seluruh Database & Akun Users Non-Admin (Reset Total)', 'resetTotalDatabaseMenu')
@@ -925,6 +926,44 @@ function doPost(e) {
       });
     }
 
+    // HAPUS RIWAYAT AUDIT LOG (PER ID, DAFTAR ID, ATAU KOSONGKAN SELURUH LOG)
+    if (action === 'delete_audit_log' || action === 'clear_audit_log') {
+      var sh = ss.getSheetByName('audit_log');
+      var deletedCount = 0;
+      if (sh && sh.getLastRow() > 1) {
+        var clearAll = (action === 'clear_audit_log' || postData.clear_all === true || postData.all === true);
+        if (clearAll) {
+          deletedCount = sh.getLastRow() - 1;
+          sh.deleteRows(2, deletedCount);
+        } else {
+          var ids = postData.ids || (postData.id ? [postData.id] : []);
+          if (ids && ids.length > 0) {
+            var strIds = ids.map(function(id) { return String(id).trim().toLowerCase(); });
+            var data = sh.getDataRange().getValues();
+            var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
+            var idIdx = headers.indexOf('id');
+            if (idIdx === -1) idIdx = 0;
+
+            for (var r = data.length - 1; r >= 1; r--) {
+              var rowId = String(data[r][idIdx]).trim().toLowerCase();
+              if (strIds.indexOf(rowId) !== -1) {
+                sh.deleteRow(r + 1);
+                deletedCount++;
+              }
+            }
+          }
+        }
+        formatSheetColumns(sh, 'audit_log');
+      }
+
+      return jsonResponse({
+        status: 'success',
+        action: action,
+        deleted_count: deletedCount,
+        message: 'Data audit_log di Google Spreadsheet berhasil dihapus.'
+      });
+    }
+
     // A. SIMPAN TANDA TANGAN DIGITAL KE GOOGLE DRIVE & UPDATE DATABASE
     if (action === 'save_signature' || action === 'upload_signature') {
       var sigBase64 = String(postData.signature_base64 || postData.image_base64 || postData.ttd_image || postData.base64 || '');
@@ -1298,4 +1337,22 @@ function writeObjectsToSheet(ss, sheetName, items) {
   }
 
   formatSheetColumns(sheet, targetName);
+}
+
+/**
+ * Menu Spreadsheet: Kosongkan isi sheet audit_log
+ */
+function clearAuditLogSheetMenu() {
+  var ui = SpreadsheetApp.getUi();
+  var resp = ui.alert('Konfirmasi Kosongkan Audit Log', 'Apakah Anda yakin ingin mengosongkan seluruh isi riwayat sheet audit_log?', ui.ButtonSet.YES_NO);
+  if (resp !== ui.Button.YES) return;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('audit_log');
+  if (sh && sh.getLastRow() > 1) {
+    sh.deleteRows(2, sh.getLastRow() - 1);
+    formatSheetColumns(sh, 'audit_log');
+    ui.alert('Berhasil', 'Seluruh riwayat pada sheet audit_log berhasil dikosongkan.', ui.ButtonSet.OK);
+  } else {
+    ui.alert('Informasi', 'Sheet audit_log sudah kosong.', ui.ButtonSet.OK);
+  }
 }

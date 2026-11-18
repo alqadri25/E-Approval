@@ -130,6 +130,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/superadmin/history-penilaian', [AdminController::class, 'historyPenilaian'])->name('superadmin.historyPenilaian');
     Route::post('/admin/history-penilaian/sync', [AdminController::class, 'syncAuditLog'])->name('admin.historyPenilaian.sync');
     Route::post('/superadmin/history-penilaian/sync', [AdminController::class, 'syncAuditLog'])->name('superadmin.historyPenilaian.sync');
+    Route::delete('/admin/history-penilaian/{id}', [AdminController::class, 'destroyAuditLog'])->name('admin.historyPenilaian.destroy');
+    Route::post('/admin/history-penilaian/{id}/delete', [AdminController::class, 'destroyAuditLog'])->name('admin.historyPenilaian.delete');
+    Route::delete('/superadmin/history-penilaian/{id}', [AdminController::class, 'destroyAuditLog'])->name('superadmin.historyPenilaian.destroy');
+    Route::post('/superadmin/history-penilaian/{id}/delete', [AdminController::class, 'destroyAuditLog'])->name('superadmin.historyPenilaian.delete');
+    Route::post('/admin/history-penilaian/bulk-delete', [AdminController::class, 'bulkDestroyAuditLog'])->name('admin.historyPenilaian.bulkDelete');
+    Route::delete('/admin/history-penilaian/bulk-delete', [AdminController::class, 'bulkDestroyAuditLog']);
+    Route::post('/superadmin/history-penilaian/bulk-delete', [AdminController::class, 'bulkDestroyAuditLog'])->name('superadmin.historyPenilaian.bulkDelete');
+    Route::delete('/superadmin/history-penilaian/bulk-delete', [AdminController::class, 'bulkDestroyAuditLog']);
+    Route::post('/admin/history-penilaian/clear-all', [AdminController::class, 'clearAllAuditLog'])->name('admin.historyPenilaian.clearAll');
+    Route::post('/superadmin/history-penilaian/clear-all', [AdminController::class, 'clearAllAuditLog'])->name('superadmin.historyPenilaian.clearAll');
 
     // User Management Routes (Mockup Screens: Kelola User / Manajemen Akun, Pengaturan)
     Route::get('/superadmin/users', [SuperAdminController::class, 'kelolaUser'])->name('superadmin.users');
