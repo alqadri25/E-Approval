@@ -579,7 +579,7 @@ class AdminController extends Controller
                         'kode' => $dept,
                         'nama' => "{$cleanDeptName} ({$dept})",
                         'clean_nama' => $cleanDeptName,
-                        'divisi' => ($div !== '' && $div !== '-') ? $div : 'PRODUCTION A DIV',
+                        'divisi' => ($div !== '' && $div !== '-') ? $div : '-',
                         'dept_head' => '-',
                         'dept_head_nrp' => null,
                         'total_karyawan' => 0,
@@ -619,10 +619,8 @@ class AdminController extends Controller
         }
         unset($dItem);
 
-        $divisiOptions = array_keys($divisionStats);
-        if (empty($divisiOptions)) {
-            $divisiOptions = ['PRODUCTION A DIV', 'PRODUCTION B DIV'];
-        }
+        // Strictly real division options from employee master data (no phantom defaults)
+        $divisiOptions = array_values(array_unique(array_keys($divisionStats)));
 
         // Fetch all available Dept Heads & Leadership users for dropdown
         $deptHeads = User::whereIn('role', ['department_head', 'division_head', 'superadmin', 'admin'])

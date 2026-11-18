@@ -59,7 +59,7 @@
                 <span class="text-2xl font-black text-slate-900">{{ count($divisiOptions) }}</span>
                 <span class="text-xs font-medium text-slate-500">divisi</span>
             </div>
-            <span class="text-[10px] text-slate-400 mt-0.5 block truncate">{{ implode(', ', $divisiOptions) }}</span>
+            <span class="text-[10px] text-slate-400 mt-0.5 block truncate">{{ !empty($divisiOptions) ? implode(', ', $divisiOptions) : '-' }}</span>
         </div>
 
         <!-- Card 3: Departemen Terdaftar -->
@@ -70,7 +70,7 @@
                 <span class="text-xs font-medium text-slate-500">departemen</span>
             </div>
             <span class="text-[10px] text-slate-400 mt-0.5 block truncate">
-                {{ implode(' • ', array_column($departemenList, 'kode')) }}
+                {{ !empty($departemenList) ? implode(' • ', array_column($departemenList, 'kode')) : '-' }}
             </span>
         </div>
 
@@ -82,7 +82,7 @@
                 <span class="text-xs font-medium text-slate-500">seksi</span>
             </div>
             <span class="text-[10px] text-slate-400 mt-0.5 block truncate">
-                {{ implode(', ', array_keys($uniqueSections)) }}
+                {{ !empty($uniqueSections) ? implode(', ', array_keys($uniqueSections)) : '-' }}
             </span>
         </div>
     </div>
@@ -104,7 +104,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-3">
-            @foreach($divisionStats as $divName => $divInfo)
+            @forelse($divisionStats as $divName => $divInfo)
             <div class="border border-slate-300 p-3 bg-slate-50/50">
                 <div class="flex items-center justify-between">
                     <span class="font-black text-xs text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
@@ -136,7 +136,12 @@
                     </div>
                 </div>
             </div>
-            @endforeach
+            @empty
+            <div class="col-span-1 md:col-span-2 py-8 text-center text-slate-400 bg-slate-50 border border-slate-200">
+                <p class="text-xs font-semibold text-slate-600">Belum ada divisi atau karyawan terdaftar</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Struktur divisi akan terisi otomatis saat data Master Karyawan diunggah.</p>
+            </div>
+            @endforelse
         </div>
     </div>
 
@@ -174,7 +179,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200">
-                            @foreach($departemenList as $d)
+                            @forelse($departemenList as $d)
                             <tr class="hover:bg-slate-50 transition-colors">
                                 <!-- Departemen -->
                                 <td class="py-2.5 px-3.5 border border-slate-300 font-bold text-slate-800 whitespace-nowrap">
@@ -263,7 +268,16 @@
                                     </div>
                                 </td>
                             </tr>
-                            @endforeach
+                            @empty
+                            <tr>
+                                <td colspan="7" class="py-10 text-center text-slate-500 border border-slate-300 bg-slate-50">
+                                    <div class="flex flex-col items-center justify-center gap-1.5">
+                                        <p class="text-xs font-bold text-slate-700">Belum ada departemen terdaftar</p>
+                                        <p class="text-[11px] text-slate-500">Struktur departemen terisi otomatis dari data Master Karyawan.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforelse
                         </tbody>
                         <tfoot>
                             <tr class="bg-slate-100 font-black text-slate-900 text-xs">

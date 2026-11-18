@@ -8542,6 +8542,18 @@ class PenilaianController extends Controller
         $data = $this->getFilteredLaporanData($request, $user);
         $employeeRows = $data['employeeRows'];
 
+        $userRole = strtolower($user->role ?? '');
+        $isSuperOrAdmin = $user->isAdmin() || $user->isSuperadmin();
+        $isDivHead = $user->isDivisionHead() || in_array($userRole, ['div_head', 'division_head']);
+        $isDeptHead = $user->isDepartmentHead() || in_array($userRole, ['dept_head', 'department_head']);
+        $isSectionHead = $user->isSectionHead() || in_array($userRole, ['section_head', 'section', 'sechead']);
+
+        $showColForeman = true;
+        $showColSect = $isSuperOrAdmin || $isDivHead || $isDeptHead || $isSectionHead;
+        $showColDept = $isSuperOrAdmin || $isDivHead || $isDeptHead;
+        $showColDiv = $isSuperOrAdmin || $isDivHead;
+        $showColFinal = true;
+
         $headers = [
             'NO',
             'NRP',
@@ -8560,17 +8572,28 @@ class PenilaianController extends Controller
             'SIKAP KERJA',
             'MAN MANAGEMENT',
             'TOTAL NILAI',
-            'NILAI PK FOREMAN (JIKA ADA)',
-            'NILAI PK SECT',
-            'NILAI PK DEPT',
-            'NILAI PK DIV',
-            'NILAI PK FINAL',
         ];
+
+        if ($showColForeman) {
+            $headers[] = 'NILAI PK FOREMAN (JIKA ADA)';
+        }
+        if ($showColSect) {
+            $headers[] = 'NILAI PK SECT';
+        }
+        if ($showColDept) {
+            $headers[] = 'NILAI PK DEPT';
+        }
+        if ($showColDiv) {
+            $headers[] = 'NILAI PK DIV';
+        }
+        if ($showColFinal) {
+            $headers[] = 'NILAI PK FINAL';
+        }
 
         $exportRows = [];
         $no = 1;
         foreach ($employeeRows as $k) {
-            $exportRows[] = [
+            $row = [
                 $no++,
                 (string)($k['nrp'] ?? ''),
                 (string)($k['nama'] ?? ''),
@@ -8588,15 +8611,28 @@ class PenilaianController extends Controller
                 $k['sikap_kerja_bobot'] !== null ? number_format((float)$k['sikap_kerja_bobot'], 2) : '-',
                 $k['man_management_bobot'] !== null ? number_format((float)$k['man_management_bobot'], 2) : '-',
                 $k['total_nilai'] !== null ? number_format((float)$k['total_nilai'], 2) : '-',
-                (string)($k['pk_foreman'] ?? '-'),
-                (string)($k['pk_sect'] ?? '-'),
-                (string)($k['pk_dept'] ?? '-'),
-                (string)($k['pk_div'] ?? '-'),
-                (string)($k['pk_final'] ?? '-'),
             ];
+
+            if ($showColForeman) {
+                $row[] = (string)($k['pk_foreman'] ?? '-');
+            }
+            if ($showColSect) {
+                $row[] = (string)($k['pk_sect'] ?? '-');
+            }
+            if ($showColDept) {
+                $row[] = (string)($k['pk_dept'] ?? '-');
+            }
+            if ($showColDiv) {
+                $row[] = (string)($k['pk_div'] ?? '-');
+            }
+            if ($showColFinal) {
+                $row[] = (string)($k['pk_final'] ?? '-');
+            }
+
+            $exportRows[] = $row;
         }
 
-        $centeredCols = [0, 1, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+        $centeredCols = array_values(array_diff(range(0, count($headers) - 1), [2, 4, 8]));
         $xlsxBinary = ExcelKaryawanExporter::buildXlsxBinary('Laporan Penilaian', $headers, $exportRows, $centeredCols);
 
         $deptLabel = $data['filterDept'] ? strtoupper(Str::slug($data['filterDept'], '_')) : 'SEMUA';

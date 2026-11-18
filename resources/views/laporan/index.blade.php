@@ -916,7 +916,24 @@
         </form>
     </div>
 
-    <!-- Tabel Rincian Laporan Penilaian (19 Kolom Lengkap Termasuk DIVISION) -->
+    <!-- Tabel Rincian Laporan Penilaian (Dinamis Kolom Nilai PK Sesuai Role Pengguna) -->
+    @php
+        $userRole = strtolower($user->role ?? '');
+        $isSuperOrAdmin = $user->isAdmin() || $user->isSuperadmin();
+        $isDivHeadLaporan = $user->isDivisionHead() || in_array($userRole, ['div_head', 'division_head']);
+        $isDeptHeadLaporan = $user->isDepartmentHead() || in_array($userRole, ['dept_head', 'department_head']);
+        $isSectionHeadLaporan = $user->isSectionHead() || in_array($userRole, ['section_head', 'section', 'sechead']);
+        $isForemanLaporan = $user->isForeman() || in_array($userRole, ['foreman', 'ketua']);
+
+        $showColForeman = true;
+        $showColSect = $isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan || $isSectionHeadLaporan;
+        $showColDept = $isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan;
+        $showColDiv = $isSuperOrAdmin || $isDivHeadLaporan;
+        $showColFinal = true;
+
+        // 17 kolom identitas & bobot + 1 kolom aksi + jumlah kolom nilai PK yang aktif
+        $totalTableCols = 18 + ($showColForeman ? 1 : 0) + ($showColSect ? 1 : 0) + ($showColDept ? 1 : 0) + ($showColDiv ? 1 : 0) + ($showColFinal ? 1 : 0);
+    @endphp
     <div class="bg-white border border-slate-300 shadow-sm rounded-none overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-separate border-spacing-0 whitespace-nowrap">
@@ -939,11 +956,21 @@
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">Sikap Kerja</th>
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">Man Management</th>
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">Total Nilai</th>
+                        @if($showColForeman)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK FOREMAN (JIKA ADA)</th>
+                        @endif
+                        @if($showColSect)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK SECT</th>
+                        @endif
+                        @if($showColDept)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK DEPT</th>
+                        @endif
+                        @if($showColDiv)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK DIV</th>
+                        @endif
+                        @if($showColFinal)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK FINAL</th>
+                        @endif
                         <th class="py-3 px-3 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-24 whitespace-nowrap">AKSI</th>
                     </tr>
                 </thead>
@@ -1050,6 +1077,7 @@
                             {{ $row['total_nilai'] !== null ? number_format($row['total_nilai'], 2) : '-' }}
                         </td>
 
+                        @if($showColForeman)
                         <!-- NILAI PK FOREMAN (JIKA ADA) -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
                             @if(($row['pk_foreman'] ?? '-') !== '-')
@@ -1064,7 +1092,9 @@
                             <span class="text-slate-400 font-mono font-bold">-</span>
                             @endif
                         </td>
+                        @endif
 
+                        @if($showColSect)
                         <!-- NILAI PK SECT -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
                             @if(($row['pk_sect'] ?? '-') !== '-')
@@ -1079,7 +1109,9 @@
                             <span class="text-slate-400 font-mono font-bold">-</span>
                             @endif
                         </td>
+                        @endif
 
+                        @if($showColDept)
                         <!-- NILAI PK DEPT -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
                             @if(($row['pk_dept'] ?? '-') !== '-')
@@ -1094,7 +1126,9 @@
                             <span class="text-slate-400 font-mono font-bold">-</span>
                             @endif
                         </td>
+                        @endif
 
+                        @if($showColDiv)
                         <!-- NILAI PK DIV -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
                             @if(($row['pk_div'] ?? '-') !== '-')
@@ -1109,7 +1143,9 @@
                             <span class="text-slate-400 font-mono font-bold">-</span>
                             @endif
                         </td>
+                        @endif
 
+                        @if($showColFinal)
                         <!-- NILAI PK FINAL -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
                             @if(($row['pk_final'] ?? '-') !== '-')
@@ -1124,6 +1160,7 @@
                             <span class="text-slate-400 font-mono font-bold">-</span>
                             @endif
                         </td>
+                        @endif
 
                         <!-- AKSI -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
@@ -1155,7 +1192,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="22" class="py-10 text-center text-slate-500 font-medium border-b border-r border-slate-300">
+                        <td colspan="{{ $totalTableCols }}" class="py-10 text-center text-slate-500 font-medium border-b border-r border-slate-300">
                             <div class="flex flex-col items-center justify-center gap-2">
                                 <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
