@@ -1719,10 +1719,13 @@ class KaryawanController extends Controller
                     DB::table('dokumen')->where('nrp', $nrp)->delete();
                 }
                 DB::table('karyawan')->where('nrp', $nrp)->delete();
+                // Hapus juga akun user pimpinan yang terhubung dengan NRP karyawan ini
+                DB::table('app_users')->where('nrp', $nrp)->whereNotIn('role', ['superadmin', 'admin'])->delete();
             });
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Notice on cascading delete documents for NRP {$nrp}: " . $e->getMessage());
             DB::table('karyawan')->where('nrp', $nrp)->delete();
+            DB::table('app_users')->where('nrp', $nrp)->whereNotIn('role', ['superadmin', 'admin'])->delete();
         }
 
         // Flush all relevant caches immediately (< 1ms)
@@ -1731,6 +1734,10 @@ class KaryawanController extends Controller
         $this->repository->clearCache('nilai');
         $this->repository->clearCache('indikator');
         $this->repository->clearCache('tanda_tangan');
+        $this->repository->clearCache('users');
+        \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
+        \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
+        \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
 
         // Background Drive PDF deletion, phantom account cleanup, and Google Spreadsheet sync
         if (function_exists('defer')) {
@@ -1752,11 +1759,12 @@ class KaryawanController extends Controller
                         'karyawan',
                         'dokumen',
                         'Dokumen_Dinilai',
+                        'Target_Pemantauan',
+                        'users',
                         'nilai',
                         'indikator',
                         'tanda_tangan',
                         'kuota_departemen',
-                        'users'
                     ]);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning("Google delete sync notice: " . $e->getMessage());
@@ -1907,6 +1915,13 @@ class KaryawanController extends Controller
                 }
                 $deletedCount = DB::table('karyawan')->whereIn('nrp', $targetNrps)->delete();
 
+                // Hapus akun user pimpinan yang terhubung dengan karyawan yang dihapus
+                if ($scope === 'all') {
+                    DB::table('app_users')->whereNotIn('role', ['superadmin', 'admin'])->delete();
+                } else {
+                    DB::table('app_users')->whereIn('nrp', $targetNrps)->whereNotIn('role', ['superadmin', 'admin'])->delete();
+                }
+
                 // Bersihkan record nilai/dokumen orphan yang tidak memiliki induk dokumen/karyawan
                 $remainingDocIds = DB::table('dokumen')->pluck('id')->toArray();
                 if (Schema::hasTable('nilai')) DB::table('nilai')->whereNotIn('dokumen_id', $remainingDocIds)->delete();
@@ -1929,6 +1944,11 @@ class KaryawanController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Notice on cascading bulk delete: " . $e->getMessage());
             $deletedCount = DB::table('karyawan')->whereIn('nrp', $targetNrps)->delete();
+            if ($scope === 'all') {
+                DB::table('app_users')->whereNotIn('role', ['superadmin', 'admin'])->delete();
+            } else {
+                DB::table('app_users')->whereIn('nrp', $targetNrps)->whereNotIn('role', ['superadmin', 'admin'])->delete();
+            }
         }
 
         // Clear all caches completely (< 1ms)
@@ -1937,6 +1957,7 @@ class KaryawanController extends Controller
         $this->repository->clearCache('nilai');
         $this->repository->clearCache('indikator');
         $this->repository->clearCache('tanda_tangan');
+        $this->repository->clearCache('users');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
@@ -1946,7 +1967,7 @@ class KaryawanController extends Controller
             defer(function () use ($scope, $targetNrps, $driveFileIds) {
                 try {
                     if ($scope === 'all') {
-                        \App\Services\GoogleSyncService::wipeAllDataAndDrivePdfs();
+                        \App\Services\GoogleSyncService::wipeAllDataAndDrivePdfs(null, true);
                     } else {
                         \App\Services\GoogleSyncService::deleteGoogleDriveEmployeePdfs($targetNrps, $driveFileIds);
                     }
@@ -1965,11 +1986,12 @@ class KaryawanController extends Controller
                         'karyawan',
                         'dokumen',
                         'Dokumen_Dinilai',
+                        'Target_Pemantauan',
+                        'users',
                         'nilai',
                         'indikator',
                         'tanda_tangan',
                         'kuota_departemen',
-                        'users'
                     ]);
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning("Google bulk delete sync notice: " . $e->getMessage());

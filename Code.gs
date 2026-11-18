@@ -36,10 +36,12 @@ function onOpen() {
     .addItem('📱 Sinkron Barcode TTD Users ke Drive & Tampil di Sheet', 'syncUserBarcodesToDriveAndSheet')
     .addItem('📊 Format & Rapikan Sheet Dokumen_Dinilai', 'setupDokumenDinilaiSheet')
     .addItem('🎯 Format & Rapikan Sheet Target_Pemantauan', 'setupTargetPemantauanSheet')
+    .addItem('👥 Sinkron & Bersihkan Sheet Users (Hapus Akun Non-Karyawan)', 'cleanupUsersSheetMenu')
     .addItem('📅 Rapikan Format Tanggal Masuk (dd-Mmm-yy)', 'formatAllDatesInSheets')
     .addItem('🗑️ Hapus Sheet yang Tidak Diperlukan', 'cleanUnusedSheets')
     .addSeparator()
-    .addItem('⚠️ Kosongkan Seluruh Data Penilaian & PDF Drive (Wipe Total)', 'wipeAllDataAndPdfsMenu')
+    .addItem('⚠️ Kosongkan Data Penilaian & PDF Drive (Wipe Penilaian)', 'wipeAllDataAndPdfsMenu')
+    .addItem('⚠️ Reset Total Seluruh Database & Akun Users Non-Admin (Reset Total)', 'resetTotalDatabaseMenu')
     .addItem('✍️ Uji & Buat Folder Tanda Tangan Drive', 'testDriveAccess')
     .addSeparator()
     .addItem('📈 Cek Status & Statistik Data', 'showDatabaseStats')
@@ -593,9 +595,13 @@ function wipeAllAppraisalPdfsInDrive() {
   return deletedCount;
 }
 
+/**
+ * Kosongkan Data Penilaian (dokumen, nilai, indikator, tanda_tangan, Dokumen_Dinilai, Target_Pemantauan)
+ * Data Karyawan dan Users tetap dipertahankan.
+ */
 function wipeAllAppraisalSheetsData() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'kuota_departemen', 'Master Tanda Tangan'];
+  var targetSheets = ['dokumen', 'Dokumen_Dinilai', 'Target_Pemantauan', 'nilai', 'indikator', 'tanda_tangan', 'kuota_departemen', 'audit_log'];
 
   for (var i = 0; i < targetSheets.length; i++) {
     var sName = targetSheets[i];
@@ -611,10 +617,40 @@ function wipeAllAppraisalSheetsData() {
   }
 }
 
+/**
+ * Reset Total Seluruh Database termasuk Karyawan & Akun Users Non-Admin
+ */
+function resetTotalDatabaseSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  // 1. Bersihkan seluruh tabel penilaian
+  wipeAllAppraisalSheetsData();
+
+  // 2. Bersihkan tabel karyawan
+  var kSheet = ss.getSheetByName('karyawan');
+  if (kSheet && kSheet.getLastRow() > 1) {
+    kSheet.deleteRows(2, kSheet.getLastRow() - 1);
+    formatSheetColumns(kSheet, 'karyawan');
+  }
+
+  // 3. Bersihkan tabel Master Tanda Tangan
+  var mtSheet = ss.getSheetByName('Master Tanda Tangan');
+  if (mtSheet && mtSheet.getLastRow() > 1) {
+    mtSheet.deleteRows(2, mtSheet.getLastRow() - 1);
+    formatSheetColumns(mtSheet, 'Master Tanda Tangan');
+  }
+
+  // 4. Bersihkan akun user kepemimpinan (Foreman, Sect, Dept, Div Head), pertahankan Superadmin & Admin
+  cleanupPhantomUsersInSheet();
+}
+
+/**
+ * Hapus Baris Karyawan dari Seluruh Sheet Terkait Termasuk Sheet Users (Kecuali Akun Admin)
+ */
 function deleteEmployeeRowsFromSheets(nrpsList) {
   if (!nrpsList || nrpsList.length === 0) return {};
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan'];
+  // Sheet users dan Target_Pemantauan sekarang IKUT dicari dan dihapus secara otomatis
+  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users', 'Target_Pemantauan'];
   var nrpMap = {};
   for (var n = 0; n < nrpsList.length; n++) {
     var s = String(nrpsList[n] || '').trim().toLowerCase();
@@ -631,11 +667,19 @@ function deleteEmployeeRowsFromSheets(nrpsList) {
     var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
     var keyColIdx = headers.indexOf('nrp');
     if (keyColIdx === -1) keyColIdx = 0;
+    var roleColIdx = headers.indexOf('role');
 
     var count = 0;
     for (var r = data.length - 1; r >= 1; r--) {
       var val = String(data[r][keyColIdx]).trim().toLowerCase();
       if (nrpMap[val]) {
+        // Jika pada sheet users, JANGAN hapus akun superadmin atau admin!
+        if (sName === 'users' && roleColIdx !== -1) {
+          var uRole = String(data[r][roleColIdx] || '').trim().toLowerCase();
+          if (uRole === 'superadmin' || uRole === 'admin') {
+            continue;
+          }
+        }
         sh.deleteRow(r + 1);
         count++;
       }
@@ -645,11 +689,69 @@ function deleteEmployeeRowsFromSheets(nrpsList) {
   return stats;
 }
 
+/**
+ * Bersihkan Akun User Kepemimpinan yang Tidak Terdaftar di Data Karyawan Aktif
+ * Akun Superadmin dan Admin SELALU dipertahankan agar tidak terkunci.
+ */
+function cleanupPhantomUsersInSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var kSheet = ss.getSheetByName('karyawan');
+  var uSheet = ss.getSheetByName('users');
+  if (!uSheet || uSheet.getLastRow() <= 1) return 0;
+
+  var validNrps = {};
+  if (kSheet && kSheet.getLastRow() > 1) {
+    var kData = kSheet.getDataRange().getValues();
+    var kHeaders = kData[0].map(function(h) { return String(h).trim().toLowerCase(); });
+    var nrpCols = [
+      kHeaders.indexOf('nrp'),
+      kHeaders.indexOf('nrp_foreman'),
+      kHeaders.indexOf('nrp_section_head'),
+      kHeaders.indexOf('nrp_dept_head'),
+      kHeaders.indexOf('nrp_div_head')
+    ];
+    for (var kr = 1; kr < kData.length; kr++) {
+      for (var c = 0; c < nrpCols.length; c++) {
+        var colIdx = nrpCols[c];
+        if (colIdx !== -1) {
+          var nVal = String(kData[kr][colIdx] || '').trim().toLowerCase();
+          if (nVal) validNrps[nVal] = true;
+        }
+      }
+    }
+  }
+
+  var uData = uSheet.getDataRange().getValues();
+  var uHeaders = uData[0].map(function(h) { return String(h).trim().toLowerCase(); });
+  var uNrpCol = uHeaders.indexOf('nrp');
+  var uRoleCol = uHeaders.indexOf('role');
+
+  var deletedCount = 0;
+  for (var ur = uData.length - 1; ur >= 1; ur--) {
+    var roleVal = uRoleCol !== -1 ? String(uData[ur][uRoleCol] || '').trim().toLowerCase() : '';
+    // Akun Superadmin dan Admin SELALU AMAN
+    if (roleVal === 'superadmin' || roleVal === 'admin') continue;
+
+    var nrpVal = uNrpCol !== -1 ? String(uData[ur][uNrpCol] || '').trim().toLowerCase() : '';
+    // Jika tidak ada karyawan sama sekali, atau NRP akun ini tidak ada di daftar karyawan / atasan aktif
+    if (!nrpVal || !validNrps[nrpVal]) {
+      uSheet.deleteRow(ur + 1);
+      deletedCount++;
+    }
+  }
+  return deletedCount;
+}
+
+function cleanupUsersSheetMenu() {
+  var cleaned = cleanupPhantomUsersInSheet();
+  showAlertSafely('✅ Sinkronisasi Akun Users Selesai!\n' + cleaned + ' akun pimpinan non-master karyawan berhasil dibersihkan dari sheet users.');
+}
+
 function wipeAllDataAndPdfsMenu() {
   var ui = SpreadsheetApp.getUi();
   var response = ui.alert(
-    '⚠️ KONFIRMASI PEMBERSIHAN TOTAL',
-    'Apakah Anda yakin ingin MENGHAPUS SELURUH data penilaian di spreadsheet dan berkas PDF di Google Drive?',
+    '⚠️ KONFIRMASI PEMBERSIHAN DATA PENILAIAN',
+    'Apakah Anda yakin ingin MENGHAPUS SELURUH data dokumen penilaian di spreadsheet dan berkas PDF di Google Drive?\n\n(Catatan: Data Karyawan dan Akun Users tetap dipertahankan)',
     ui.ButtonSet.YES_NO
   );
   if (response !== ui.Button.YES) return;
@@ -657,7 +759,22 @@ function wipeAllDataAndPdfsMenu() {
   wipeAllAppraisalSheetsData();
   var trashedPdfs = wipeAllAppraisalPdfsInDrive();
   cleanUnusedSheets(true);
-  showAlertSafely('✅ Pembersihan Total Berhasil! ' + trashedPdfs + ' berkas PDF dipindahkan ke Trash.');
+  showAlertSafely('✅ Pembersihan Data Penilaian Berhasil! ' + trashedPdfs + ' berkas PDF dipindahkan ke Trash.');
+}
+
+function resetTotalDatabaseMenu() {
+  var ui = SpreadsheetApp.getUi();
+  var response = ui.alert(
+    '🚨 PERINGATAN KERAS: RESET TOTAL SELURUH DATABASE',
+    'Tindakan ini akan MENGHAPUS SEMUA DATA KARYAWAN, SELURUH PENILAIAN, DAN SEMUA AKUN USERS NON-ADMIN.\n\nHanya akun Superadmin & Admin yang akan dipertahankan.\n\nLanjutkan?',
+    ui.ButtonSet.YES_NO
+  );
+  if (response !== ui.Button.YES) return;
+
+  resetTotalDatabaseSheets();
+  var trashedPdfs = wipeAllAppraisalPdfsInDrive();
+  cleanUnusedSheets(true);
+  showAlertSafely('✅ Reset Total Selesai! Seluruh data karyawan, penilaian, dan akun kepemimpinan non-admin telah dibersihkan.');
 }
 
 function showDatabaseStats() {
@@ -666,17 +783,20 @@ function showDatabaseStats() {
   var docSheet = ss.getSheetByName('dokumen');
   var userSheet = ss.getSheetByName('users');
   var dinilaiSheet = ss.getSheetByName('Dokumen_Dinilai');
+  var targetSheet = ss.getSheetByName('Target_Pemantauan');
   var totalKaryawan = empSheet ? Math.max(0, empSheet.getLastRow() - 1) : 0;
   var totalDokumen = docSheet ? Math.max(0, docSheet.getLastRow() - 1) : 0;
   var totalUsers = userSheet ? Math.max(0, userSheet.getLastRow() - 1) : 0;
   var totalDinilai = dinilaiSheet ? Math.max(0, dinilaiSheet.getLastRow() - 1) : 0;
+  var totalTarget = targetSheet ? Math.max(0, targetSheet.getLastRow() - 1) : 0;
 
   showAlertSafely(
     '📊 STATISTIK BASIS DATA MUSASHI E-APPROVAL:\n\n' +
     '• Data Karyawan: ' + totalKaryawan + ' Orang\n' +
     '• Dokumen Penilaian: ' + totalDokumen + ' Dokumen\n' +
     '• Akun Pengguna: ' + totalUsers + ' Akun\n' +
-    '• Dokumen Dinilai (Laporan): ' + totalDinilai + ' Baris'
+    '• Dokumen Dinilai (Laporan): ' + totalDinilai + ' Baris\n' +
+    '• Target & Pemantauan Kuota: ' + totalTarget + ' Departemen'
   );
 }
 
@@ -757,12 +877,24 @@ function doPost(e) {
       return jsonResponse({ status: 'success', message: 'Format tanggal berhasil dirapikan' });
     }
 
-    // PEMBERSIHAN TOTAL (WIPE ALL APPRAISAL DATA & DRIVE PDFS)
+    // PEMBERSIHAN / RESET TOTAL DATA PENILAIAN ATAU SELURUH DATABASE
     if (action === 'wipe_all_data' || action === 'wipe_appraisals' || action === 'reset_database') {
-      wipeAllAppraisalSheetsData();
+      var wipeAllEmployeesAndUsers = (postData.wipe_karyawan_and_users === true || postData.wipe_all === true || action === 'reset_database');
       var trashedPdfs = (postData.wipe_drive_pdfs !== false) ? wipeAllAppraisalPdfsInDrive() : 0;
+
+      if (wipeAllEmployeesAndUsers) {
+        resetTotalDatabaseSheets();
+      } else {
+        wipeAllAppraisalSheetsData();
+      }
       cleanUnusedSheets(true);
-      return jsonResponse({ status: 'success', action: 'wipe_all_data', trashed_drive_pdfs: trashedPdfs });
+
+      return jsonResponse({
+        status: 'success',
+        action: action,
+        wipe_all: wipeAllEmployeesAndUsers,
+        trashed_drive_pdfs: trashedPdfs
+      });
     }
 
     // HAPUS DATA KARYAWAN & BERKAS DRIVE (BERDASARKAN DAFTAR NRP / FILE ID)
@@ -771,12 +903,25 @@ function doPost(e) {
       var fileIds = postData.file_ids || (postData.file_id ? [postData.file_id] : []);
       var deletedRows = deleteEmployeeRowsFromSheets(nrps);
       var trashedDrivePdfs = deleteDriveFilesByNrps(nrps, fileIds);
+      // Bersihkan juga akun users orphan jika karyawan induknya dihapus
+      var cleanedUsers = cleanupPhantomUsersInSheet();
 
       return jsonResponse({
         status: 'success',
         action: 'delete_employee_data',
         deleted_rows: deletedRows,
+        cleaned_users: cleanedUsers,
         trashed_drive_pdfs: trashedDrivePdfs
+      });
+    }
+
+    // BERSIHKAN AKUN USERS NON-KARYAWAN SECARA EKSPLISIT
+    if (action === 'cleanup_users' || action === 'sync_users_with_karyawan') {
+      var countCleaned = cleanupPhantomUsersInSheet();
+      return jsonResponse({
+        status: 'success',
+        action: 'cleanup_users',
+        cleaned_users_count: countCleaned
       });
     }
 
@@ -925,7 +1070,7 @@ function doPost(e) {
 
     // D. HAPUS 1 BARIS KILAT (DELETE ROW BY NRP & CASCADE DELETE DRIVE PDFS)
     if (action === 'delete_row') {
-      var targetTables = postData.tables || ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users'];
+      var targetTables = postData.tables || ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users', 'Target_Pemantauan'];
       var keyColumn = (postData.key_column || 'nrp').toLowerCase();
       var keyValue = String(postData.key_value || '').trim().toLowerCase();
       var deletedStats = {};
@@ -939,10 +1084,18 @@ function doPost(e) {
         var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
         var keyIdx = headers.indexOf(keyColumn);
         if (keyIdx === -1) keyIdx = 0;
+        var roleColIdx = headers.indexOf('role');
 
         var count = 0;
         for (var r = data.length - 1; r >= 1; r--) {
           if (String(data[r][keyIdx]).trim().toLowerCase() === keyValue) {
+            // Jika pada sheet users, lindungi akun superadmin dan admin
+            if (sName === 'users' && roleColIdx !== -1) {
+              var uRole = String(data[r][roleColIdx] || '').trim().toLowerCase();
+              if (uRole === 'superadmin' || uRole === 'admin') {
+                continue;
+              }
+            }
             sh.deleteRow(r + 1);
             count++;
           }

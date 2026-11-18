@@ -117,11 +117,28 @@ class AccountSyncService
         $deletedCount = 0;
         $deletedDetails = [];
 
-        // Do not delete leadership accounts that are stored in the database / Google Sheets 'users' sheet.
-        // All accounts in app_users / users are official user accounts.
+        // Hapus akun pimpinan yang tidak lagi terhubung ke data karyawan aktif
+        $validNrps = array_unique(array_filter(array_merge(
+            $karyawanNrps,
+            $activeForemanNrps,
+            $activeSectionHeadNrps,
+            $activeDeptHeadNrps,
+            $activeDivHeadNrps
+        )));
+
+        foreach ($leadershipUsers as $u) {
+            $uNrp = trim((string)$u->nrp);
+            // Jika seluruh karyawan dihapus atau NRP user ini tidak ada di master karyawan / atasan
+            if (empty($validNrps) || empty($uNrp) || !in_array($uNrp, $validNrps)) {
+                $deletedDetails[] = "{$u->nama} (NRP: {$u->nrp}, Role: {$u->role})";
+                $u->delete();
+                $deletedCount++;
+            }
+        }
+
         return [
-            'deleted_count' => 0,
-            'deleted_details' => [],
+            'deleted_count' => $deletedCount,
+            'deleted_details' => $deletedDetails,
         ];
     }
 

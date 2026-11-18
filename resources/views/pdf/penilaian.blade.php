@@ -90,9 +90,11 @@
         .line-underline {
             border-bottom: 0.8px solid #94a3b8;
             display: block;
-            margin-top: 1px;
-            min-height: 9.5px;
-            font-size: 6pt;
+            margin-top: 1.5px;
+            padding-bottom: 1.5px;
+            min-height: 10px;
+            font-size: 5.8pt;
+            line-height: 1.2;
         }
 
         .ruled-line {
@@ -1154,7 +1156,7 @@
                         <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; padding: 0;">
                             @foreach($pdfKelebihanLines as $line)
                                 <tr>
-                                    <td style="border-bottom: 0.8px solid #cbd5e1; height: 14px; padding: 0 4px; vertical-align: middle; font-size: 6.2pt; line-height: 1.1; white-space: nowrap;">
+                                    <td style="border-bottom: 0.8px solid #cbd5e1; height: 14px; padding: 1px 4px 2px 4px; vertical-align: top; font-size: 6.2pt; line-height: 1.2; white-space: nowrap;">
                                         @if($line)
                                             @if(!empty($line['prefix']))
                                                 <span style="font-weight: bold; color: #1e293b;">{{ $line['prefix'] }}</span>
@@ -1181,7 +1183,7 @@
                         <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; padding: 0;">
                             @foreach($pdfKekuranganLines as $line)
                                 <tr>
-                                    <td style="border-bottom: 0.8px solid #cbd5e1; height: 14px; padding: 0 4px; vertical-align: middle; font-size: 6.2pt; line-height: 1.1; white-space: nowrap;">
+                                    <td style="border-bottom: 0.8px solid #cbd5e1; height: 14px; padding: 1px 4px 2px 4px; vertical-align: top; font-size: 6.2pt; line-height: 1.2; white-space: nowrap;">
                                         @if($line)
                                             @if(!empty($line['prefix']))
                                                 <span style="font-weight: bold; color: #1e293b;">{{ $line['prefix'] }}</span>

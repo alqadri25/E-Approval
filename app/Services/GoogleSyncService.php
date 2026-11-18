@@ -641,9 +641,11 @@ class GoogleSyncService
             return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
         }
 
-        // Pastikan Dokumen_Dinilai selalu ikut tersinkronisasi bila karyawan atau dokumen diperbarui / dihapus
-        if ((in_array('karyawan', $tables) || in_array('dokumen', $tables)) && !in_array('Dokumen_Dinilai', $tables)) {
-            $tables[] = 'Dokumen_Dinilai';
+        // Pastikan Dokumen_Dinilai, Target_Pemantauan, dan users selalu ikut tersinkronisasi bila karyawan atau dokumen diperbarui / dihapus
+        if (in_array('karyawan', $tables) || in_array('dokumen', $tables)) {
+            if (!in_array('Dokumen_Dinilai', $tables)) $tables[] = 'Dokumen_Dinilai';
+            if (!in_array('Target_Pemantauan', $tables)) $tables[] = 'Target_Pemantauan';
+            if (!in_array('users', $tables)) $tables[] = 'users';
         }
 
         $payload = [];
@@ -657,6 +659,8 @@ class GoogleSyncService
             $rows = [];
             if ($table === 'Dokumen_Dinilai') {
                 $rows = self::buildDokumenDinilaiRows();
+            } elseif ($table === 'Target_Pemantauan') {
+                $rows = self::buildTargetPemantauanRows();
             } elseif (Schema::hasTable($localTable)) {
                 if ($localTable === 'app_users') {
                     $rows = DB::table('app_users')
@@ -1439,7 +1443,7 @@ class GoogleSyncService
     /**
      * Bersihkan total seluruh data penilaian di spreadsheet dan seluruh file PDF di Google Drive
      */
-    public static function wipeAllDataAndDrivePdfs(?string $appscriptUrl = null): array
+    public static function wipeAllDataAndDrivePdfs(?string $appscriptUrl = null, bool $wipeEmployeesAndUsers = false): array
     {
         $config = self::getConfig();
         $targetAppscript = $appscriptUrl ?: $config['appscript_url'];
@@ -1448,9 +1452,10 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(25)->withoutVerifying()->post($targetAppscript, [
+            $response = Http::timeout(35)->withoutVerifying()->post($targetAppscript, [
                 'action' => 'wipe_all_data',
                 'wipe_drive_pdfs' => true,
+                'wipe_karyawan_and_users' => $wipeEmployeesAndUsers,
             ]);
             return $response->json() ?? ['success' => true];
         } catch (\Throwable $e) {
