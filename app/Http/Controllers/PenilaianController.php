@@ -3589,16 +3589,30 @@ class PenilaianController extends Controller
             $user->save();
         }
 
+        $signLevel = ($subFormVariant === 'div_head' && $dokumen['nrp'] === $user->nrp) ? 'foreman' : $level;
+
+        // Compute Hash Snapshot (immutable integrity check)
+        $snapshotPayload = json_encode([
+            'dokumen_id' => $id,
+            'level' => $signLevel,
+            'user_id' => $user->id,
+            'nrp_user' => $user->nrp,
+            'scores' => $scores,
+            'timestamp' => now()->toIso8601String(),
+        ]);
+        $hashSnapshot = hash('sha256', $snapshotPayload);
+
+        $nextStatus = $dokumen['status'] ?? 'draft';
+        $levelTitle = 'Penilai';
+
         // 4 - 9. Wrap entire persistence logic in withoutSync to eliminate all synchronous remote HTTP overhead
         \App\Repositories\SheetRepository::withoutSync(function () use ($id, $scores, $subFormVariant, $dokumen, $user, $level, $signLevel, $request, $hashSnapshot, $signaturePath, &$nextStatus, &$levelTitle) {
             // 4. Save Scores to 'nilai'
             if ($subFormVariant === 'div_head' && $dokumen['nrp'] === $user->nrp) {
                 $this->persistScores($id, 'dept_head', $scores);
                 $this->persistScores($id, 'foreman', $scores);
-                $signLevel = 'foreman';
             } else {
                 $this->persistScores($id, $level, $scores);
-                $signLevel = $level;
             }
 
             // 5. Save Indikator
@@ -3663,6 +3677,23 @@ class PenilaianController extends Controller
                 'updated_at' => now()->toDateTimeString(),
             ];
 
+            // Simpan identitas atasan penandatangan pada dokumen agar selalu tersimpan & sinkron ke spreadsheet
+            if ($signLevel === 'foreman') {
+                $updateData['nrp_foreman'] = $user->nrp;
+                $updateData['nama_foreman'] = $user->nama;
+            } elseif ($signLevel === 'section_head') {
+                $updateData['nrp_section_head'] = $user->nrp;
+                $updateData['nama_section_head'] = $user->nama;
+            } elseif ($signLevel === 'dept_head') {
+                if ($isGol4Up) {
+                    $updateData['nrp_div_head'] = $user->nrp;
+                    $updateData['nama_div_head'] = $user->nama;
+                } else {
+                    $updateData['nrp_dept_head'] = $user->nrp;
+                    $updateData['nama_dept_head'] = $user->nama;
+                }
+            }
+
             if ($nextStatus === 'selesai' || $level === 'dept_head') {
                 $updateData['hash_dokumen'] = $hashSnapshot;
             }
@@ -3683,6 +3714,7 @@ class PenilaianController extends Controller
                 'foreman' => ($isGol4Up && empty($karyawanArr['nrp_foreman']) ? 'Section Head' : 'Foreman'),
                 'section_head' => ($isGol4Up ? 'Department Head' : 'Section Head'),
                 'dept_head' => ($isGol4Up ? 'Division Head (Final)' : 'Department Head (Final)'),
+                default => 'Penilai',
             };
         });
 
@@ -3703,20 +3735,10 @@ class PenilaianController extends Controller
             \Illuminate\Support\Facades\Log::warning("Background async sync on sign failed: " . $e->getMessage());
         }
 
-        // Upload PDF to Google Drive ONLY when document is finalized ('selesai')
+        // Upload PDF to Google Drive asynchronously in background ONLY when document is finalized ('selesai') (< 5ms dispatch)
         if ($nextStatus === 'selesai') {
             try {
-                if (function_exists('defer')) {
-                    defer(function () use ($id, $level) {
-                        try {
-                            GoogleSyncService::uploadPdfToDrive($id);
-                        } catch (\Throwable $e) {
-                            \Illuminate\Support\Facades\Log::warning("Upload PDF to Google Drive on sign ({$level}) failed: " . $e->getMessage());
-                        }
-                    });
-                } else {
-                    GoogleSyncService::uploadPdfToDriveAsync($id);
-                }
+                GoogleSyncService::uploadPdfToDriveAsync((int)$id);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning("Upload PDF dispatch failed: " . $e->getMessage());
             }

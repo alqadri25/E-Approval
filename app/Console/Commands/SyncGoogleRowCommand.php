@@ -29,7 +29,7 @@ class SyncGoogleRowCommand extends Command
         $action = strtolower(trim($this->argument('action')));
 
         if ($action === 'sync_all') {
-            $res = GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users']);
+            $res = GoogleSyncService::syncTables(['karyawan', 'dokumen', 'Dokumen_Dinilai', 'Target_Pemantauan', 'users', 'nilai', 'indikator', 'tanda_tangan', 'audit_log']);
             if ($res['success'] ?? false) {
                 $this->info("Successfully synced all tables to Google Spreadsheet.");
                 return Command::SUCCESS;
