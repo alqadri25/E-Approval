@@ -481,16 +481,11 @@ class GoogleSyncService
             }
         }
 
-        // If no records in karyawan and local DATA PK.xlsx exists, fallback to DatabaseSyncService
-        if (DB::table('karyawan')->count() === 0 && file_exists(base_path('DATA PK.xlsx'))) {
-            $localSync = DatabaseSyncService::syncAll();
-        } else {
-            $localSync = [
-                'karyawan_total' => DB::table('karyawan')->count(),
-                'dokumen_total' => DB::table('dokumen')->count(),
-                'users_total' => DB::table('app_users')->count(),
-            ];
-        }
+        $localSync = [
+            'karyawan_total' => DB::table('karyawan')->count(),
+            'dokumen_total' => DB::table('dokumen')->count(),
+            'users_total' => DB::table('app_users')->count(),
+        ];
 
         $timestampNow = date('d F Y, H:i') . ' WIB';
         DB::table('pengaturan')->updateOrInsert(
@@ -534,6 +529,7 @@ class GoogleSyncService
         $kuotaData = Schema::hasTable('kuota_departemen') ? DB::table('kuota_departemen')->get()->toArray() : [];
         $auditData = Schema::hasTable('audit_log') ? DB::table('audit_log')->latest('id')->limit(500)->get()->toArray() : [];
         $dokumenDinilaiData = self::buildDokumenDinilaiRows();
+        $targetPemantauanData = self::buildTargetPemantauanRows();
 
         $payload = [
             'spreadsheet_id' => $targetSpreadsheet,
@@ -550,13 +546,14 @@ class GoogleSyncService
             'pengaturan' => $pengaturanData,
             'kuota_departemen' => $kuotaData,
             'Dokumen_Dinilai' => $dokumenDinilaiData,
+            'Target_Pemantauan' => $targetPemantauanData,
             'audit_log' => $auditData,
         ];
 
         $pushedToWeb = false;
         if (!empty($targetAppscript) && filter_var($targetAppscript, FILTER_VALIDATE_URL)) {
             try {
-                $response = Http::timeout(10)->withoutVerifying()->post($targetAppscript, [
+                $response = Http::timeout(40)->withoutVerifying()->post($targetAppscript, [
                     'action' => 'push_all',
                     'data' => $payload,
                 ]);
@@ -1129,11 +1126,11 @@ class GoogleSyncService
 
             // Highest available calculation
             $activeCalc = $calcDept ?: ($calcSect ?: $calcForeman);
-            $isDinilai = !empty($doc) && (
-                ($activeCalc && ($activeCalc['grand_total'] ?? 0) > 0)
-                || (($doc->total_nilai ?? 0) > 0)
-                || in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
-            );
+            $hasScore = ($activeCalc && ($activeCalc['grand_total'] ?? 0) > 0)
+                || (!empty($doc->total_nilai) && (float)$doc->total_nilai > 0)
+                || !empty($doc->docking_final)
+                || !empty($doc->grade_original);
+            $isDinilai = !empty($doc) && $hasScore && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
 
             $grandTotal = $activeCalc ? (float)($activeCalc['grand_total'] ?? 0) : ((float)($doc->total_nilai ?? 0));
             $hasilKerja = ($isDinilai && $activeCalc && isset($activeCalc['groups']['hasil_kerja']))
@@ -1241,6 +1238,161 @@ class GoogleSyncService
     }
 
     /**
+     * Build rows for Target_Pemantauan sheet matching the exact web monitoring table
+     */
+    public static function buildTargetPemantauanRows(): array
+    {
+        $allKaryawan = DB::table('karyawan')->get()->map(fn($k) => (array)$k)->toArray();
+        if (empty($allKaryawan)) {
+            return [];
+        }
+
+        $allDocs = DB::table('dokumen')->get()->map(fn($d) => (array)$d)->toArray();
+        $docsByNrp = [];
+        foreach ($allDocs as $d) {
+            $docsByNrp[(string)$d['nrp']] = $d;
+        }
+
+        $allNilai = Schema::hasTable('nilai') ? DB::table('nilai')->get()->toArray() : [];
+        $nilaiByDoc = [];
+        foreach ($allNilai as $n) {
+            $docId = $n->dokumen_id ?? ($n['dokumen_id'] ?? null);
+            if ($docId) {
+                $skor = (float)($n->skor ?? ($n['skor'] ?? 0));
+                if ($skor > 0) {
+                    $nilaiByDoc[$docId] = true;
+                }
+            }
+        }
+
+        $karyawanDeptCounts = [];
+        $karyawanDeptDivisions = [];
+        foreach ($allKaryawan as $k) {
+            $d = strtoupper(trim((string)($k['departemen'] ?? '')));
+            if ($d === '' || $d === '-') {
+                $d = strtoupper(trim((string)($k['seksi'] ?? ''))) ?: (strtoupper(trim((string)($k['division'] ?? ''))) ?: 'GENERAL');
+            }
+            if ($d !== '') {
+                $karyawanDeptCounts[$d] = ($karyawanDeptCounts[$d] ?? 0) + 1;
+                $div = trim((string)($k['division'] ?? ''));
+                if ($div !== '' && $div !== '-' && !isset($karyawanDeptDivisions[$d])) {
+                    $karyawanDeptDivisions[$d] = $div;
+                }
+            }
+        }
+
+        $rows = [];
+        $no = 1;
+        $nowStr = date('d-m-Y H:i:s');
+
+        foreach ($karyawanDeptCounts as $dName => $target) {
+            $matchingKaryawan = array_values(array_filter($allKaryawan, function($k) use ($dName) {
+                $kd = strtoupper(trim((string)($k['departemen'] ?? '')));
+                if ($kd === '' || $kd === '-') {
+                    $kd = strtoupper(trim((string)($k['seksi'] ?? ''))) ?: (strtoupper(trim((string)($k['division'] ?? ''))) ?: 'GENERAL');
+                }
+                return $kd === $dName;
+            }));
+
+            $dinilai = 0;
+            $divName = $karyawanDeptDivisions[$dName] ?? '';
+            foreach ($matchingKaryawan as $mk) {
+                if (!$divName) {
+                    $divCandidate = trim((string)($mk['division'] ?? ''));
+                    if ($divCandidate && $divCandidate !== '-') {
+                        $divName = $divCandidate;
+                    }
+                }
+                $doc = $docsByNrp[(string)($mk['nrp'] ?? '')] ?? null;
+                if ($doc) {
+                    $hasStoredTotal = !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0;
+                    $docIdVal = $doc['id'] ?? null;
+                    $hasNilaiRows = !empty($docIdVal) && isset($nilaiByDoc[$docIdVal]);
+                    $hasGrade = !empty($doc['docking_final']) || !empty($doc['grade_original']);
+                    $hasRealScore = $hasStoredTotal || $hasNilaiRows || $hasGrade;
+                    $docStatus = $doc['status'] ?? '';
+                    if ($hasRealScore && in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
+                        $dinilai++;
+                    }
+                }
+            }
+
+            if (!$divName) {
+                $divName = 'GENERAL AFFAIRS DIV';
+            }
+
+            $belum = max(0, $target - $dinilai);
+            $pct = $target > 0 ? (int)round(($dinilai / $target) * 100) : 0;
+
+            $tS = max(0, (int)round($target * 0.10));
+            $tA = max(0, (int)round($target * 0.30));
+            $tB = max(0, (int)round($target * 0.30));
+            $tC = max(0, (int)round($target * 0.20));
+            $tK = max(0, $target - ($tS + $tA + $tB + $tC));
+
+            $statusLabel = match(true) {
+                $target === 0 => 'Standby',
+                $pct === 100 => '✓ Tuntas',
+                $pct > 0 => 'Sedang Berjalan',
+                default => 'Belum Mulai',
+            };
+
+            $cleanDept = preg_replace('/^PROD\s*(\d+)$/i', 'Production $1', $dName);
+            $deptLabel = ($cleanDept !== $dName) ? "{$cleanDept} ({$dName})" : $dName;
+
+            $rows[] = [
+                'No' => $no++,
+                'Division' => $divName,
+                'Department' => $deptLabel,
+                'Target_Kuota' => $target,
+                'Sudah_Dinilai' => $dinilai,
+                'Belum_Dinilai' => $belum,
+                'Realisasi_Persen' => "{$pct}%",
+                'Target_S' => $tS,
+                'Target_A' => $tA,
+                'Target_B' => $tB,
+                'Target_C' => $tC,
+                'Target_K' => $tK,
+                'Status' => $statusLabel,
+                'Terakhir_Update' => $nowStr,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Push specifically Target_Pemantauan & Dokumen_Dinilai to Google Spreadsheet
+     */
+    public static function syncTargetPemantauan(?string $appscriptUrl = null): array
+    {
+        $config = self::getConfig();
+        $targetAppscript = $appscriptUrl ?: $config['appscript_url'];
+        $rows = self::buildTargetPemantauanRows();
+
+        if (empty($targetAppscript) || !filter_var($targetAppscript, FILTER_VALIDATE_URL)) {
+            return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
+        }
+
+        try {
+            $response = Http::timeout(20)->withoutVerifying()->post($targetAppscript, [
+                'action' => 'push_all',
+                'data' => [
+                    'Target_Pemantauan' => $rows
+                ]
+            ]);
+
+            return [
+                'success' => $response->successful(),
+                'total_rows' => count($rows),
+                'response' => $response->json(),
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Panggil endpoint Apps Script untuk membersihkan sheet usang / duplikat (Master Karyawan, master_aspek, dll)
      */
     public static function cleanUnusedSheetsGoogle(?string $appscriptUrl = null): array
@@ -1332,6 +1484,37 @@ class GoogleSyncService
             if ($response->successful()) {
                 $json = $response->json();
                 $data = $json['data'] ?? [];
+
+                // 0. Sync karyawan (Master Karyawan dari Google Spreadsheet)
+                if (!empty($data['karyawan']) && is_array($data['karyawan'])) {
+                    DB::transaction(function () use ($data) {
+                        $sheetNrps = [];
+                        $kCols = Schema::getColumnListing('karyawan');
+                        $kColSet = array_flip($kCols);
+
+                        foreach ($data['karyawan'] as $kRow) {
+                            $nrp = trim((string)($kRow['nrp'] ?? ''));
+                            if ($nrp === '') continue;
+                            $sheetNrps[] = $nrp;
+
+                            $cleanK = [];
+                            foreach ($kRow as $kKey => $kVal) {
+                                $kLower = strtolower(trim((string)$kKey));
+                                if (isset($kColSet[$kLower])) {
+                                    $cleanK[$kLower] = $kVal;
+                                }
+                            }
+                            if (!empty($cleanK)) {
+                                DB::table('karyawan')->updateOrInsert(['nrp' => $nrp], $cleanK);
+                            }
+                        }
+
+                        // Hapus karyawan lokal yang sudah dihapus di Google Spreadsheet
+                        if (!empty($sheetNrps)) {
+                            DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
+                        }
+                    });
+                }
 
                 // 1. Sync dokumen (workflow statuses & scores)
                 if (!empty($data['dokumen']) && is_array($data['dokumen'])) {

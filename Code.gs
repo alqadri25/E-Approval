@@ -35,6 +35,7 @@ function onOpen() {
     .addItem('📁 Buat Subfolder Drive Otomatis (Dari Data Karyawan)', 'setupDriveFolders')
     .addItem('📱 Sinkron Barcode TTD Users ke Drive & Tampil di Sheet', 'syncUserBarcodesToDriveAndSheet')
     .addItem('📊 Format & Rapikan Sheet Dokumen_Dinilai', 'setupDokumenDinilaiSheet')
+    .addItem('🎯 Format & Rapikan Sheet Target_Pemantauan', 'setupTargetPemantauanSheet')
     .addItem('📅 Rapikan Format Tanggal Masuk (dd-Mmm-yy)', 'formatAllDatesInSheets')
     .addItem('🗑️ Hapus Sheet yang Tidak Diperlukan', 'cleanUnusedSheets')
     .addSeparator()
@@ -64,6 +65,9 @@ var CONFIG_TABLES = {
   ],
   'Dokumen_Dinilai': [
     'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
+  ],
+  'Target_Pemantauan': [
+    'No', 'Division', 'Department', 'Target_Kuota', 'Sudah_Dinilai', 'Belum_Dinilai', 'Realisasi_Persen', 'Target_S', 'Target_A', 'Target_B', 'Target_C', 'Target_K', 'Status', 'Terakhir_Update'
   ],
   'users': [
     'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
@@ -112,6 +116,10 @@ var COLUMN_FORMATS = {
     widths: { 1: 90, 2: 230, 3: 220, 4: 160, 5: 160, 6: 190, 7: 190, 8: 110, 9: 80, 10: 90, 11: 90, 12: 90, 13: 90, 14: 110, 15: 90, 16: 170, 17: 120, 18: 120, 19: 120, 20: 130 },
     alignCenter: [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
     textFormatCols: [1, 8, 9, 10]
+  },
+  'Target_Pemantauan': {
+    widths: { 1: 50, 2: 190, 3: 230, 4: 110, 5: 110, 6: 110, 7: 120, 8: 80, 9: 80, 10: 80, 11: 80, 12: 80, 13: 130, 14: 160 },
+    alignCenter: [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
   },
   'kuota_departemen': {
     widths: { 1: 60, 2: 220, 3: 110, 4: 110, 5: 110, 6: 110, 7: 110 },
@@ -221,6 +229,8 @@ function setupDatabaseSheets() {
     }
     formatSheetColumns(sheet, name);
   }
+  setupDokumenDinilaiSheet();
+  setupTargetPemantauanSheet();
   cleanUnusedSheets(true);
   formatAllDatesInSheets(true);
   showAlertSafely('✅ Sukses! Seluruh tabel database resmi telah dibuat, dirapikan, dan sheet duplikat telah dibersihkan.');
@@ -239,6 +249,20 @@ function setupDokumenDinilaiSheet() {
   formatSheetColumns(sheet, 'Dokumen_Dinilai');
   formatAllDatesInSheets(true);
   showAlertSafely('✅ Sheet Dokumen_Dinilai berhasil disiapkan dan dirapikan.');
+}
+
+function setupTargetPemantauanSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Target_Pemantauan');
+  var headers = CONFIG_TABLES['Target_Pemantauan'];
+  if (!sheet) {
+    sheet = ss.insertSheet('Target_Pemantauan');
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  }
+  formatSheetColumns(sheet, 'Target_Pemantauan');
+  showAlertSafely('✅ Sheet Target_Pemantauan berhasil disiapkan dan dirapikan.');
 }
 
 function cleanUnusedSheets(silent) {

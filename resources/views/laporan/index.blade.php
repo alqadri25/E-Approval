@@ -623,9 +623,13 @@
     <div class="bg-white rounded-none border border-slate-300 p-4 sm:p-5 shadow-sm space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
             <div>
-                <h3 class="text-xs sm:text-sm font-black text-slate-900 tracking-wider flex items-center gap-2">
+                <h3 class="text-xs sm:text-sm font-black text-slate-900 tracking-wider flex items-center gap-2 flex-wrap">
                     <span class="w-2.5 h-2.5 bg-[#92302e]"></span>
                     <span>Tabel Target &amp; Pemantauan Divisi dan Departemen</span>
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300">
+                        <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Tersinkron ke Sheet: Target_Pemantauan
+                    </span>
                 </h3>
                 <p class="text-[11px] text-slate-500 font-medium mt-0.5">
                     Monitoring realisasi target, sisa evaluasi, dan alokasi kuota nilai (S, A, B, C, K) per divisi &amp; departemen terhubung langsung ke Master Karyawan.

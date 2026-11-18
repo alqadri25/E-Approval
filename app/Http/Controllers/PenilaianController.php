@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -7019,22 +7020,6 @@ class PenilaianController extends Controller
     {
         $allKaryawan = $this->repository->all('karyawan');
 
-        // 1. Bersihkan dokumen orphan (yang NRP-nya sudah tidak ada di master karyawan)
-        $activeNrps = array_unique(array_filter(array_map('strval', array_column($allKaryawan, 'nrp'))));
-        if (!empty($activeNrps)) {
-            $orphanDocIds = DB::table('dokumen')->whereNotIn('nrp', $activeNrps)->pluck('id')->toArray();
-            if (!empty($orphanDocIds)) {
-                if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $orphanDocIds)->delete();
-                if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $orphanDocIds)->delete();
-                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $orphanDocIds)->delete();
-                if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $orphanDocIds)->delete();
-                if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $orphanDocIds)->delete();
-                DB::table('dokumen')->whereIn('id', $orphanDocIds)->delete();
-                $this->repository->clearCache('dokumen');
-                $this->repository->clearCache('nilai');
-            }
-        }
-
         $allDocs = $this->repository->all('dokumen');
         $docsByNrp = [];
         foreach ($allDocs as $d) {
@@ -7607,10 +7592,16 @@ class PenilaianController extends Controller
 
                 $isDirectSH = empty($k['nrp_foreman']) || $isGol4UpForm;
 
-                // Evaluation status calculation per role level
-                // Admin & Superadmin: Yang sudah dinilai adalah yang sudah dinilai oleh Dept Head atau Div Head (final)
-                if ($user->isAdmin() || $user->isSuperadmin() || $user->isHr()) {
-                    $isDinilai = !empty($doc) && in_array($status, ['menunggu_div_head', 'selesai']);
+                $hasCalcScore = ($calc['grand_total'] ?? 0) > 0;
+                $hasStoredScore = !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0;
+                $hasDocGrade = !empty($doc['docking_final']) || !empty($doc['grade_original']);
+                $hasAnyScores = !empty($scores) || $hasCalcScore || $hasStoredScore || $hasDocGrade;
+
+                // Seseorang HANYA dianggap "Sudah Dinilai" jika benar-benar telah memiliki nilai/skor riil dari penilai
+                if (!$hasAnyScores) {
+                    $isDinilai = false;
+                } elseif ($user->isAdmin() || $user->isSuperadmin() || $user->isHr()) {
+                    $isDinilai = !empty($doc) && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
                 } elseif ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
                     $isDinilai = !empty($doc) && ($status === 'selesai');
                 } elseif ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
@@ -8270,7 +8261,10 @@ class PenilaianController extends Controller
         $karyawanDeptDivisions = [];
         foreach ($allKaryawan as $k) {
             $d = strtoupper(trim((string)($k['departemen'] ?? '')));
-            if ($d !== '' && $d !== '-') {
+            if ($d === '' || $d === '-') {
+                $d = strtoupper(trim((string)($k['seksi'] ?? ''))) ?: (strtoupper(trim((string)($k['division'] ?? ''))) ?: 'GENERAL');
+            }
+            if ($d !== '') {
                 $karyawanDeptCounts[$d] = ($karyawanDeptCounts[$d] ?? 0) + 1;
                 $div = trim((string)($k['division'] ?? ''));
                 if ($div !== '' && $div !== '-' && !isset($karyawanDeptDivisions[$d])) {
@@ -8334,7 +8328,11 @@ class PenilaianController extends Controller
 
         foreach ($divisiDefs as $def) {
             $matchingKaryawan = array_values(array_filter($allKaryawan, function($k) use ($def) {
-                return in_array(strtoupper(trim($k['departemen'] ?? '')), $def['match']);
+                $kd = strtoupper(trim((string)($k['departemen'] ?? '')));
+                if ($kd === '' || $kd === '-') {
+                    $kd = strtoupper(trim((string)($k['seksi'] ?? ''))) ?: (strtoupper(trim((string)($k['division'] ?? ''))) ?: 'GENERAL');
+                }
+                return in_array($kd, $def['match']);
             }));
             $target = count($matchingKaryawan);
 
@@ -8352,10 +8350,12 @@ class PenilaianController extends Controller
                 if ($doc) {
                     $hasStoredTotal = !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0;
                     $docIdVal = $doc['id'] ?? null;
-                    $hasNilaiRows = !empty($docIdVal) && isset($nilaiByDoc[$docIdVal]);
+                    $hasNilaiRows = !empty($docIdVal) && !empty($nilaiByDoc[$docIdVal]);
+                    $hasGrade = !empty($doc['docking_final']) || !empty($doc['grade_original']);
+                    $hasScore = $hasStoredTotal || $hasNilaiRows || $hasGrade;
                     $docStatus = $doc['status'] ?? '';
-                    // Yang sudah dinilai di Tabel Target & Pemantauan adalah dokumen yang sudah dinilai oleh Dept Head atau Div Head (final)
-                    $isRealEvaluated = in_array($docStatus, ['menunggu_div_head', 'selesai']);
+                    // Yang sudah dinilai di Tabel Target & Pemantauan adalah dokumen yang benar-benar memiliki nilai riil dari penilai
+                    $isRealEvaluated = $hasScore && in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
                 }
                 if ($isRealEvaluated) {
                     $dinilai++;
@@ -8511,6 +8511,10 @@ class PenilaianController extends Controller
         $forceSync = $request->boolean('sync') || $request->boolean('refresh');
         try {
             \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle($forceSync);
+            if ($forceSync) {
+                \App\Services\GoogleSyncService::syncTargetPemantauan();
+                \App\Services\GoogleSyncService::syncDokumenDinilai();
+            }
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning("Sync from Google on /laporan: " . $e->getMessage());
         }

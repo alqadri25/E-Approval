@@ -1571,11 +1571,31 @@ class DashboardController extends Controller
             $accessibleDocs[] = $doc;
         }
 
+        $docIdsWithNilai = DB::table('nilai')->whereNotNull('skor')->where('skor', '>', 0)->pluck('dokumen_id')->unique()->toArray();
+        $docIdsWithTtd = DB::table('tanda_tangan')->whereNotNull('ttd_image')->where('ttd_image', '!=', '')->pluck('dokumen_id')->unique()->toArray();
+
+        $isDocEvaluated = function($doc) use ($docIdsWithNilai, $docIdsWithTtd) {
+            if (!$doc) return false;
+            if (($doc['status'] ?? '') === 'selesai') return true;
+            if (!empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0) return true;
+            if (!empty($doc['docking_final']) || !empty($doc['grade_original'])) return true;
+            $docId = $doc['id'] ?? null;
+            if ($docId && (in_array($docId, $docIdsWithNilai) || in_array($docId, $docIdsWithTtd))) return true;
+            return false;
+        };
+
+        $adminRealEvaluatedCount = 0;
+        foreach ($accessibleDocs as $ad) {
+            if ($isDocEvaluated($ad)) {
+                $adminRealEvaluatedCount++;
+            }
+        }
+
         $stats = [
             'total_karyawan' => $user->isForeman() ? count($foremanSubordinates) : ($user->isSectionHead() ? count($sectionSubordinates) : ($user->isDepartmentHead() ? count($deptSubordinates) : ($user->isDivisionHead() ? count($divSubordinates) : count($allKaryawan)))),
             'total_target' => $user->isForeman() ? count($foremanSubordinates) : ($user->isSectionHead() ? ($totalTargetSection ?: count($sectionSubordinates)) : ($user->isDepartmentHead() ? ($totalTargetDept ?: count($deptSubordinates)) : ($user->isDivisionHead() ? ($totalTargetDiv ?: count($divSubordinates)) : count($accessibleDocs)))),
-            'total_dinilai' => $user->isForeman() ? $totalDinilai : ($user->isSectionHead() ? $sectionTotalDinilai : ($user->isDepartmentHead() ? $deptTotalDinilai : ($user->isDivisionHead() ? $divFinalTotalDinilai : count(array_filter($accessibleDocs, fn($d) => in_array($d['status'] ?? '', ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])))))),
-            'total_belum' => $user->isForeman() ? (count($foremanSubordinates) - $totalDinilai) : ($user->isSectionHead() ? (count($sectionSubordinates) - $sectionTotalDinilai) : ($user->isDepartmentHead() ? (count($deptSubordinates) - $deptTotalDinilai) : ($user->isDivisionHead() ? (count($divSubordinates) - $divFinalTotalDinilai) : $myPendingCount))),
+            'total_dinilai' => $user->isForeman() ? $totalDinilai : ($user->isSectionHead() ? $sectionTotalDinilai : ($user->isDepartmentHead() ? $deptTotalDinilai : ($user->isDivisionHead() ? $divFinalTotalDinilai : $adminRealEvaluatedCount))),
+            'total_belum' => $user->isForeman() ? (count($foremanSubordinates) - $totalDinilai) : ($user->isSectionHead() ? (count($sectionSubordinates) - $sectionTotalDinilai) : ($user->isDepartmentHead() ? (count($deptSubordinates) - $deptTotalDinilai) : ($user->isDivisionHead() ? (count($divSubordinates) - $divFinalTotalDinilai) : max(0, count($accessibleDocs) - $adminRealEvaluatedCount)))),
             'perlu_ttd_saya' => $myPendingCount,
             'dokumen_selesai' => count(array_filter($accessibleDocs, fn($d) => ($d['status'] ?? '') === 'selesai')),
         ];
@@ -1673,8 +1693,8 @@ class DashboardController extends Controller
         $uniqueSectionHeads = array_unique(array_filter(array_map(fn($k) => trim((string)($k['nrp_section_head'] ?? '')), $allKaryawan)));
         $totalSectionHeadCount = count($uniqueSectionHeads);
 
-        $docIdsWithNilai = DB::table('nilai')->whereNotNull('nilai')->where('nilai', '>', 0)->pluck('dokumen_id')->unique()->toArray();
-        $docIdsWithTtd = DB::table('tanda_tangan')->whereNotNull('signature_data')->where('signature_data', '!=', '')->pluck('dokumen_id')->unique()->toArray();
+        $docIdsWithNilai = DB::table('nilai')->whereNotNull('skor')->where('skor', '>', 0)->pluck('dokumen_id')->unique()->toArray();
+        $docIdsWithTtd = DB::table('tanda_tangan')->whereNotNull('ttd_image')->where('ttd_image', '!=', '')->pluck('dokumen_id')->unique()->toArray();
 
         $isDocEvaluated = function($doc) use ($docIdsWithNilai, $docIdsWithTtd) {
             if (!$doc) return false;
