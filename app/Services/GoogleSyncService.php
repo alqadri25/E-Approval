@@ -1323,7 +1323,7 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(6)->withoutVerifying()->get($appscriptUrl, [
+            $response = Http::timeout(12)->withoutVerifying()->get($appscriptUrl, [
                 'action' => 'pull_all',
             ]);
 
@@ -1331,83 +1331,130 @@ class GoogleSyncService
                 $json = $response->json();
                 $data = $json['data'] ?? [];
 
-                // 1. Sync tanda_tangan (digital signatures from Google Sheets)
-                if (!empty($data['tanda_tangan']) && is_array($data['tanda_tangan'])) {
-                    DB::transaction(function () use ($data) {
-                        $existingTtd = DB::table('tanda_tangan')->get()->keyBy(fn($r) => $r->dokumen_id . '_' . $r->level);
-                        foreach ($data['tanda_tangan'] as $t) {
-                            $docId = $t['dokumen_id'] ?? null;
-                            $lvl = $t['level'] ?? null;
-                            if (!$docId || !$lvl) continue;
-
-                            $key = $docId . '_' . $lvl;
-                            $existing = $existingTtd->get($key);
-                            if (!$existing || (empty($existing->ttd_image) && !empty($t['ttd_image']))) {
-                                DB::table('tanda_tangan')->updateOrInsert(
-                                    ['dokumen_id' => $docId, 'level' => $lvl],
-                                    [
-                                        'user_id' => $t['user_id'] ?? 0,
-                                        'tgl_ttd' => $t['tgl_ttd'] ?? now()->toDateTimeString(),
-                                        'ip' => $t['ip'] ?? '',
-                                        'user_agent' => $t['user_agent'] ?? '',
-                                        'hash_snapshot' => $t['hash_snapshot'] ?? '',
-                                        'ttd_image' => $t['ttd_image'] ?? '',
-                                        'created_at' => $t['created_at'] ?? now()->toDateTimeString(),
-                                    ]
-                                );
-                            }
-                        }
-                    });
-                }
-
-                // 2. Sync dokumen (workflow statuses & scores)
+                // 1. Sync dokumen (workflow statuses & scores)
                 if (!empty($data['dokumen']) && is_array($data['dokumen'])) {
                     DB::transaction(function () use ($data) {
-                        $existingDocs = DB::table('dokumen')->get()->keyBy('id');
+                        $sheetDocIds = [];
                         foreach ($data['dokumen'] as $d) {
-                            $id = $d['id'] ?? null;
-                            if (!$id) continue;
-                            $existing = $existingDocs->get($id);
-                            if ($existing && ($existing->status !== $d['status'] || $existing->total_nilai != ($d['total_nilai'] ?? 0))) {
-                                DB::table('dokumen')->where('id', $id)->update([
-                                    'status' => $d['status'],
-                                    'total_nilai' => $d['total_nilai'] ?? $existing->total_nilai,
-                                    'grade_original' => $d['grade_original'] ?? $existing->grade_original,
-                                    'docking_final' => $d['docking_final'] ?? $existing->docking_final,
-                                    'updated_at' => $d['updated_at'] ?? now()->toDateTimeString(),
-                                ]);
+                            $id = (int)($d['id'] ?? 0);
+                            if ($id <= 0) continue;
+                            $sheetDocIds[] = $id;
+
+                            $nrp = (string)($d['nrp'] ?? '');
+                            $payload = [
+                                'id' => $id,
+                                'periode_id' => $d['periode_id'] ?? 1,
+                                'nrp' => $nrp,
+                                'kode_form' => $d['kode_form'] ?? '07-001',
+                                'status' => $d['status'] ?? 'belum_ada',
+                                'total_nilai' => !empty($d['total_nilai']) ? (float)$d['total_nilai'] : null,
+                                'grade_original' => !empty($d['grade_original']) ? (string)$d['grade_original'] : null,
+                                'docking_final' => !empty($d['docking_final']) ? (string)$d['docking_final'] : null,
+                                'drive_file_id' => $d['drive_file_id'] ?? null,
+                                'drive_url' => $d['drive_url'] ?? null,
+                                'hash_dokumen' => $d['hash_dokumen'] ?? null,
+                                'kode_verifikasi' => $d['kode_verifikasi'] ?? ('VERIF-' . strtoupper(Str::random(10))),
+                                'version' => $d['version'] ?? 1,
+                                'created_at' => $d['created_at'] ?? now()->toDateTimeString(),
+                                'updated_at' => $d['updated_at'] ?? now()->toDateTimeString(),
+                            ];
+
+                            DB::table('dokumen')->updateOrInsert(['id' => $id], $payload);
+
+                            // Clean up any other dummy or duplicate local dokumen for this NRP
+                            if ($nrp !== '') {
+                                $duplicateIds = DB::table('dokumen')->where('nrp', $nrp)->where('id', '!=', $id)->pluck('id')->toArray();
+                                if (!empty($duplicateIds)) {
+                                    DB::table('dokumen')->whereIn('id', $duplicateIds)->delete();
+                                    if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $duplicateIds)->delete();
+                                    if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $duplicateIds)->delete();
+                                    if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $duplicateIds)->delete();
+                                }
                             }
+                        }
+
+                        // Hapus dokumen lokal yang tidak ada di spreadsheet (misal dummy id >= 800000)
+                        if (!empty($sheetDocIds)) {
+                            DB::table('dokumen')->where('id', '>=', 800000)->whereNotIn('id', $sheetDocIds)->delete();
                         }
                     });
                 }
 
-                // 3. Sync nilai (scores)
+                // 2. Sync nilai (scores)
                 if (!empty($data['nilai']) && is_array($data['nilai'])) {
                     DB::transaction(function () use ($data) {
-                        $existingNilai = DB::table('nilai')->get()->keyBy(fn($r) => $r->dokumen_id . '_' . $r->level . '_' . $r->aspek_kode);
                         foreach ($data['nilai'] as $n) {
-                            $docId = $n['dokumen_id'] ?? null;
+                            $docId = (int)($n['dokumen_id'] ?? 0);
                             $lvl = $n['level'] ?? null;
                             $aspek = $n['aspek_kode'] ?? null;
                             if (!$docId || !$lvl || !$aspek) continue;
 
-                            $key = $docId . '_' . $lvl . '_' . $aspek;
-                            if (!$existingNilai->has($key)) {
-                                DB::table('nilai')->insert([
+                            DB::table('nilai')->updateOrInsert(
+                                [
                                     'dokumen_id' => $docId,
                                     'level' => $lvl,
                                     'aspek_kode' => $aspek,
-                                    'skor' => $n['skor'] ?? 0,
+                                ],
+                                [
+                                    'skor' => (float)($n['skor'] ?? 0),
                                     'catatan' => $n['catatan'] ?? '',
                                     'created_at' => $n['created_at'] ?? now()->toDateTimeString(),
                                     'updated_at' => $n['updated_at'] ?? now()->toDateTimeString(),
-                                ]);
-                            }
+                                ]
+                            );
                         }
                     });
                 }
 
-                // 4. Sync karyawan (employees from Google Sheets)
+                // 3. Sync indikator (evaluator notes & potential ratings)
+                if (!empty($data['indikator']) && is_array($data['indikator'])) {
+                    DB::transaction(function () use ($data) {
+                        $cols = Schema::getColumnListing('indikator');
+                        $colSet = array_flip($cols);
+                        foreach ($data['indikator'] as $ind) {
+                            $docId = (int)($ind['dokumen_id'] ?? 0);
+                            if (!$docId) continue;
+
+                            $cleanRow = [];
+                            foreach ($ind as $col => $val) {
+                                $cLower = strtolower(trim((string)$col));
+                                if (isset($colSet[$cLower])) {
+                                    $cleanRow[$cLower] = $val;
+                                }
+                            }
+                            $cleanRow['dokumen_id'] = $docId;
+                            $cleanRow['updated_at'] = $ind['updated_at'] ?? now()->toDateTimeString();
+
+                            DB::table('indikator')->updateOrInsert(['dokumen_id' => $docId], $cleanRow);
+                        }
+                    });
+                }
+
+                // 4. Sync tanda_tangan (digital signatures from Google Sheets)
+                if (!empty($data['tanda_tangan']) && is_array($data['tanda_tangan'])) {
+                    DB::transaction(function () use ($data) {
+                        foreach ($data['tanda_tangan'] as $t) {
+                            $docId = (int)($t['dokumen_id'] ?? 0);
+                            $lvl = $t['level'] ?? null;
+                            if (!$docId || !$lvl) continue;
+
+                            DB::table('tanda_tangan')->updateOrInsert(
+                                ['dokumen_id' => $docId, 'level' => $lvl],
+                                [
+                                    'user_id' => $t['user_id'] ?? 0,
+                                    'tgl_ttd' => $t['tgl_ttd'] ?? now()->toDateTimeString(),
+                                    'ip' => $t['ip'] ?? '',
+                                    'user_agent' => $t['user_agent'] ?? '',
+                                    'hash_snapshot' => $t['hash_snapshot'] ?? '',
+                                    'ttd_image' => $t['ttd_image'] ?? '',
+                                    'created_at' => $t['created_at'] ?? now()->toDateTimeString(),
+                                ]
+                            );
+                        }
+                    });
+                }
+
+                // 5. Sync karyawan (employees from Google Sheets)
                 if (!empty($data['karyawan']) && is_array($data['karyawan'])) {
                     DB::transaction(function () use ($data) {
                         $karyawanCols = Schema::getColumnListing('karyawan');
@@ -1445,7 +1492,7 @@ class GoogleSyncService
                     });
                 }
 
-                // 5. Sync kuota_departemen (Target Kuota from Google Sheets)
+                // 6. Sync kuota_departemen (Target Kuota from Google Sheets)
                 if (!empty($data['kuota_departemen']) && is_array($data['kuota_departemen'])) {
                     DB::transaction(function () use ($data) {
                         $kdCols = Schema::getColumnListing('kuota_departemen');
@@ -1472,7 +1519,23 @@ class GoogleSyncService
                     });
                 }
 
-                Cache::put($cacheKey, true, 45); // Active cache for 45 seconds
+                // Invalidate all repository caches so subsequent calls use fresh data
+                try {
+                    $sheetRepo = app(\App\Contracts\SheetRepositoryInterface::class);
+                    $sheetRepo->clearCache('dokumen');
+                    $sheetRepo->clearCache('nilai');
+                    $sheetRepo->clearCache('indikator');
+                    $sheetRepo->clearCache('tanda_tangan');
+                    $sheetRepo->clearCache('karyawan');
+                } catch (\Throwable $e) {}
+
+                Cache::forget("sheet_all_dokumen");
+                Cache::forget("sheet_all_nilai");
+                Cache::forget("sheet_all_indikator");
+                Cache::forget("sheet_all_tanda_tangan");
+                Cache::forget("sheet_all_karyawan");
+
+                Cache::put($cacheKey, true, 30); // Active cache for 30 seconds
                 return ['status' => 'success', 'timestamp' => now()->toIso8601String()];
             }
         } catch (\Throwable $e) {

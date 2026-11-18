@@ -314,6 +314,11 @@ class AuthController extends Controller
         }
         $request->session()->regenerate();
 
+        // Auto sync operational tables from Google Sheets on login
+        try {
+            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+        } catch (\Throwable $e) {}
+
         return redirect()->intended(route('dashboard'))->with('success', "Selamat datang, {$user->nama}! Masuk sebagai {$user->roleLabel()}.");
     }
 
@@ -338,6 +343,11 @@ class AuthController extends Controller
         Auth::login($user, true); // Keep session authenticated with remember token
         $request->session()->regenerate();
 
+        // Auto sync operational tables from Google Sheets on quick login
+        try {
+            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+        } catch (\Throwable $e) {}
+
         return redirect()->route('dashboard')->with('success', "Berhasil masuk sebagai {$user->nama} ({$user->roleLabel()}) - Dept: {$user->departemen}");
     }
 
@@ -346,6 +356,10 @@ class AuthController extends Controller
      */
     public function logout(Request $request)
     {
+        try {
+            \Illuminate\Support\Facades\Cache::forget('last_google_operational_sync');
+        } catch (\Throwable $e) {}
+
         try {
             Auth::logout();
         } catch (\Throwable $e) {}
