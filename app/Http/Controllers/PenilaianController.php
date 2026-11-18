@@ -993,11 +993,11 @@ class PenilaianController extends Controller
         $golongan = strtoupper(trim((string)($karyawan['golongan'] ?? '')));
         $kjRaw = strtoupper(trim((string)($karyawan['kj'] ?? '')));
 
-        // 1. Structural Upper Roles
+        // 1. Structural Upper Roles (Manager = Dept Head)
         if ($levelFormRaw === 'DIV_HEAD' || str_contains($jabatan, 'DIVISION HEAD') || str_contains($jabatan, 'DIV HEAD')) {
             return '07-006-DIV';
         }
-        if ($levelFormRaw === 'DEPT_HEAD' || str_contains($jabatan, 'DEPARTMENT HEAD') || str_contains($jabatan, 'DEPT HEAD') || str_contains($jabatan, 'DEPT. HEAD')) {
+        if ($levelFormRaw === 'DEPT_HEAD' || str_contains($jabatan, 'DEPARTMENT HEAD') || str_contains($jabatan, 'DEPT HEAD') || str_contains($jabatan, 'DEPT. HEAD') || str_contains($jabatan, 'MANAGER') || str_contains($jabatan, 'MANAJER')) {
             return '07-006-DH';
         }
         if ($levelFormRaw === 'SECTION_HEAD' || str_contains($jabatan, 'SECTION HEAD') || str_contains($jabatan, 'SECT HEAD')) {
@@ -1012,20 +1012,31 @@ class PenilaianController extends Controller
             return '07-003';
         }
 
-        // 3. Parse KJ Number (1 to 10)
+        // 3. Parse KJ Number (1 to 12)
         $kjNum = 0;
         if (preg_match('/(?:KJ\s*|KATEGORI\s*)?(\d+)/i', $kjRaw, $matches)) {
             $kjNum = (int)$matches[1];
         }
 
         if ($kjNum === 0) {
-            if (str_contains($subGol, 'IV') || str_contains($golongan, 'IV') || str_contains($subGol, 'V') || str_contains($golongan, 'V')) {
+            if (str_contains($subGol, 'VI') || str_contains($golongan, 'VI')) {
+                $kjNum = 6;
+            } elseif (str_contains($subGol, 'V') || str_contains($golongan, 'V')) {
+                $kjNum = 5;
+            } elseif (str_contains($subGol, 'IV') || str_contains($golongan, 'IV')) {
                 $kjNum = 4;
             } elseif (str_contains($subGol, 'III') || str_contains($golongan, 'III')) {
                 $kjNum = 3;
             } else {
                 $kjNum = 2; // Default range KJ 1-3
             }
+        }
+
+        // 4. Karyawan tanpa Line Category tapi KJ 5 ke atas -> FORM 07-006 (07-006-SH)
+        $lineCat = trim((string)($karyawan['line_category'] ?? ''));
+        $hasNoLineCategory = ($lineCat === '' || $lineCat === '-' || strtolower($lineCat) === 'null');
+        if ($hasNoLineCategory && $kjNum >= 5) {
+            return '07-006-SH';
         }
 
         // Non-Jabatan: KJ 4-5 vs KJ 1-3
@@ -1153,7 +1164,7 @@ class PenilaianController extends Controller
         if ($levelFormRaw === 'DIV_HEAD' || str_contains($jabatan, 'DIVISION HEAD') || str_contains($jabatan, 'DIV HEAD')) {
             return 'DIV_HEAD';
         }
-        if ($levelFormRaw === 'DEPT_HEAD' || str_contains($jabatan, 'DEPARTMENT HEAD') || str_contains($jabatan, 'DEPT HEAD') || str_contains($jabatan, 'DEPT. HEAD')) {
+        if ($levelFormRaw === 'DEPT_HEAD' || str_contains($jabatan, 'DEPARTMENT HEAD') || str_contains($jabatan, 'DEPT HEAD') || str_contains($jabatan, 'DEPT. HEAD') || str_contains($jabatan, 'MANAGER') || str_contains($jabatan, 'MANAJER')) {
             return 'DEPT_HEAD';
         }
         if ($levelFormRaw === 'SECTION_HEAD' || str_contains($jabatan, 'SECTION HEAD') || str_contains($jabatan, 'SECT HEAD')) {
@@ -1172,13 +1183,23 @@ class PenilaianController extends Controller
         }
 
         if ($kjNum === 0) {
-            if (str_contains($subGol, 'IV') || str_contains($golongan, 'IV') || str_contains($subGol, 'V') || str_contains($golongan, 'V')) {
+            if (str_contains($subGol, 'VI') || str_contains($golongan, 'VI')) {
+                $kjNum = 6;
+            } elseif (str_contains($subGol, 'V') || str_contains($golongan, 'V')) {
+                $kjNum = 5;
+            } elseif (str_contains($subGol, 'IV') || str_contains($golongan, 'IV')) {
                 $kjNum = 4;
             } elseif (str_contains($subGol, 'III') || str_contains($golongan, 'III')) {
                 $kjNum = 3;
             } else {
                 $kjNum = 2;
             }
+        }
+
+        $lineCat = trim((string)($karyawan['line_category'] ?? ''));
+        $hasNoLineCategory = ($lineCat === '' || $lineCat === '-' || strtolower($lineCat) === 'null');
+        if ($hasNoLineCategory && $kjNum >= 5) {
+            return 'SECTION_HEAD';
         }
 
         if ($kjNum >= 4 || $levelFormRaw === 'KJ45') {

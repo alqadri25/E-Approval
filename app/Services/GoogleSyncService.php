@@ -1519,6 +1519,64 @@ class GoogleSyncService
                     });
                 }
 
+                // 7. Sync users (from Google Sheets sheet 'users' into 'app_users')
+                if (!empty($data['users']) && is_array($data['users'])) {
+                    DB::transaction(function () use ($data) {
+                        foreach ($data['users'] as $u) {
+                            $nrp = trim((string)($u['nrp'] ?? ''));
+                            $email = strtolower(trim((string)($u['email'] ?? '')));
+                            if ($nrp === '' && $email === '') continue;
+
+                            $existing = null;
+                            if ($nrp !== '') {
+                                $existing = User::where('nrp', $nrp)->first();
+                            }
+                            if (!$existing && $email !== '') {
+                                $existing = User::where('email', $email)->first();
+                            }
+
+                            $role = trim((string)($u['role'] ?? ''));
+                            $nama = trim((string)($u['nama'] ?? ''));
+                            $dept = trim((string)($u['departemen'] ?? ''));
+                            $aktif = isset($u['aktif']) ? (int)$u['aktif'] : 1;
+                            $barcode = $u['barcodettd'] ?? null;
+
+                            if ($existing) {
+                                if ($nama !== '') $existing->nama = $nama;
+                                if ($role !== '') $existing->role = $role;
+                                if ($dept !== '') $existing->departemen = $dept;
+                                $existing->aktif = $aktif;
+                                if (!empty($barcode)) {
+                                    $existing->barcodettd = $barcode;
+                                    $existing->ttdbarcode = $barcode;
+                                }
+                                if (empty($existing->password_hash)) {
+                                    $existing->password_hash = Hash::make('password123');
+                                }
+                                $existing->save();
+                            } else {
+                                User::create([
+                                    'nama' => $nama ?: ('User ' . $nrp),
+                                    'email' => $email ?: ($nrp . '@musashi.id'),
+                                    'nrp' => $nrp,
+                                    'role' => $role ?: 'foreman',
+                                    'departemen' => $dept ?: 'ALL',
+                                    'aktif' => $aktif,
+                                    'password_hash' => Hash::make('password123'),
+                                    'barcodettd' => $barcode,
+                                    'ttdbarcode' => $barcode,
+                                ]);
+                            }
+                        }
+                    });
+                }
+
+                // Auto-sync leadership accounts from karyawan & clean up phantom accounts
+                try {
+                    \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+                    \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
+                } catch (\Throwable $e) {}
+
                 // Invalidate all repository caches so subsequent calls use fresh data
                 try {
                     $sheetRepo = app(\App\Contracts\SheetRepositoryInterface::class);

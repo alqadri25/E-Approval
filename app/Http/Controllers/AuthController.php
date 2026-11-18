@@ -69,6 +69,11 @@ class AuthController extends Controller
             return redirect()->route('dashboard');
         }
 
+        try {
+            \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+            \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
+        } catch (\Throwable $e) {}
+
         $allUsers = User::where('aktif', 1)->get();
         $curatedList = [];
 
@@ -114,23 +119,32 @@ class AuthController extends Controller
             ];
         }
 
-        // 3. Department Heads
+        // 3. Department Heads & Managers
         $deptHeads = $allUsers->where('role', 'department_head');
         foreach ($deptHeads as $u) {
+            $isManager = str_contains(strtoupper($u->nama . ' ' . $u->email), 'MANAGER') || str_contains(strtoupper($u->nama . ' ' . $u->email), 'MANAJER');
+            if (!$isManager && !empty($u->nrp)) {
+                $kRow = DB::table('karyawan')->where('nrp', $u->nrp)->first();
+                if ($kRow && (str_contains(strtoupper($kRow->jabatan ?? ''), 'MANAGER') || str_contains(strtoupper($kRow->jabatan ?? ''), 'MANAJER'))) {
+                    $isManager = true;
+                }
+            }
+            $roleLabel = $isManager ? 'Manager' : 'Department Head';
+            $badge = $isManager ? 'Manager' : 'Dept Head';
             $curatedList[] = [
                 'id' => $u->id,
                 'nrp' => $u->nrp,
                 'nama' => $u->nama,
                 'role' => 'department_head',
-                'role_label' => 'Department Head',
+                'role_label' => $roleLabel,
                 'departemen' => $u->departemen ?? 'ALL',
                 'seksi' => $u->departemen ?? 'DEPARTMENT',
                 'email' => $u->email,
                 'alt_email' => $u->email,
                 'kasus' => 'kasus1',
-                'kasus_badge' => 'Dept Head',
-                'kasus_title' => "Department Head ({$u->nrp} {$u->nama})",
-                'deskripsi' => 'Approval & docking penilaian departemen',
+                'kasus_badge' => $badge,
+                'kasus_title' => "{$roleLabel} ({$u->nrp} {$u->nama})",
+                'deskripsi' => $isManager ? 'Approval & docking penilaian tingkat Manager / Dept Head' : 'Approval & docking penilaian departemen',
                 'db_user' => $u,
             ];
         }

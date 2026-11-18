@@ -3222,28 +3222,33 @@ class AdminController extends Controller
             'division' => 'nullable|string',
         ]);
 
-        $subGol = trim($validated['sub_gol'] ?? $karyawan['sub_gol'] ?? '');
+        $subGol = strtoupper(trim($validated['sub_gol'] ?? $karyawan['sub_gol'] ?? ''));
+        // Clean sub_gol from any "GOLONGAN" prefix
+        $subGol = trim((string)preg_replace('/GOLONGAN\s*/i', '', $subGol));
+
         $kj = trim($validated['kj'] ?? $karyawan['kj'] ?? '');
-        if (!$kj) {
-            $kj = str_contains(strtoupper($subGol), 'IV') ? 'KJ 4' : (str_contains(strtoupper($subGol), 'III') ? 'KJ 3' : 'KJ 2');
+        if ($kj !== '' && !str_starts_with(strtoupper($kj), 'KJ') && is_numeric($kj)) {
+            $kj = 'KJ ' . $kj;
         }
 
         $jabatan = strtoupper(trim($validated['jabatan']));
 
-        // Auto-derive golongan from sub_gol if not provided
-        $golongan = trim($validated['golongan'] ?? '');
-        if (!$golongan) {
-            if (str_contains(strtoupper($subGol), 'IV') || str_contains(strtoupper($subGol), 'V')) {
-                $golongan = 'GOLONGAN IV';
-            } elseif (str_contains(strtoupper($subGol), 'III')) {
-                $golongan = 'GOLONGAN III';
-            } elseif (str_contains(strtoupper($subGol), 'II')) {
-                $golongan = 'GOLONGAN II';
-            } elseif (str_contains(strtoupper($subGol), 'I')) {
-                $golongan = 'GOLONGAN I';
-            } else {
-                $golongan = 'GOLONGAN II';
-            }
+        // Auto-derive golongan cleanly from sub_gol (I A s.d. VI D)
+        $subUpper = strtoupper($subGol);
+        if (str_starts_with($subUpper, 'VI')) {
+            $golongan = 'GOLONGAN VI';
+        } elseif (str_starts_with($subUpper, 'V')) {
+            $golongan = 'GOLONGAN V';
+        } elseif (str_starts_with($subUpper, 'IV')) {
+            $golongan = 'GOLONGAN IV';
+        } elseif (str_starts_with($subUpper, 'III')) {
+            $golongan = 'GOLONGAN III';
+        } elseif (str_starts_with($subUpper, 'II')) {
+            $golongan = 'GOLONGAN II';
+        } elseif (str_starts_with($subUpper, 'I')) {
+            $golongan = 'GOLONGAN I';
+        } else {
+            $golongan = $validated['golongan'] ?? ($karyawan['golongan'] ?? 'GOLONGAN II');
         }
 
         $namaSect = strtoupper(trim($validated['nama_sect'] ?? ($validated['seksi'] ?? ($karyawan['nama_sect'] ?? ($karyawan['seksi'] ?? '')))));
@@ -3284,6 +3289,12 @@ class AdminController extends Controller
                 'updated_at' => now()->toDateTimeString(),
             ]);
         }
+
+        // Auto-sync leadership accounts so newly promoted roles (Section Head, Dept Head, Manager, Foreman) get their account immediately
+        try {
+            \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+            \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
+        } catch (\Throwable $e) {}
 
         // Sinkronisasi update karyawan ke Google Spreadsheet secara real-time
         try {

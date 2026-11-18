@@ -513,6 +513,20 @@ class User extends Authenticatable
 
     public function roleLabel(): string
     {
+        if (in_array($this->role, ['dept_head', 'department_head'])) {
+            $checkUpper = strtoupper(($this->email ?? '') . ' ' . ($this->nama ?? ''));
+            if (str_contains($checkUpper, 'MANAGER') || str_contains($checkUpper, 'MANAJER')) {
+                return 'Manager';
+            }
+            if (!empty($this->nrp)) {
+                $pos = strtoupper((string)($this->karyawan->jabatan ?? ''));
+                if (str_contains($pos, 'MANAGER') || str_contains($pos, 'MANAJER')) {
+                    return 'Manager';
+                }
+            }
+            return 'Department Head';
+        }
+
         return match ($this->role) {
             'superadmin' => 'Super Admin',
             'admin' => 'Admin Penilaian',
@@ -520,7 +534,6 @@ class User extends Authenticatable
             'foreman' => 'Foreman',
             'ketua' => 'Ketua / Foreman',
             'section_head' => 'Section Head',
-            'dept_head', 'department_head' => 'Department Head',
             'div_head', 'division_head' => 'Division Head',
             default => ucfirst(str_replace('_', ' ', $this->role)),
         };

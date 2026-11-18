@@ -342,20 +342,23 @@ class ExcelKaryawanReader
 
     public static function subGolToGolongan(string $subGol): string
     {
-        $upper = strtoupper(trim($subGol));
-        if (str_contains($upper, 'V') && !str_contains($upper, 'IV')) {
+        $upper = strtoupper(trim((string)preg_replace('/GOLONGAN\s*/i', '', $subGol)));
+        if (str_starts_with($upper, 'VI')) {
+            return 'GOLONGAN VI';
+        }
+        if (str_starts_with($upper, 'V')) {
             return 'GOLONGAN V';
         }
-        if (str_contains($upper, 'IV')) {
+        if (str_starts_with($upper, 'IV')) {
             return 'GOLONGAN IV';
         }
-        if (str_contains($upper, 'III')) {
+        if (str_starts_with($upper, 'III')) {
             return 'GOLONGAN III';
         }
-        if (str_contains($upper, 'II')) {
+        if (str_starts_with($upper, 'II')) {
             return 'GOLONGAN II';
         }
-        if (str_contains($upper, 'I')) {
+        if (str_starts_with($upper, 'I')) {
             return 'GOLONGAN I';
         }
         return 'GOLONGAN II';
@@ -377,7 +380,7 @@ class ExcelKaryawanReader
         $val = strtoupper(trim((string)$rawKj));
         if (preg_match('/(\d+)/', $val, $m)) {
             $num = (int)$m[1];
-            if ($num >= 1 && $num <= 10) {
+            if ($num >= 1 && $num <= 12) {
                 return 'KJ ' . $num;
             }
         }
@@ -404,7 +407,7 @@ class ExcelKaryawanReader
         if (str_contains($posUpper, 'DIV HEAD') || str_contains($posUpper, 'DIVISION HEAD')) {
             return 'DIV_HEAD';
         }
-        if (str_contains($posUpper, 'DEPT HEAD') || str_contains($posUpper, 'DEPARTMENT HEAD') || str_contains($posUpper, 'DEPT. HEAD')) {
+        if (str_contains($posUpper, 'DEPT HEAD') || str_contains($posUpper, 'DEPARTMENT HEAD') || str_contains($posUpper, 'DEPT. HEAD') || str_contains($posUpper, 'MANAGER') || str_contains($posUpper, 'MANAJER')) {
             return 'DEPT_HEAD';
         }
         if (str_contains($posUpper, 'SECTION HEAD') || str_contains($posUpper, 'SECT HEAD')) {

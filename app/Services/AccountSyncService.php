@@ -29,12 +29,13 @@ class AccountSyncService
             ];
         }
 
-        // 2. Department Head
-        if (str_contains($pos, 'DEPT HEAD') || str_contains($pos, 'DEPARTMENT HEAD') || str_contains($pos, 'DEPT. HEAD')) {
+        // 2. Department Head / Manager (Manajer = Dept Head)
+        if (str_contains($pos, 'DEPT HEAD') || str_contains($pos, 'DEPARTMENT HEAD') || str_contains($pos, 'DEPT. HEAD') || str_contains($pos, 'MANAGER') || str_contains($pos, 'MANAJER')) {
+            $isManager = str_contains($pos, 'MANAGER') || str_contains($pos, 'MANAJER');
             return [
                 'role' => 'department_head',
-                'label' => 'DEPTHEAD',
-                'display' => 'Department Head',
+                'label' => $isManager ? 'MANAGER' : 'DEPTHEAD',
+                'display' => $isManager ? 'Manager' : 'Department Head',
             ];
         }
 
@@ -295,6 +296,11 @@ class AccountSyncService
 
         // Clean up any phantom/obsolete leadership accounts not present in karyawan
         $cleanupResult = self::cleanupPhantomLeadershipAccounts();
+
+        // Push updated users to Google Spreadsheet sheet 'users'
+        try {
+            GoogleSyncService::syncTablesAsync(['users']);
+        } catch (\Throwable $e) {}
 
         return [
             'created' => $created,

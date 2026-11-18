@@ -353,8 +353,11 @@
                                             editKaryawan.jabatan = '{{ addslashes($k['jabatan']) }}';
                                             editKaryawan.tgl_masuk = '{{ \App\Services\GoogleSyncService::toYmd($k['tgl_masuk'] ?? '') }}';
                                             editKaryawan.golongan = '{{ $k['golongan'] ?? 'GOLONGAN II' }}';
-                                            editKaryawan.sub_gol = '{{ $k['sub_gol'] }}';
-                                            editKaryawan.kj = '{{ $k['kj'] }}';
+                                            let rawSub = '{{ $k['sub_gol'] ?: ($k['golongan'] ?? '') }}';
+                                            editKaryawan.sub_gol = rawSub.replace(/^GOLONGAN\s*/i, '').trim().toUpperCase();
+                                            let rawKj = '{{ $k['kj'] }}';
+                                            let mKj = rawKj.match(/\d+/);
+                                            editKaryawan.kj = mKj ? ('KJ ' + parseInt(mKj[0], 10)) : (rawKj || 'KJ 2');
                                             editKaryawan.division = '{{ addslashes($k['divisi'] ?? '') }}';
                                             editKaryawan.departemen = '{{ addslashes($k['departemen']) }}';
                                             editKaryawan.seksi = '{{ addslashes($k['seksi']) }}';
@@ -496,15 +499,18 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">KJ</label>
                         <select name="kj" class="w-full text-xs border border-slate-400 bg-white py-2 px-3 text-slate-900 rounded-none shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
-                            <option value="KJ1">KJ1</option>
-                            <option value="KJ2" selected>KJ2</option>
-                            <option value="KJ3">KJ3</option>
-                            <option value="KJ4">KJ4</option>
-                            <option value="KJ5">KJ5</option>
-                            <option value="KJ6">KJ6</option>
-                            <option value="KJ7">KJ7</option>
-                            <option value="KJ8">KJ8</option>
-                            <option value="KJ9">KJ9</option>
+                            <option value="KJ 1">KJ 1</option>
+                            <option value="KJ 2" selected>KJ 2</option>
+                            <option value="KJ 3">KJ 3</option>
+                            <option value="KJ 4">KJ 4</option>
+                            <option value="KJ 5">KJ 5</option>
+                            <option value="KJ 6">KJ 6</option>
+                            <option value="KJ 7">KJ 7</option>
+                            <option value="KJ 8">KJ 8</option>
+                            <option value="KJ 9">KJ 9</option>
+                            <option value="KJ 10">KJ 10</option>
+                            <option value="KJ 11">KJ 11</option>
+                            <option value="KJ 12">KJ 12</option>
                         </select>
                     </div>
 
@@ -512,31 +518,49 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">GOLONGAN <span class="text-rose-500">*</span></label>
                         <select name="sub_gol" required class="w-full text-xs border border-slate-400 bg-white py-2 px-3 text-slate-900 rounded-none shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
-                            <option value="IIA">IIA</option>
-                            <option value="IIB" selected>IIB</option>
-                            <option value="IIC">IIC</option>
-                            <option value="IID">IID</option>
-                            <option value="IIE">IIE</option>
-                            <option value="IIF">IIF</option>
-                            <option value="IIIA">IIIA</option>
-                            <option value="IIIB">IIIB</option>
-                            <option value="IIIC">IIIC</option>
-                            <option value="IIID">IIID</option>
-                            <option value="IIIE">IIIE</option>
-                            <option value="IVA">IVA</option>
-                            <option value="IVB">IVB</option>
-                        </select>
-                    </div>
-
-                    <!-- Golongan -->
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Golongan</label>
-                        <select name="golongan" class="w-full text-xs border border-slate-400 bg-white py-2 px-3 text-slate-900 rounded-none shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
-                            <option value="GOLONGAN I">GOLONGAN I</option>
-                            <option value="GOLONGAN II" selected>GOLONGAN II</option>
-                            <option value="GOLONGAN III">GOLONGAN III</option>
-                            <option value="GOLONGAN IV">GOLONGAN IV</option>
-                            <option value="GOLONGAN V">GOLONGAN V</option>
+                            <optgroup label="Golongan I">
+                                <option value="IA">IA</option>
+                                <option value="IB">IB</option>
+                                <option value="IC">IC</option>
+                                <option value="ID">ID</option>
+                            </optgroup>
+                            <optgroup label="Golongan II">
+                                <option value="IIA">IIA</option>
+                                <option value="IIB" selected>IIB</option>
+                                <option value="IIC">IIC</option>
+                                <option value="IID">IID</option>
+                                <option value="IIE">IIE</option>
+                                <option value="IIF">IIF</option>
+                            </optgroup>
+                            <optgroup label="Golongan III">
+                                <option value="IIIA">IIIA</option>
+                                <option value="IIIB">IIIB</option>
+                                <option value="IIIC">IIIC</option>
+                                <option value="IIID">IIID</option>
+                                <option value="IIIE">IIIE</option>
+                                <option value="IIIF">IIIF</option>
+                            </optgroup>
+                            <optgroup label="Golongan IV">
+                                <option value="IVA">IVA</option>
+                                <option value="IVB">IVB</option>
+                                <option value="IVC">IVC</option>
+                                <option value="IVD">IVD</option>
+                                <option value="IVE">IVE</option>
+                                <option value="IVF">IVF</option>
+                            </optgroup>
+                            <optgroup label="Golongan V">
+                                <option value="VA">VA</option>
+                                <option value="VB">VB</option>
+                                <option value="VC">VC</option>
+                                <option value="VD">VD</option>
+                                <option value="VE">VE</option>
+                            </optgroup>
+                            <optgroup label="Golongan VI">
+                                <option value="VIA">VIA</option>
+                                <option value="VIB">VIB</option>
+                                <option value="VIC">VIC</option>
+                                <option value="VID">VID</option>
+                            </optgroup>
                         </select>
                     </div>
 
@@ -640,49 +664,69 @@
                         <label class="block text-xs font-bold text-slate-700 mb-1">KJ</label>
                         <select name="kj" x-model="editKaryawan.kj"
                                 class="w-full text-xs border border-slate-400 bg-white py-2 px-3 text-slate-900 rounded-none shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
-                            <option value="KJ1">KJ1</option>
-                            <option value="KJ2">KJ2</option>
-                            <option value="KJ3">KJ3</option>
-                            <option value="KJ4">KJ4</option>
-                            <option value="KJ5">KJ5</option>
-                            <option value="KJ6">KJ6</option>
-                            <option value="KJ7">KJ7</option>
-                            <option value="KJ8">KJ8</option>
-                            <option value="KJ9">KJ9</option>
+                            <option value="KJ 1">KJ 1</option>
+                            <option value="KJ 2">KJ 2</option>
+                            <option value="KJ 3">KJ 3</option>
+                            <option value="KJ 4">KJ 4</option>
+                            <option value="KJ 5">KJ 5</option>
+                            <option value="KJ 6">KJ 6</option>
+                            <option value="KJ 7">KJ 7</option>
+                            <option value="KJ 8">KJ 8</option>
+                            <option value="KJ 9">KJ 9</option>
+                            <option value="KJ 10">KJ 10</option>
+                            <option value="KJ 11">KJ 11</option>
+                            <option value="KJ 12">KJ 12</option>
                         </select>
                     </div>
 
                     <!-- GOLONGAN -->
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">GOLONGAN</label>
-                        <select name="sub_gol" x-model="editKaryawan.sub_gol"
+                        <label class="block text-xs font-bold text-slate-700 mb-1">GOLONGAN <span class="text-rose-500">*</span></label>
+                        <select name="sub_gol" x-model="editKaryawan.sub_gol" required
                                 class="w-full text-xs border border-slate-400 bg-white py-2 px-3 text-slate-900 rounded-none shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
-                            <option value="IIA">IIA</option>
-                            <option value="IIB">IIB</option>
-                            <option value="IIC">IIC</option>
-                            <option value="IID">IID</option>
-                            <option value="IIE">IIE</option>
-                            <option value="IIF">IIF</option>
-                            <option value="IIIA">IIIA</option>
-                            <option value="IIIB">IIIB</option>
-                            <option value="IIIC">IIIC</option>
-                            <option value="IIID">IIID</option>
-                            <option value="IIIE">IIIE</option>
-                            <option value="IVA">IVA</option>
-                            <option value="IVB">IVB</option>
-                        </select>
-                    </div>
-
-                    <!-- Golongan -->
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Golongan</label>
-                        <select name="golongan" x-model="editKaryawan.golongan"
-                                class="w-full text-xs border border-slate-400 bg-white py-2 px-3 text-slate-900 rounded-none shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
-                            <option value="GOLONGAN I">GOLONGAN I</option>
-                            <option value="GOLONGAN II">GOLONGAN II</option>
-                            <option value="GOLONGAN III">GOLONGAN III</option>
-                            <option value="GOLONGAN IV">GOLONGAN IV</option>
-                            <option value="GOLONGAN V">GOLONGAN V</option>
+                            <optgroup label="Golongan I">
+                                <option value="IA">IA</option>
+                                <option value="IB">IB</option>
+                                <option value="IC">IC</option>
+                                <option value="ID">ID</option>
+                            </optgroup>
+                            <optgroup label="Golongan II">
+                                <option value="IIA">IIA</option>
+                                <option value="IIB">IIB</option>
+                                <option value="IIC">IIC</option>
+                                <option value="IID">IID</option>
+                                <option value="IIE">IIE</option>
+                                <option value="IIF">IIF</option>
+                            </optgroup>
+                            <optgroup label="Golongan III">
+                                <option value="IIIA">IIIA</option>
+                                <option value="IIIB">IIIB</option>
+                                <option value="IIIC">IIIC</option>
+                                <option value="IIID">IIID</option>
+                                <option value="IIIE">IIIE</option>
+                                <option value="IIIF">IIIF</option>
+                            </optgroup>
+                            <optgroup label="Golongan IV">
+                                <option value="IVA">IVA</option>
+                                <option value="IVB">IVB</option>
+                                <option value="IVC">IVC</option>
+                                <option value="IVD">IVD</option>
+                                <option value="IVE">IVE</option>
+                                <option value="IVF">IVF</option>
+                            </optgroup>
+                            <optgroup label="Golongan V">
+                                <option value="VA">VA</option>
+                                <option value="VB">VB</option>
+                                <option value="VC">VC</option>
+                                <option value="VD">VD</option>
+                                <option value="VE">VE</option>
+                            </optgroup>
+                            <optgroup label="Golongan VI">
+                                <option value="VIA">VIA</option>
+                                <option value="VIB">VIB</option>
+                                <option value="VIC">VIC</option>
+                                <option value="VID">VID</option>
+                            </optgroup>
                         </select>
                     </div>
 

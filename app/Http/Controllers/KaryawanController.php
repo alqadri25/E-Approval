@@ -649,16 +649,18 @@ class KaryawanController extends Controller
             }
         }
 
-        $subGol = strtoupper(trim($request->input('sub_gol')));
+        $subGol = strtoupper(trim((string)preg_replace('/GOLONGAN\s*/i', '', $request->input('sub_gol'))));
         $jabatan = strtoupper(trim($request->input('jabatan')));
 
         $kjInput = trim($request->input('kj', ''));
         if (!$kjInput) {
-            if (str_contains($subGol, 'V') && !str_contains($subGol, 'IV')) {
+            if (str_starts_with($subGol, 'VI')) {
+                $kjInput = 'KJ 6';
+            } elseif (str_starts_with($subGol, 'V')) {
                 $kjInput = 'KJ 5';
-            } elseif (str_contains($subGol, 'IV')) {
+            } elseif (str_starts_with($subGol, 'IV')) {
                 $kjInput = 'KJ 4';
-            } elseif (str_contains($subGol, 'III')) {
+            } elseif (str_starts_with($subGol, 'III')) {
                 $kjInput = 'KJ 3';
             } else {
                 $kjInput = 'KJ 2';
@@ -760,6 +762,12 @@ class KaryawanController extends Controller
 
         // Pastikan SELALU dibuatkan initial document untuk karyawan baru
         $this->ensureInitialDocument($newEmployee, $hierarchy['default_status'] ?? null);
+
+        // Auto-sync leadership accounts so if added as Section Head, Dept Head, Manager, or Foreman, an account is immediately created
+        try {
+            \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+            \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
+        } catch (\Throwable $e) {}
 
         // Sinkronisasi tambah karyawan ke Google Spreadsheet secara background non-blocking
         if (function_exists('defer')) {
