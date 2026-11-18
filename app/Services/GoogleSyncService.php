@@ -602,7 +602,9 @@ class GoogleSyncService
             'dokumen' => [
                 'id', 'periode_id', 'nrp', 'kode_form', 'status', 'total_nilai',
                 'grade_original', 'docking_final', 'drive_file_id', 'drive_url',
-                'hash_dokumen', 'kode_verifikasi', 'created_at'
+                'hash_dokumen', 'kode_verifikasi', 'created_at',
+                'nrp_foreman', 'nama_foreman', 'nrp_section_head', 'nama_section_head',
+                'nrp_dept_head', 'nama_dept_head', 'nrp_div_head', 'nama_div_head'
             ],
             'nilai' => [
                 'dokumen_id', 'level', 'aspek_kode', 'skor', 'catatan'
@@ -612,7 +614,7 @@ class GoogleSyncService
             ],
             'tanda_tangan' => [
                 'dokumen_id', 'level', 'user_id', 'tgl_ttd', 'ip', 'user_agent',
-                'hash_snapshot', 'ttd_image', 'created_at'
+                'hash_snapshot', 'ttd_image', 'created_at', 'nrp', 'nama', 'role'
             ],
             'kuota_departemen' => [
                 'id', 'departemen', 'grade_s_max', 'grade_a_max', 'grade_b_max', 'grade_c_max', 'grade_k_max'
@@ -1341,6 +1343,38 @@ class GoogleSyncService
                             $sheetDocIds[] = $id;
 
                             $nrp = (string)($d['nrp'] ?? '');
+                            $nrpF = !empty($d['nrp_foreman']) ? trim((string)$d['nrp_foreman']) : null;
+                            $namaF = !empty($d['nama_foreman']) ? trim((string)$d['nama_foreman']) : null;
+                            $nrpS = !empty($d['nrp_section_head']) ? trim((string)$d['nrp_section_head']) : null;
+                            $namaS = !empty($d['nama_section_head']) ? trim((string)$d['nama_section_head']) : null;
+                            $nrpD = !empty($d['nrp_dept_head']) ? trim((string)$d['nrp_dept_head']) : null;
+                            $namaD = !empty($d['nama_dept_head']) ? trim((string)$d['nama_dept_head']) : null;
+                            $nrpDiv = !empty($d['nrp_div_head']) ? trim((string)$d['nrp_div_head']) : null;
+                            $namaDiv = !empty($d['nama_div_head']) ? trim((string)$d['nama_div_head']) : null;
+
+                            if ((!$nrpS && !$nrpD) && $nrp !== '') {
+                                $kRow = DB::table('karyawan')->where('nrp', $nrp)->first();
+                                if ($kRow) {
+                                    $nrpF = $nrpF ?: (!empty($kRow->nrp_foreman) ? trim((string)$kRow->nrp_foreman) : null);
+                                    $nrpS = $nrpS ?: (!empty($kRow->nrp_section_head) ? trim((string)$kRow->nrp_section_head) : null);
+                                    $nrpD = $nrpD ?: (!empty($kRow->nrp_dept_head) ? trim((string)$kRow->nrp_dept_head) : null);
+                                    $nrpDiv = $nrpDiv ?: (!empty($kRow->nrp_div_head) ? trim((string)$kRow->nrp_div_head) : null);
+                                }
+                            }
+
+                            $getName = function (?string $n) {
+                                if (!$n) return null;
+                                $row = DB::table('karyawan')->where('nrp', $n)->first();
+                                if ($row && !empty($row->nama_lengkap)) return $row->nama_lengkap;
+                                $u = DB::table('app_users')->where('nrp', $n)->first();
+                                return $u ? $u->nama : null;
+                            };
+
+                            $namaF = $namaF ?: ($nrpF ? $getName($nrpF) : null);
+                            $namaS = $namaS ?: ($nrpS ? $getName($nrpS) : null);
+                            $namaD = $namaD ?: ($nrpD ? $getName($nrpD) : null);
+                            $namaDiv = $namaDiv ?: ($nrpDiv ? $getName($nrpDiv) : null);
+
                             $payload = [
                                 'id' => $id,
                                 'periode_id' => $d['periode_id'] ?? 1,
@@ -1355,6 +1389,14 @@ class GoogleSyncService
                                 'hash_dokumen' => $d['hash_dokumen'] ?? null,
                                 'kode_verifikasi' => $d['kode_verifikasi'] ?? ('VERIF-' . strtoupper(Str::random(10))),
                                 'version' => $d['version'] ?? 1,
+                                'nrp_foreman' => $nrpF,
+                                'nama_foreman' => $namaF,
+                                'nrp_section_head' => $nrpS,
+                                'nama_section_head' => $namaS,
+                                'nrp_dept_head' => $nrpD,
+                                'nama_dept_head' => $namaD,
+                                'nrp_div_head' => $nrpDiv,
+                                'nama_div_head' => $namaDiv,
                                 'created_at' => $d['created_at'] ?? now()->toDateTimeString(),
                                 'updated_at' => $d['updated_at'] ?? now()->toDateTimeString(),
                             ];
@@ -1438,10 +1480,34 @@ class GoogleSyncService
                             $lvl = $t['level'] ?? null;
                             if (!$docId || !$lvl) continue;
 
+                            $signNrp = !empty($t['nrp']) ? trim((string)$t['nrp']) : null;
+                            $signNama = !empty($t['nama']) ? trim((string)$t['nama']) : null;
+                            $signRole = !empty($t['role']) ? trim((string)$t['role']) : null;
+                            $userId = (int)($t['user_id'] ?? 0);
+
+                            if ($signNrp) {
+                                $matchedUser = DB::table('app_users')->where('nrp', $signNrp)->first();
+                                if ($matchedUser) {
+                                    $userId = $matchedUser->id;
+                                    $signNama = $signNama ?: $matchedUser->nama;
+                                    $signRole = $signRole ?: $matchedUser->role;
+                                }
+                            } elseif ($userId > 0) {
+                                $matchedUser = DB::table('app_users')->where('id', $userId)->first();
+                                if ($matchedUser) {
+                                    $signNrp = $matchedUser->nrp;
+                                    $signNama = $signNama ?: $matchedUser->nama;
+                                    $signRole = $signRole ?: $matchedUser->role;
+                                }
+                            }
+
                             DB::table('tanda_tangan')->updateOrInsert(
                                 ['dokumen_id' => $docId, 'level' => $lvl],
                                 [
-                                    'user_id' => $t['user_id'] ?? 0,
+                                    'user_id' => $userId,
+                                    'nrp' => $signNrp,
+                                    'nama' => $signNama,
+                                    'role' => $signRole,
                                     'tgl_ttd' => $t['tgl_ttd'] ?? now()->toDateTimeString(),
                                     'ip' => $t['ip'] ?? '',
                                     'user_agent' => $t['user_agent'] ?? '',
@@ -1679,7 +1745,9 @@ var CONFIG_TABLES = {
   'dokumen': [
     'id', 'periode_id', 'nrp', 'kode_form', 'status', 'total_nilai',
     'grade_original', 'docking_final', 'drive_file_id', 'drive_url',
-    'hash_dokumen', 'kode_verifikasi', 'created_at'
+    'hash_dokumen', 'kode_verifikasi', 'created_at',
+    'nrp_foreman', 'nama_foreman', 'nrp_section_head', 'nama_section_head',
+    'nrp_dept_head', 'nama_dept_head', 'nrp_div_head', 'nama_div_head'
   ],
   'Dokumen_Dinilai': [
     'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
@@ -1698,7 +1766,7 @@ var CONFIG_TABLES = {
   ],
   'tanda_tangan': [
     'dokumen_id', 'level', 'user_id', 'tgl_ttd', 'ip', 'user_agent',
-    'hash_snapshot', 'ttd_image', 'created_at'
+    'hash_snapshot', 'ttd_image', 'created_at', 'nrp', 'nama', 'role'
   ],
   'periode': [
     'id', 'tahun', 'tgl_mulai', 'tgl_selesai', 'status'
@@ -1741,8 +1809,9 @@ var COLUMN_FORMATS = {
     alignCenter: [1, 3, 8]
   },
   'dokumen': {
-    widths: { 1: 70, 2: 80, 3: 90, 4: 100, 5: 170, 6: 90, 7: 110, 8: 110, 9: 260, 10: 280, 11: 220, 12: 140, 13: 160 },
-    alignCenter: [1, 2, 3, 4, 5, 6, 7, 8, 12, 13]
+    widths: { 1: 70, 2: 80, 3: 90, 4: 100, 5: 170, 6: 90, 7: 110, 8: 110, 9: 260, 10: 280, 11: 220, 12: 140, 13: 160, 14: 90, 15: 180, 16: 110, 17: 180, 18: 110, 19: 180, 20: 110, 21: 180 },
+    alignCenter: [1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 16, 18, 20],
+    textFormatCols: [1, 2, 3, 4, 12, 14, 16, 18, 20]
   },
   'periode': {
     widths: { 1: 60, 2: 80, 3: 110, 4: 110, 5: 100 },
@@ -1757,8 +1826,9 @@ var COLUMN_FORMATS = {
     alignCenter: [1]
   },
   'tanda_tangan': {
-    widths: { 1: 90, 2: 120, 3: 80, 4: 160, 5: 130, 6: 220, 7: 200, 8: 260, 9: 160 },
-    alignCenter: [1, 2, 3, 4, 5, 9]
+    widths: { 1: 90, 2: 120, 3: 80, 4: 160, 5: 130, 6: 220, 7: 200, 8: 260, 9: 160, 10: 90, 11: 180, 12: 120 },
+    alignCenter: [1, 2, 3, 4, 5, 9, 10, 12],
+    textFormatCols: [1, 2, 3, 10, 12]
   },
   'pengaturan': {
     widths: { 1: 220, 2: 360, 3: 160 },

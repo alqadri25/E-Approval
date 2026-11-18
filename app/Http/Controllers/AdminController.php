@@ -3281,13 +3281,41 @@ class AdminController extends Controller
         $this->repository->update('karyawan', 'nrp', $nrp, $updateData);
         $this->repository->clearCache('karyawan');
 
-        // If an active unfinalized document exists with 0 total score, synchronize its kode_form
-        $existingDoc = \Illuminate\Support\Facades\DB::table('dokumen')->where('nrp', $nrp)->orderByDesc('id')->first();
-        if ($existingDoc && in_array($existingDoc->status, ['draft', 'menunggu_foreman', 'belum_dinilai']) && empty($existingDoc->total_nilai)) {
-            \Illuminate\Support\Facades\DB::table('dokumen')->where('id', $existingDoc->id)->update([
-                'kode_form' => $freshKodeForm,
+        // Synchronize supervisor hierarchy to dokumen table
+        $kRow = DB::table('karyawan')->where('nrp', $nrp)->first();
+        if ($kRow) {
+            $getName = function (?string $n) {
+                if (!$n) return null;
+                $row = DB::table('karyawan')->where('nrp', $n)->first();
+                if ($row && !empty($row->nama_lengkap)) return $row->nama_lengkap;
+                $u = DB::table('app_users')->where('nrp', $n)->first();
+                return $u ? $u->nama : null;
+            };
+
+            $nrpF = !empty($kRow->nrp_foreman) ? trim((string)$kRow->nrp_foreman) : null;
+            $nrpS = !empty($kRow->nrp_section_head) ? trim((string)$kRow->nrp_section_head) : null;
+            $nrpD = !empty($kRow->nrp_dept_head) ? trim((string)$kRow->nrp_dept_head) : null;
+            $nrpDiv = !empty($kRow->nrp_div_head) ? trim((string)$kRow->nrp_div_head) : null;
+
+            $docUpdates = [
+                'nrp_foreman' => $nrpF,
+                'nama_foreman' => $nrpF ? $getName($nrpF) : null,
+                'nrp_section_head' => $nrpS,
+                'nama_section_head' => $nrpS ? $getName($nrpS) : null,
+                'nrp_dept_head' => $nrpD,
+                'nama_dept_head' => $nrpD ? $getName($nrpD) : null,
+                'nrp_div_head' => $nrpDiv,
+                'nama_div_head' => $nrpDiv ? $getName($nrpDiv) : null,
                 'updated_at' => now()->toDateTimeString(),
-            ]);
+            ];
+
+            $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->orderByDesc('id')->first();
+            if ($existingDoc && in_array($existingDoc->status, ['draft', 'menunggu_foreman', 'belum_dinilai']) && empty($existingDoc->total_nilai)) {
+                $docUpdates['kode_form'] = $freshKodeForm;
+            }
+
+            DB::table('dokumen')->where('nrp', $nrp)->update($docUpdates);
+            $this->repository->clearCache('dokumen');
         }
 
         // Auto-sync leadership accounts so newly promoted roles (Section Head, Dept Head, Manager, Foreman) get their account immediately

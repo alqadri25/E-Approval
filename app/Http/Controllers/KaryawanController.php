@@ -923,6 +923,27 @@ class KaryawanController extends Controller
             }
         }
         $activePeriod = DB::table('periode')->where('status', 'aktif')->first() ?? (object)['id' => 1];
+
+        $getName = function (?string $n) {
+            if (!$n) return null;
+            $row = DB::table('karyawan')->where('nrp', $n)->first();
+            if ($row && !empty($row->nama_lengkap)) return $row->nama_lengkap;
+            $u = DB::table('app_users')->where('nrp', $n)->first();
+            return $u ? $u->nama : null;
+        };
+
+        $nrpF = !empty($employee['nrp_foreman']) ? trim((string)$employee['nrp_foreman']) : null;
+        $namaF = $nrpF ? $getName($nrpF) : null;
+
+        $nrpS = !empty($employee['nrp_section_head']) ? trim((string)$employee['nrp_section_head']) : null;
+        $namaS = $nrpS ? $getName($nrpS) : null;
+
+        $nrpD = !empty($employee['nrp_dept_head']) ? trim((string)$employee['nrp_dept_head']) : null;
+        $namaD = $nrpD ? $getName($nrpD) : null;
+
+        $nrpDiv = !empty($employee['nrp_div_head']) ? trim((string)$employee['nrp_div_head']) : null;
+        $namaDiv = $nrpDiv ? $getName($nrpDiv) : null;
+
         $this->repository->insert('dokumen', [
             'periode_id' => $activePeriod->id ?? 1,
             'nrp' => $employee['nrp'],
@@ -931,6 +952,14 @@ class KaryawanController extends Controller
             'total_nilai' => null,
             'grade_original' => null,
             'docking_final' => null,
+            'nrp_foreman' => $nrpF,
+            'nama_foreman' => $namaF,
+            'nrp_section_head' => $nrpS,
+            'nama_section_head' => $namaS,
+            'nrp_dept_head' => $nrpD,
+            'nama_dept_head' => $namaD,
+            'nrp_div_head' => $nrpDiv,
+            'nama_div_head' => $namaDiv,
             'kode_verifikasi' => 'VERIF-' . strtoupper(Str::random(10)),
             'created_at' => now()->toDateTimeString(),
             'updated_at' => now()->toDateTimeString(),

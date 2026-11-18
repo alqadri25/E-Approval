@@ -36,7 +36,8 @@ class SheetRepository implements SheetRepositoryInterface
             'id', 'tahun', 'tgl_mulai', 'tgl_selesai', 'status'
         ],
         'dokumen' => [
-            'id', 'periode_id', 'nrp', 'kode_form', 'status', 'total_nilai', 'grade_original', 'docking_final', 'drive_file_id', 'drive_url', 'hash_dokumen', 'kode_verifikasi', 'created_at'
+            'id', 'periode_id', 'nrp', 'kode_form', 'status', 'total_nilai', 'grade_original', 'docking_final', 'drive_file_id', 'drive_url', 'hash_dokumen', 'kode_verifikasi', 'created_at',
+            'nrp_foreman', 'nama_foreman', 'nrp_section_head', 'nama_section_head', 'nrp_dept_head', 'nama_dept_head', 'nrp_div_head', 'nama_div_head'
         ],
         'nilai' => [
             'dokumen_id', 'level', 'aspek_kode', 'skor', 'catatan'
@@ -45,7 +46,7 @@ class SheetRepository implements SheetRepositoryInterface
             'dokumen_id', 'pilihan_potensi', 'catatan_potensi', 'kelebihan', 'kekurangan'
         ],
         'tanda_tangan' => [
-            'dokumen_id', 'level', 'user_id', 'tgl_ttd', 'ip', 'user_agent', 'hash_snapshot', 'ttd_image', 'created_at'
+            'dokumen_id', 'level', 'user_id', 'tgl_ttd', 'ip', 'user_agent', 'hash_snapshot', 'ttd_image', 'created_at', 'nrp', 'nama', 'role'
         ],
         'master_aspek' => [
             'kode_form', 'grup', 'aspek_kode', 'nama', 'bobot_grup', 'urutan'

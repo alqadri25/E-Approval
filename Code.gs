@@ -64,7 +64,9 @@ var CONFIG_TABLES = {
   'dokumen': [
     'id', 'periode_id', 'nrp', 'kode_form', 'status', 'total_nilai',
     'grade_original', 'docking_final', 'drive_file_id', 'drive_url',
-    'hash_dokumen', 'kode_verifikasi', 'created_at'
+    'hash_dokumen', 'kode_verifikasi', 'created_at',
+    'nrp_foreman', 'nama_foreman', 'nrp_section_head', 'nama_section_head',
+    'nrp_dept_head', 'nama_dept_head', 'nrp_div_head', 'nama_div_head'
   ],
   'Dokumen_Dinilai': [
     'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
@@ -83,7 +85,7 @@ var CONFIG_TABLES = {
   ],
   'tanda_tangan': [
     'dokumen_id', 'level', 'user_id', 'tgl_ttd', 'ip', 'user_agent',
-    'hash_snapshot', 'ttd_image', 'created_at'
+    'hash_snapshot', 'ttd_image', 'created_at', 'nrp', 'nama', 'role'
   ],
   'periode': [
     'id', 'tahun', 'tgl_mulai', 'tgl_selesai', 'status'
@@ -126,8 +128,9 @@ var COLUMN_FORMATS = {
     alignCenter: [1, 3, 8]
   },
   'dokumen': {
-    widths: { 1: 70, 2: 80, 3: 90, 4: 100, 5: 170, 6: 90, 7: 110, 8: 110, 9: 260, 10: 280, 11: 220, 12: 140, 13: 160 },
-    alignCenter: [1, 2, 3, 4, 5, 6, 7, 8, 12, 13]
+    widths: { 1: 70, 2: 80, 3: 90, 4: 100, 5: 170, 6: 90, 7: 110, 8: 110, 9: 260, 10: 280, 11: 220, 12: 140, 13: 160, 14: 90, 15: 180, 16: 110, 17: 180, 18: 110, 19: 180, 20: 110, 21: 180 },
+    alignCenter: [1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 16, 18, 20],
+    textFormatCols: [1, 2, 3, 4, 12, 14, 16, 18, 20]
   },
   'periode': {
     widths: { 1: 60, 2: 80, 3: 110, 4: 110, 5: 100 },
@@ -142,8 +145,9 @@ var COLUMN_FORMATS = {
     alignCenter: [1]
   },
   'tanda_tangan': {
-    widths: { 1: 90, 2: 120, 3: 80, 4: 160, 5: 130, 6: 220, 7: 200, 8: 260, 9: 160 },
-    alignCenter: [1, 2, 3, 4, 5, 9]
+    widths: { 1: 90, 2: 120, 3: 80, 4: 160, 5: 130, 6: 220, 7: 200, 8: 260, 9: 160, 10: 90, 11: 180, 12: 120 },
+    alignCenter: [1, 2, 3, 4, 5, 9, 10, 12],
+    textFormatCols: [1, 2, 3, 10, 12]
   },
   'pengaturan': {
     widths: { 1: 220, 2: 360, 3: 160 },

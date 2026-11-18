@@ -2029,11 +2029,15 @@ class PenilaianController extends Controller
 
             // Identify signer User and metadata
             $userObj = null;
-            $signerNrp = null;
-            $signerName = null;
-            $signerRole = $level;
+            $signerNrp = !empty($t['nrp']) ? trim((string)$t['nrp']) : null;
+            $signerName = !empty($t['nama']) ? trim((string)$t['nama']) : null;
+            $signerRole = !empty($t['role']) ? trim((string)$t['role']) : $level;
 
-            if ($t && !empty($t['user_id'])) {
+            if ($signerNrp) {
+                $userObj = DB::table('app_users')->where('nrp', $signerNrp)->first();
+            }
+
+            if (!$userObj && $t && !empty($t['user_id'])) {
                 $userObj = DB::table('app_users')->where('id', $t['user_id'])->first();
                 if (!$userObj) {
                     $uArr = $this->repository->find('users', 'id', $t['user_id']);
@@ -2042,16 +2046,27 @@ class PenilaianController extends Controller
             }
 
             if (!$userObj) {
+                $isSectionHeadRole = str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'SECTION HEAD') || ($karyawan['level_form'] ?? '') === 'SECTION_HEAD';
                 // Resolve from employee hierarchical NRP fields
                 if ($level === 'foreman') {
                     $signerNrp = $isGol4Up ? ($karyawan['nrp'] ?? null) : ($karyawan['nrp_foreman'] ?? null);
                     $signerName = $isGol4Up ? ($karyawan['nama_lengkap'] ?? null) : ($karyawan['foreman_nama'] ?? null);
                 } elseif ($level === 'section_head') {
-                    $signerNrp = $isGol4Up ? ($karyawan['nrp_dept_head'] ?? null) : ($karyawan['nrp_section_head'] ?? null);
-                    $signerName = $isGol4Up ? ($karyawan['dept_head_nama'] ?? null) : ($karyawan['section_head_nama'] ?? null);
+                    if ($isGol4Up) {
+                        $signerNrp = $isSectionHeadRole ? ($karyawan['nrp_dept_head'] ?? null) : ($karyawan['nrp_section_head'] ?? $karyawan['nrp_dept_head'] ?? null);
+                        $signerName = $isSectionHeadRole ? ($karyawan['dept_head_nama'] ?? null) : ($karyawan['section_head_nama'] ?? $karyawan['dept_head_nama'] ?? null);
+                    } else {
+                        $signerNrp = $karyawan['nrp_section_head'] ?? null;
+                        $signerName = $karyawan['section_head_nama'] ?? null;
+                    }
                 } elseif ($level === 'dept_head') {
-                    $signerNrp = $isGol4Up ? ($karyawan['nrp_div_head'] ?? null) : ($karyawan['nrp_dept_head'] ?? null);
-                    $signerName = $isGol4Up ? ($karyawan['div_head_nama'] ?? null) : ($karyawan['dept_head_nama'] ?? null);
+                    if ($isGol4Up) {
+                        $signerNrp = $isSectionHeadRole ? ($karyawan['nrp_div_head'] ?? null) : ($karyawan['nrp_dept_head'] ?? $karyawan['nrp_div_head'] ?? null);
+                        $signerName = $isSectionHeadRole ? ($karyawan['div_head_nama'] ?? null) : ($karyawan['dept_head_nama'] ?? $karyawan['div_head_nama'] ?? null);
+                    } else {
+                        $signerNrp = $karyawan['nrp_dept_head'] ?? null;
+                        $signerName = $karyawan['dept_head_nama'] ?? null;
+                    }
                 } elseif ($level === 'div_head') {
                     $signerNrp = $karyawan['nrp_div_head'] ?? null;
                     $signerName = $karyawan['div_head_nama'] ?? null;
@@ -3601,6 +3616,9 @@ class PenilaianController extends Controller
                 'dokumen_id' => $id,
                 'level' => $signLevel,
                 'user_id' => $user->id,
+                'nrp' => $user->nrp,
+                'nama' => $user->nama,
+                'role' => $user->role,
                 'tgl_ttd' => now()->toDateTimeString(),
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
@@ -4354,6 +4372,31 @@ class PenilaianController extends Controller
             }
         }
         $karyawan['nama_sect'] = $rawSect;
+
+        $getNameByNrp = function (?string $nrp) {
+            if (!$nrp) return null;
+            $row = DB::table('karyawan')->where('nrp', $nrp)->first();
+            if ($row && !empty($row->nama_lengkap)) return trim($row->nama_lengkap);
+            $u = DB::table('app_users')->where('nrp', $nrp)->first();
+            return $u ? trim($u->nama) : null;
+        };
+
+        // Populate supervisor NRPs & Names into $karyawan from $dokumen or fallback to $karyawan table
+        $nrpForeman = $dokumen['nrp_foreman'] ?? ($karyawan['nrp_foreman'] ?? null);
+        $karyawan['nrp_foreman'] = $nrpForeman;
+        $karyawan['foreman_nama'] = $dokumen['nama_foreman'] ?? ($getNameByNrp($nrpForeman) ?: ($karyawan['foreman_nama'] ?? null));
+
+        $nrpSection = $dokumen['nrp_section_head'] ?? ($karyawan['nrp_section_head'] ?? null);
+        $karyawan['nrp_section_head'] = $nrpSection;
+        $karyawan['section_head_nama'] = $dokumen['nama_section_head'] ?? ($getNameByNrp($nrpSection) ?: ($karyawan['section_head_nama'] ?? null));
+
+        $nrpDept = $dokumen['nrp_dept_head'] ?? ($karyawan['nrp_dept_head'] ?? null);
+        $karyawan['nrp_dept_head'] = $nrpDept;
+        $karyawan['dept_head_nama'] = $dokumen['nama_dept_head'] ?? ($getNameByNrp($nrpDept) ?: ($karyawan['dept_head_nama'] ?? null));
+
+        $nrpDiv = $dokumen['nrp_div_head'] ?? ($karyawan['nrp_div_head'] ?? null);
+        $karyawan['nrp_div_head'] = $nrpDiv;
+        $karyawan['div_head_nama'] = $dokumen['nama_div_head'] ?? ($getNameByNrp($nrpDiv) ?: ($karyawan['div_head_nama'] ?? null));
 
         if ($user && !self::canUserAccessKaryawan($user, $karyawan)) {
             return null;

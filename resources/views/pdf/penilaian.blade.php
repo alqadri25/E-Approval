@@ -133,20 +133,20 @@
         <!-- TOP HEADER ROW          -->
         <!-- ======================= -->
         @php
-            $rawForemanNama = $ttdByLevel['foreman']['user']['nama'] ?? ($karyawan['foreman_nama'] ?? '');
+            $rawForemanNama = $ttdByLevel['foreman']['signer_name'] ?? ($ttdByLevel['foreman']['user']['nama'] ?? ($karyawan['foreman_nama'] ?? ''));
             $foremanNama = trim(preg_replace('/\s*\(.*?\)/', '', $rawForemanNama));
-            $foremanNrp = $ttdByLevel['foreman']['user']['nrp'] ?? ($karyawan['nrp_foreman'] ?? '');
+            $foremanNrp = $ttdByLevel['foreman']['signer_nrp'] ?? ($ttdByLevel['foreman']['user']['nrp'] ?? ($karyawan['nrp_foreman'] ?? ''));
 
             $isTanpaForemanStd = !$isGol4Up && empty($karyawan['nrp_foreman']);
             $showForemanData = !$isTanpaForemanStd || !empty($ttdByLevel['foreman']) || !empty($scoresByLevel['foreman']);
 
-            $rawShNama = $ttdByLevel['section_head']['user']['nama'] ?? ($karyawan['section_head_nama'] ?? '');
+            $rawShNama = $ttdByLevel['section_head']['signer_name'] ?? ($ttdByLevel['section_head']['user']['nama'] ?? ($karyawan['section_head_nama'] ?? ''));
             $shNama = trim(preg_replace('/\s*\(.*?\)/', '', $rawShNama));
-            $shNrp = $ttdByLevel['section_head']['user']['nrp'] ?? ($karyawan['nrp_section_head'] ?? '');
+            $shNrp = $ttdByLevel['section_head']['signer_nrp'] ?? ($ttdByLevel['section_head']['user']['nrp'] ?? ($karyawan['nrp_section_head'] ?? ''));
 
-            $rawDhNama = $ttdByLevel['dept_head']['user']['nama'] ?? ($karyawan['dept_head_nama'] ?? '');
+            $rawDhNama = $ttdByLevel['dept_head']['signer_name'] ?? ($ttdByLevel['dept_head']['user']['nama'] ?? ($karyawan['dept_head_nama'] ?? ''));
             $dhNama = trim(preg_replace('/\s*\(.*?\)/', '', $rawDhNama));
-            $dhNrp = $ttdByLevel['dept_head']['user']['nrp'] ?? ($karyawan['nrp_dept_head'] ?? '');
+            $dhNrp = $ttdByLevel['dept_head']['signer_nrp'] ?? ($ttdByLevel['dept_head']['user']['nrp'] ?? ($karyawan['nrp_dept_head'] ?? ''));
 
             // Resolusi NAMA SECT. (Seksi resmi organisasi, BUKAN Nama Bagian / tanpa akhiran .SEC)
             $displaySect = trim($karyawan['nama_sect'] ?? '');
@@ -468,14 +468,19 @@
                 @else
                 <td rowspan="2" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
-                        $rawSignSh = $ttdByLevel['section_head']['user']['nama'] ?? '';
+                        $rawSignSh = $ttdByLevel['section_head']['signer_name'] ?? ($ttdByLevel['section_head']['user']['nama'] ?? '');
                         $col7Name = !empty($rawSignSh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignSh)) : ($isGol4Up ? ($dhNama ?: '') : $shNama);
                     @endphp
-                    @if($isGol4Up && empty($rawSignSh))
-                        <div style="font-size: 6.5pt; font-weight: bold; color: #0f172a; line-height: 1;">-</div>
-                        <div style="font-size: 4.5pt; color: #94a3b8; line-height: 1.1; margin-top: 1px;">Dept. Head</div>
+                    @if(empty($col7Name) || $col7Name === '-')
+                        <div style="font-size: 5.5pt; font-weight: bold; color: #64748b; line-height: 1;">-</div>
+                        @if($isGol4Up)
+                            <div style="font-size: 4.5pt; color: #94a3b8; line-height: 1.1; margin-top: 1px;">Dept. Head</div>
+                        @endif
                     @else
-                        <div style="font-size: 5.5pt; font-weight: bold; color: #0f172a; line-height: 1;">{{ $col7Name ?: '-' }}</div>
+                        <div style="font-size: 5.5pt; font-weight: bold; color: #0f172a; line-height: 1;">{{ $col7Name }}</div>
+                        @if($isGol4Up && empty($rawSignSh))
+                            <div style="font-size: 4.5pt; color: #94a3b8; line-height: 1.1; margin-top: 1px;">Dept. Head</div>
+                        @endif
                     @endif
                 </td>
                 @endif
@@ -485,21 +490,26 @@
                 @else
                 <td rowspan="2" style="border-right: none; border-bottom: 1.5px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
-                        $rawSignDh = $ttdByLevel['dept_head']['user']['nama'] ?? '';
+                        $rawSignDh = $ttdByLevel['dept_head']['signer_name'] ?? ($ttdByLevel['dept_head']['user']['nama'] ?? '');
                         $hasDhTtd = !empty($ttdByLevel['dept_head']);
                         $divHeadFallback = trim(preg_replace('/\s*\(.*?\)/', '', (string)($karyawan['div_head_nama'] ?? '')));
                         if ($isGol4Up && (strcasecmp($divHeadFallback, $karyawan['nama_lengkap'] ?? '') === 0 || $subFormVariant === 'div_head')) {
                             $divHeadFallback = '';
                         }
-                        $col8Name = $hasDhTtd
-                            ? (!empty($rawSignDh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDh)) : $divHeadFallback)
-                            : ($isGol4Up ? '' : $dhNama);
+                        $col8Name = !empty($rawSignDh)
+                            ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDh))
+                            : ($isGol4Up ? ($divHeadFallback ?: '') : $dhNama);
                     @endphp
-                    @if($isGol4Up && empty($rawSignDh))
-                        <div style="font-size: 6.5pt; font-weight: bold; color: #0f172a; line-height: 1;">-</div>
-                        <div style="font-size: 4.5pt; color: #94a3b8; line-height: 1.1; margin-top: 1px;">Div. Head</div>
+                    @if(empty($col8Name) || $col8Name === '-')
+                        <div style="font-size: 5.5pt; font-weight: bold; color: #64748b; line-height: 1;">-</div>
+                        @if($isGol4Up)
+                            <div style="font-size: 4.5pt; color: #94a3b8; line-height: 1.1; margin-top: 1px;">Div. Head</div>
+                        @endif
                     @else
-                        <div style="font-size: 5.5pt; font-weight: bold; color: #0f172a; line-height: 1;">{{ $col8Name ?: '-' }}</div>
+                        <div style="font-size: 5.5pt; font-weight: bold; color: #0f172a; line-height: 1;">{{ $col8Name }}</div>
+                        @if($isGol4Up && empty($rawSignDh))
+                            <div style="font-size: 4.5pt; color: #94a3b8; line-height: 1.1; margin-top: 1px;">Div. Head</div>
+                        @endif
                     @endif
                 </td>
                 @endif
