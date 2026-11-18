@@ -117,57 +117,11 @@ class AccountSyncService
         $deletedCount = 0;
         $deletedDetails = [];
 
-        foreach ($leadershipUsers as $user) {
-            $userNrp = trim((string)($user->nrp ?? ''));
-            $isPhantom = false;
-
-            if (empty($userNrp) || !in_array($userNrp, $karyawanNrps, true)) {
-                $isPhantom = true;
-            } else {
-                $emp = $karyawanByNrp[$userNrp] ?? null;
-                $empJabatan = $emp ? (string)($emp->jabatan ?? '') : '';
-                $resolvedRole = $emp ? self::resolveLeadershipRole($empJabatan, (string)($emp->kj ?? '')) : null;
-                $roleExpected = $resolvedRole['role'] ?? null;
-
-                if (in_array($user->role, ['foreman', 'ketua'])) {
-                    $isValidForeman = ($roleExpected === 'foreman') || in_array($userNrp, $activeForemanNrps, true);
-                    if (!$isValidForeman) {
-                        $isPhantom = true;
-                    }
-                } elseif ($user->role === 'section_head') {
-                    $isValidSh = ($roleExpected === 'section_head') || in_array($userNrp, $activeSectionHeadNrps, true);
-                    if (!$isValidSh) {
-                        $isPhantom = true;
-                    }
-                } elseif ($user->role === 'department_head') {
-                    $isValidDh = ($roleExpected === 'department_head') || in_array($userNrp, $activeDeptHeadNrps, true);
-                    if (!$isValidDh) {
-                        $isPhantom = true;
-                    }
-                } elseif ($user->role === 'division_head') {
-                    $isValidDiv = ($roleExpected === 'division_head') || in_array($userNrp, $activeDivHeadNrps, true);
-                    if (!$isValidDiv) {
-                        $isPhantom = true;
-                    }
-                }
-            }
-
-            if ($isPhantom) {
-                $deletedDetails[] = [
-                    'id' => $user->id,
-                    'nrp' => $user->nrp,
-                    'nama' => $user->nama,
-                    'role' => $user->role,
-                    'email' => $user->email,
-                ];
-                $user->delete();
-                $deletedCount++;
-            }
-        }
-
+        // Do not delete leadership accounts that are stored in the database / Google Sheets 'users' sheet.
+        // All accounts in app_users / users are official user accounts.
         return [
-            'deleted_count' => $deletedCount,
-            'deleted_details' => $deletedDetails,
+            'deleted_count' => 0,
+            'deleted_details' => [],
         ];
     }
 

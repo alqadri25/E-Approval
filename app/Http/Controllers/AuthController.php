@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -70,11 +71,10 @@ class AuthController extends Controller
         }
 
         try {
-            \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
             \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
         } catch (\Throwable $e) {}
 
-        $allUsers = User::where('aktif', 1)->get();
+        $allUsers = User::where('aktif', 1)->orderBy('id')->get();
         $curatedList = [];
 
         // 1. Superadmin & Admin
@@ -170,7 +170,7 @@ class AuthController extends Controller
             ];
         }
 
-        // 5. Foremen (STRICTLY ONLY IF ACTIVE IN KARYAWAN)
+        // 5. Foremen (From users table/sheet)
         $foremen = $allUsers->whereIn('role', ['foreman', 'ketua']);
         foreach ($foremen as $u) {
             $curatedList[] = [
@@ -227,7 +227,14 @@ class AuthController extends Controller
             $user = User::where('nrp', $rawInput)->first();
         }
 
-        // 3. Search user by alias map
+        // 3. Search user by Nama (case-insensitive)
+        if (!$user) {
+            $user = User::whereRaw('LOWER(nama) = ?', [$rawEmail])
+                ->orWhere('nama', 'like', "%{$rawInput}%")
+                ->first();
+        }
+
+        // 4. Search user by alias map
         if (!$user) {
             foreach ($this->emailAliases as $alias => $target) {
                 if ($rawEmail === strtolower($alias)) {
@@ -237,9 +244,22 @@ class AuthController extends Controller
             }
         }
 
-        // 4. Try matching with @musashi.id domain if entered without @
+        // 5. Try matching with @musashi.id domain if entered without @
         if (!$user && !str_contains($rawEmail, '@')) {
-            $user = User::where('email', $rawEmail . '@musashi.id')->first();
+            $user = User::where('email', $rawEmail . '@musashi.id')
+                ->orWhere('email', $rawEmail . '@musashi.co.id')
+                ->first();
+        }
+
+        // 6. If not found in local DB, attempt immediate sync from Google Sheets users sheet
+        if (!$user) {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+                $user = User::where('email', $rawEmail)
+                    ->orWhere('nrp', $rawInput)
+                    ->orWhereRaw('LOWER(nama) = ?', [$rawEmail])
+                    ->first();
+            } catch (\Throwable $e) {}
         }
 
         $password = $credentials['password'];
@@ -250,16 +270,20 @@ class AuthController extends Controller
             // Instant check for master password or match before computing expensive bcrypt rounds
             if ($password === 'password123' || $cleanPassword === 'password123') {
                 $passwordMatches = true;
-            } elseif (Hash::check($password, $user->password_hash) || Hash::check($cleanPassword, $user->password_hash)) {
+                if (empty($user->password_hash)) {
+                    $user->password_hash = Hash::make('password123');
+                    $user->save();
+                }
+            } elseif (!empty($user->password_hash) && (Hash::check($password, $user->password_hash) || Hash::check($cleanPassword, $user->password_hash))) {
                 $passwordMatches = true;
-            } elseif (Hash::check('password123', $user->password_hash)) {
+            } elseif (Hash::check('password123', (string)$user->password_hash)) {
                 $passwordMatches = true;
             }
         }
 
         if (!$user || !$passwordMatches) {
             throw ValidationException::withMessages([
-                'email' => 'Email atau password yang Anda masukkan salah.',
+                'email' => 'Username, NRP, Email, atau password yang Anda masukkan salah.',
             ]);
         }
 
@@ -269,38 +293,17 @@ class AuthController extends Controller
             ]);
         }
 
-        // Extra check: Verify leadership account is valid for the current active employee data
-        if ($user->isForeman()) {
-            $isForemanActive = \Illuminate\Support\Facades\DB::table('karyawan')
-                ->where(function ($q) use ($user) {
-                    $q->where('nrp_foreman', $user->nrp)
-                      ->orWhere(function ($q2) use ($user) {
-                          $q2->where('nrp', $user->nrp)
-                             ->where(function ($q3) {
-                                 $q3->where('jabatan', 'like', '%FOREMAN%')
-                                    ->orWhere('jabatan', 'like', '%LEADER%')
-                                    ->orWhere('jabatan', 'like', '%KETUA%');
-                             });
-                      });
-                })->exists();
-
-            if (!$isForemanActive) {
-                throw ValidationException::withMessages([
-                    'email' => 'Akun Foreman tidak dapat digunakan karena posisi Foreman tidak terdaftar pada data karyawan saat ini.',
-                ]);
-            }
-        }
-
-        // Validate Role if explicitly chosen in selector
-        $selectedRole = $request->input('role', 'all');
+        // Validate Role if explicitly chosen in selector (skip if 'all' or empty)
+        $selectedRole = strtolower(trim((string)$request->input('role', 'all')));
         if (!empty($selectedRole) && $selectedRole !== 'all') {
+            $userRole = strtolower(str_replace([' ', '-'], '_', trim($user->role)));
             $roleValid = match ($selectedRole) {
-                'foreman' => in_array($user->role, ['foreman', 'ketua']),
-                'section_head' => $user->role === 'section_head',
-                'department_head' => $user->role === 'department_head',
-                'division_head' => $user->role === 'division_head',
-                'admin' => in_array($user->role, ['admin', 'superadmin']),
-                'superadmin' => $user->role === 'superadmin',
+                'foreman' => in_array($userRole, ['foreman', 'ketua', 'leader']),
+                'section_head' => in_array($userRole, ['section_head', 'sect_head']),
+                'department_head' => in_array($userRole, ['department_head', 'dept_head', 'manager', 'manajer']),
+                'division_head' => in_array($userRole, ['division_head', 'div_head']),
+                'admin' => in_array($userRole, ['admin', 'superadmin']),
+                'superadmin' => in_array($userRole, ['superadmin', 'admin']),
                 default => true,
             };
 
@@ -308,14 +311,14 @@ class AuthController extends Controller
                 $roleLabels = [
                     'foreman' => 'Foreman',
                     'section_head' => 'Section Head',
-                    'department_head' => 'Department Head',
+                    'department_head' => 'Department Head / Manager',
                     'division_head' => 'Division Head',
                     'admin' => 'Admin / Superadmin',
                     'superadmin' => 'Superadmin',
                 ];
                 $expectedLabel = $roleLabels[$selectedRole] ?? $selectedRole;
                 throw ValidationException::withMessages([
-                    'role' => "Akun ini terdaftar sebagai {$user->roleLabel()}, tidak sesuai dengan pilihan role '{$expectedLabel}'. Silakan pilih role yang cocok atau pilih 'Semua Role'.",
+                    'role' => "Akun ini terdaftar sebagai {$user->roleLabel()}, tidak sesuai dengan pilihan role '{$expectedLabel}'. Silakan pilih role yang cocok atau pilih 'Pilih peran'.",
                 ]);
             }
         }
@@ -328,9 +331,9 @@ class AuthController extends Controller
         }
         $request->session()->regenerate();
 
-        // Auto sync operational tables from Google Sheets on login
+        // Auto sync operational tables from Google Sheets on login (cached to keep login instantaneous)
         try {
-            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
         } catch (\Throwable $e) {}
 
         return redirect()->intended(route('dashboard'))->with('success', "Selamat datang, {$user->nama}! Masuk sebagai {$user->roleLabel()}.");
@@ -341,9 +344,13 @@ class AuthController extends Controller
      */
     public function quickLogin(Request $request, $id)
     {
-        $user = User::where('nrp', (string)$id)->orWhere('email', (string)$id)->first();
-        if (!$user && is_numeric($id)) {
-            $user = User::find($id);
+        $idStr = trim((string)$id);
+        $user = User::where('nrp', $idStr)->orWhere('email', $idStr)->first();
+        if (!$user && is_numeric($idStr)) {
+            $user = User::find((int)$idStr);
+        }
+        if (!$user) {
+            $user = User::whereRaw('LOWER(nama) = ?', [strtolower($idStr)])->first();
         }
 
         if (!$user) {
@@ -357,9 +364,9 @@ class AuthController extends Controller
         Auth::login($user, true); // Keep session authenticated with remember token
         $request->session()->regenerate();
 
-        // Auto sync operational tables from Google Sheets on quick login
+        // Auto sync operational tables from Google Sheets on quick login (cached to keep login instantaneous)
         try {
-            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
         } catch (\Throwable $e) {}
 
         return redirect()->route('dashboard')->with('success', "Berhasil masuk sebagai {$user->nama} ({$user->roleLabel()}) - Dept: {$user->departemen}");
