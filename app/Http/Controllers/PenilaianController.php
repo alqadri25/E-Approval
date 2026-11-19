@@ -8403,7 +8403,8 @@ class PenilaianController extends Controller
                 ];
             }
         }
-        if (empty($divisiDefs)) {
+        // Do NOT populate phantom departments when master karyawan is empty
+        if (empty($divisiDefs) && !empty($allKaryawan)) {
             $divisiDefs = [$knownDeptDefs['PROD 1'], $knownDeptDefs['PROD 2']];
         }
 

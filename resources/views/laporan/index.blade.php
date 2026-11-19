@@ -626,10 +626,6 @@
                 <h3 class="text-xs sm:text-sm font-black text-slate-900 tracking-wider flex items-center gap-2 flex-wrap">
                     <span class="w-2.5 h-2.5 bg-[#92302e]"></span>
                     <span>Tabel Target &amp; Pemantauan Divisi dan Departemen</span>
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300">
-                        <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Tersinkron ke Sheet: Target_Pemantauan
-                    </span>
                 </h3>
                 <p class="text-[11px] text-slate-500 font-medium mt-0.5">
                     Monitoring realisasi target, sisa evaluasi, dan alokasi kuota nilai (S, A, B, C, K) per divisi &amp; departemen terhubung langsung ke Master Karyawan.
@@ -708,10 +704,11 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="13" class="py-3 px-3.5 border border-slate-300 text-center text-slate-400">Tidak ada data divisi / departemen terdaftar.</td>
+                        <td colspan="13" class="py-6 px-3.5 border border-slate-300 text-center text-slate-400 font-medium">Belum ada data divisi / departemen terdaftar pada master karyawan.</td>
                     </tr>
                     @endforelse
                 </tbody>
+                @if(!empty($rekapDivisiDepartemen))
                 <tfoot>
                     <tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300 text-xs">
                         <td colspan="3" class="py-2.5 px-3 border border-slate-300 uppercase tracking-wider text-[11px]">
@@ -745,10 +742,11 @@
                             {{ $sumCompanyTargetK ?? ($targetKuota['K'] ?? 0) }}
                         </td>
                         <td class="py-2.5 px-3 border border-slate-300 text-center font-bold text-slate-700">
-                            {{ ($totalDinilaiPerusahaan ?? $sudahDinilai) >= ($totalTargetPerusahaan ?? 1) ? 'Tuntas' : 'Sedang Berjalan' }}
+                            {{ ($totalTargetPerusahaan ?? 0) > 0 ? (($totalDinilaiPerusahaan ?? $sudahDinilai) >= $totalTargetPerusahaan ? 'Tuntas' : 'Sedang Berjalan') : '-' }}
                         </td>
                     </tr>
                 </tfoot>
+                @endif
             </table>
         </div>
     </div>
