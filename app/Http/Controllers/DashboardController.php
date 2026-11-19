@@ -58,7 +58,16 @@ class DashboardController extends Controller
 
         // 1. Bersihkan dokumen orphan dan pastikan setiap karyawan aktif memiliki dokumen
         $activeNrps = array_unique(array_filter(array_map('strval', array_column($allKaryawan, 'nrp'))));
-        if (!empty($activeNrps)) {
+        if (empty($activeNrps)) {
+            DB::table('dokumen')->delete();
+            if (Schema::hasTable('nilai')) DB::table('nilai')->delete();
+            if (Schema::hasTable('indikator')) DB::table('indikator')->delete();
+            if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->delete();
+            if (Schema::hasTable('signature')) DB::table('signature')->delete();
+            if (Schema::hasTable('history_status')) DB::table('history_status')->delete();
+            $this->repository->clearCache('dokumen');
+            $this->repository->clearCache('nilai');
+        } else {
             $orphanDocIds = DB::table('dokumen')->whereNotIn('nrp', $activeNrps)->pluck('id')->toArray();
             if (!empty($orphanDocIds)) {
                 if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $orphanDocIds)->delete();

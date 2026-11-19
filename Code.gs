@@ -683,7 +683,7 @@ function deleteEmployeeRowsFromSheets(nrpsList) {
     }
   }
 
-  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users', 'Target_Pemantauan'];
+  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users'];
   var stats = {};
 
   for (var t = 0; t < targetSheets.length; t++) {
@@ -744,6 +744,64 @@ function deleteEmployeeRowsFromSheets(nrpsList) {
     }
     stats[sName] = count;
   }
+
+  // 2. Cascade delete & update sheet Target_Pemantauan secara otomatis
+  // Division dan Department pada Target_Pemantauan berasal dari data karyawan.
+  // Jika seluruh karyawan dihapus, Target_Pemantauan ikut dibersihkan total.
+  // Jika departemen tertentu dihapus, baris departemen tersebut di Target_Pemantauan ikut dihapus.
+  var targetSh = ss.getSheetByName('Target_Pemantauan');
+  if (targetSh && targetSh.getLastRow() > 1) {
+    var kSheetNow = ss.getSheetByName('karyawan');
+    var hasRemainingEmployees = (kSheetNow && kSheetNow.getLastRow() > 1);
+
+    if (!hasRemainingEmployees) {
+      var tpRows = targetSh.getLastRow() - 1;
+      targetSh.deleteRows(2, tpRows);
+      formatSheetColumns(targetSh, 'Target_Pemantauan');
+      stats['Target_Pemantauan'] = tpRows;
+    } else {
+      var activeDeptsMap = {};
+      var kValues = kSheetNow.getDataRange().getValues();
+      var kHead = kValues[0].map(function(h) { return String(h).trim().toLowerCase(); });
+      var dIdx = kHead.indexOf('departemen');
+      if (dIdx === -1) dIdx = kHead.indexOf('department');
+      if (dIdx !== -1) {
+        for (var kv = 1; kv < kValues.length; kv++) {
+          var depVal = String(kValues[kv][dIdx] || '').trim().toUpperCase();
+          if (depVal) activeDeptsMap[depVal] = true;
+        }
+      }
+
+      var tpData = targetSh.getDataRange().getValues();
+      var tpHead = tpData[0].map(function(h) { return String(h).trim().toLowerCase(); });
+      var tpDeptIdx = tpHead.indexOf('department');
+      if (tpDeptIdx === -1) tpDeptIdx = tpHead.indexOf('departemen');
+
+      if (tpDeptIdx !== -1) {
+        var keptTpRows = [tpData[0]];
+        var tpDeleted = 0;
+        var newNo = 1;
+        for (var tpr = 1; tpr < tpData.length; tpr++) {
+          var rowDep = String(tpData[tpr][tpDeptIdx] || '').trim().toUpperCase();
+          if (activeDeptsMap[rowDep]) {
+            var tpRowCopy = tpData[tpr].slice();
+            tpRowCopy[0] = newNo++;
+            keptTpRows.push(tpRowCopy);
+          } else {
+            tpDeleted++;
+          }
+        }
+
+        if (tpDeleted > 0) {
+          targetSh.clear();
+          targetSh.getRange(1, 1, keptTpRows.length, keptTpRows[0].length).setValues(keptTpRows);
+          formatSheetColumns(targetSh, 'Target_Pemantauan');
+          stats['Target_Pemantauan'] = tpDeleted;
+        }
+      }
+    }
+  }
+
   return stats;
 }
 

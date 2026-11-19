@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -631,6 +632,9 @@ class GoogleSyncService
             'Dokumen_Dinilai' => [
                 'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
             ],
+            'Target_Pemantauan' => [
+                'No', 'Division', 'Department', 'Target_Kuota', 'Sudah_Dinilai', 'Belum_Dinilai', 'Realisasi_Persen', 'Target_S', 'Target_A', 'Target_B', 'Target_C', 'Target_K', 'Status', 'Terakhir_Update'
+            ],
             'master_kriteria' => [
                 'aspek_kode', 'skor', 'deskripsi'
             ],
@@ -691,6 +695,7 @@ class GoogleSyncService
                 $emptyHeaders = self::getStandardHeaders($table);
                 $keyCol = match($table) {
                     'karyawan', 'Dokumen_Dinilai', 'Master Tanda Tangan' => 'nrp',
+                    'Target_Pemantauan' => 'Department',
                     'dokumen', 'kuota_departemen', 'periode' => 'id',
                     'nilai', 'indikator', 'tanda_tangan' => 'dokumen_id',
                     'users' => 'email',
@@ -1568,15 +1573,24 @@ class GoogleSyncService
                 $data = $json['data'] ?? [];
 
                 // 1. Sync dokumen (workflow statuses & scores)
-                if (!empty($data['dokumen']) && is_array($data['dokumen'])) {
-                    DB::transaction(function () use ($data) {
+                $activeKaryawanNrps = DB::table('karyawan')->pluck('nrp')->map(fn($n) => trim((string)$n))->filter()->toArray();
+                if (empty($activeKaryawanNrps)) {
+                    // Jika data karyawan di database lokal kosong, dokumen tidak boleh ada
+                    DB::table('dokumen')->delete();
+                    if (Schema::hasTable('nilai')) DB::table('nilai')->delete();
+                    if (Schema::hasTable('indikator')) DB::table('indikator')->delete();
+                    if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->delete();
+                } elseif (!empty($data['dokumen']) && is_array($data['dokumen'])) {
+                    DB::transaction(function () use ($data, $activeKaryawanNrps) {
                         $sheetDocIds = [];
                         foreach ($data['dokumen'] as $d) {
                             $id = (int)($d['id'] ?? 0);
                             if ($id <= 0) continue;
-                            $sheetDocIds[] = $id;
 
-                            $nrp = (string)($d['nrp'] ?? '');
+                            $nrp = trim((string)($d['nrp'] ?? ''));
+                            // Lewati dokumen jika NRP karyawan tidak ada dalam data karyawan aktif lokal
+                            if ($nrp === '' || !in_array($nrp, $activeKaryawanNrps)) continue;
+                            $sheetDocIds[] = $id;
                             $nrpF = !empty($d['nrp_foreman']) ? trim((string)$d['nrp_foreman']) : null;
                             $namaF = !empty($d['nama_foreman']) ? trim((string)$d['nama_foreman']) : null;
                             $nrpS = !empty($d['nrp_section_head']) ? trim((string)$d['nrp_section_head']) : null;
