@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'History Penilaian (Audit Log) - E-Approval')
+@section('title', 'History Penilaian - E-Approval')
 
 @section('content')
 <div class="space-y-6">
@@ -8,18 +8,11 @@
     <!-- Header Section (Musashi Red Banner, Solid & Kotak Tanpa Lengkungan) -->
     <div class="bg-gradient-to-r from-[#962226] via-[#92302e] to-[#781b1f] text-white rounded-none p-5 sm:p-6 border border-[#781b1f] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 bg-white/10 border border-white/20 flex items-center justify-center shrink-0 rounded-none">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                </div>
-                <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">
-                    History Penilaian
-                </h1>
-            </div>
+            <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">
+                History Penilaian
+            </h1>
             <p class="text-xs sm:text-sm text-red-100 font-medium mt-1">
-                Catatan riwayat aktivitas penilaian karya karyawan yang terhubung langsung dengan sheet <strong class="text-white underline decoration-red-300">audit_log</strong> di Google Spreadsheet.
+                Catatan riwayat aktivitas penilaian karya karyawan yang terhubung langsung dengan Google Spreadsheet.
             </p>
         </div>
 
@@ -40,7 +33,7 @@
             <!-- Kosongkan Seluruh Riwayat Log (Clear All Logs) -->
             <form action="{{ request()->routeIs('superadmin.*') ? route('superadmin.historyPenilaian.clearAll') : route('admin.historyPenilaian.clearAll') }}" 
                   method="POST" 
-                  onsubmit="return confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH catatan riwayat aktivitas penilaian?\n\nSeluruh data pada sheet audit_log di Google Spreadsheet juga akan ikut dihapus permanen.');" 
+                  onsubmit="return confirm('PERINGATAN: Apakah Anda yakin ingin mengosongkan SELURUH catatan riwayat aktivitas penilaian?\n\nSeluruh data pada Google Spreadsheet juga akan ikut dihapus permanen.');" 
                   class="m-0">
                 @csrf
                 <button type="submit" 
@@ -357,7 +350,7 @@
                             <td class="py-2.5 px-3 border border-slate-300 text-center whitespace-nowrap">
                                 <form action="{{ request()->routeIs('superadmin.*') ? route('superadmin.historyPenilaian.destroy', $log->id) : route('admin.historyPenilaian.destroy', $log->id) }}"
                                       method="POST"
-                                      onsubmit="return confirm('Hapus catatan riwayat aktivitas ini? Data pada sheet audit_log di Google Spreadsheet juga akan ikut terhapus.');"
+                                      onsubmit="return confirm('Hapus catatan riwayat aktivitas ini? Data pada Google Spreadsheet juga akan ikut terhapus.');"
                                       class="inline-block m-0">
                                     @csrf
                                     @method('DELETE')
@@ -441,7 +434,7 @@
             return;
         }
 
-        if (!confirm(`Hapus ${checked.length} catatan riwayat aktivitas terpilih?\n\nCatatan terkait pada sheet audit_log di Google Spreadsheet juga akan ikut terhapus.`)) {
+        if (!confirm(`Hapus ${checked.length} catatan riwayat aktivitas terpilih?\n\nCatatan terkait pada Google Spreadsheet juga akan ikut terhapus.`)) {
             return;
         }
 
