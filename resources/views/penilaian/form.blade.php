@@ -499,7 +499,23 @@
     @endif
 
     <!-- Banner Status Selesai & Opsi Buka Revisi -->
-    @if($dokumen['status'] === 'selesai' && (Auth::user()->isDivisionHead() || in_array(Auth::user()->role, ['div_head', 'division_head']) || Auth::user()->isDepartmentHead() || Auth::user()->isAdmin()))
+    @php
+        $isUserDivHead = Auth::user()->isDivisionHead() || in_array(Auth::user()->role, ['div_head', 'division_head']);
+        $isUserAdmin = Auth::user()->isAdmin() || Auth::user()->isSuperadmin();
+        $isUserDeptHead = Auth::user()->isDepartmentHead() || in_array(Auth::user()->role, ['dept_head', 'department_head']);
+        $hasDivHeadApprover = !empty($karyawan['nrp_div_head']) || !empty($dokumen['nrp_div_head']);
+
+        // Penilai Akhir / Final Evaluator check:
+        // - Superadmin / Admin selalu berwenang
+        // - Division Head selalu merupakan penilai akhir (baik Form Standar maupun Form 07-006)
+        // - Department Head adalah penilai akhir untuk Form Standar (KJ 1-5).
+        // - Untuk Form 07-006 (Section Head/Dept Head), Department Head BUKAN penilai akhir KECUALI tidak ada Division Head. Jika ada Division Head, penilai akhirnya adalah Division Head.
+        $isPenilaiAkhir = $isUserAdmin 
+            || $isUserDivHead 
+            || (!$isGol4Up && $isUserDeptHead) 
+            || ($isGol4Up && $isUserDeptHead && !$hasDivHeadApprover);
+    @endphp
+    @if($dokumen['status'] === 'selesai' && $isPenilaiAkhir)
     <div class="no-print bg-emerald-50 border-2 border-emerald-400 rounded-none p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs mb-3">
         <div class="flex items-center gap-2.5">
             <span class="text-xl">✅</span>

@@ -3992,6 +3992,17 @@ class PenilaianController extends Controller
         $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
         $isSelf = (strcasecmp($dokumen['nrp'], $user->nrp) === 0);
 
+        // Security Guard: Pada Form 07-006 yang telah selesai, Department Head bukan penilai akhir (kecuali tanpa Division Head).
+        // Hanya Penilai Akhir (Division Head) atau Administrator yang berwenang membuka kembali revisi.
+        $isAdmin = $user->isAdmin() || $user->isSuperadmin();
+        $isDivHead = $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']);
+        $isDeptHead = $user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']);
+        $hasDivHeadApprover = !empty($karyawan['nrp_div_head']) || !empty($dokumen['nrp_div_head']);
+
+        if (($dokumen['status'] ?? '') === 'selesai' && $isGol4Up && $isDeptHead && !$isAdmin && !$isDivHead && $hasDivHeadApprover) {
+            abort(403, 'Anda bukan penilai akhir untuk formulir 07-006 ini. Pembukaan revisi dokumen yang telah selesai hanya dapat dilakukan oleh Penilai Akhir (Division Head) atau Administrator.');
+        }
+
         // 1. Determine new status and target signature to invalidate
         if ($isSelf) {
             // Evaluasi Mandiri (Diri Sendiri)
