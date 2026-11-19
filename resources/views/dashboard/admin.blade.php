@@ -78,7 +78,7 @@
                 <div>
                     <p class="text-xs text-slate-500 font-medium leading-none">Total Divisi</p>
                     <div class="flex items-baseline gap-1 mt-1.5">
-                        <span class="text-2xl font-black text-slate-900 leading-none">{{ $adminStats['total_divisi'] ?? 2 }}</span>
+                        <span class="text-2xl font-black text-slate-900 leading-none">{{ $adminStats['total_divisi'] ?? 0 }}</span>
                         <span class="text-[10px] text-slate-400 font-medium leading-none">Divisi Aktif</span>
                     </div>
                 </div>
@@ -118,7 +118,7 @@
                 <div>
                     <p class="text-xs text-slate-500 font-medium leading-none">Total Section Head</p>
                     <div class="flex items-baseline gap-1 mt-1.5">
-                        <span class="text-2xl font-black text-slate-900 leading-none">{{ $adminStats['total_section_head'] ?? 4 }}</span>
+                        <span class="text-2xl font-black text-slate-900 leading-none">{{ $adminStats['total_section_head'] ?? 0 }}</span>
                         <span class="text-[10px] text-slate-400 font-medium leading-none">Penilai Seksi</span>
                     </div>
                 </div>
@@ -138,7 +138,7 @@
                 <div>
                     <p class="text-xs text-slate-500 font-medium leading-none">Total Foreman</p>
                     <div class="flex items-baseline gap-1 mt-1.5">
-                        <span class="text-2xl font-black text-slate-900 leading-none">{{ $adminStats['total_foreman'] ?? 6 }}</span>
+                        <span class="text-2xl font-black text-slate-900 leading-none">{{ $adminStats['total_foreman'] ?? 0 }}</span>
                         <span class="text-[10px] text-slate-400 font-medium leading-none">Penilai Lapangan</span>
                     </div>
                 </div>
@@ -480,13 +480,17 @@
 
         <!-- Division KPI Pills -->
         <div class="grid grid-cols-2 md:grid-flow-col md:auto-cols-fr gap-2 pt-1">
-            @foreach($aktivitasDivisi as $div)
+            @forelse($aktivitasDivisi as $div)
             <div class="p-2.5 rounded-none bg-slate-50 border border-slate-300 text-center">
                 <span class="text-[10px] font-black text-slate-700 uppercase block truncate">{{ $div['kode'] }}</span>
                 <span class="text-sm font-black text-slate-900 mt-0.5 block">{{ $div['persentase'] }}%</span>
                 <span class="text-[10px] text-slate-500 block font-medium">{{ $div['dinilai'] }} / {{ $div['target'] }} org</span>
             </div>
-            @endforeach
+            @empty
+            <div class="col-span-full py-2 text-center text-xs text-slate-400 font-medium">
+                Belum ada data aktivitas divisi (Data Karyawan Kosong)
+            </div>
+            @endforelse
         </div>
 
         <!-- Bar Chart Canvas -->
@@ -568,7 +572,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     @php $rdNo = 1; @endphp
-                    @foreach($ringkasanDivisi as $r)
+                    @forelse($ringkasanDivisi as $r)
                     <tr class="hover:bg-slate-50 transition-colors">
                         <!-- No -->
                         <td class="py-2.5 px-3 border border-slate-300 text-center text-slate-500 font-mono">{{ $rdNo++ }}</td>
@@ -658,7 +662,13 @@
                             @endif
                         </td>
                     </tr>
-                    @endforeach
+                    @empty
+                    <tr>
+                        <td colspan="15" class="py-6 px-3 border border-slate-300 text-center text-slate-400 font-medium">
+                            Belum ada data divisi / departemen terdaftar pada data karyawan.
+                        </td>
+                    </tr>
+                    @endforelse
                 </tbody>
                 <tfoot>
                     <tr class="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300 text-xs">

@@ -36,12 +36,16 @@ class AdminController extends Controller
         $totalKaryawan = count($allKaryawan);
 
         $deptSet = [];
+        $divisiSet = [];
         $divisiGroups = [];
         foreach ($allKaryawan as $k) {
             $d = trim((string)($k['departemen'] ?? ''));
             $div = trim((string)($k['division'] ?? ''));
             if ($d !== '' && $d !== '-') {
                 $deptSet[$d] = true;
+            }
+            if ($div !== '' && $div !== '-') {
+                $divisiSet[$div] = true;
             }
             $groupKey = $div !== '' && $div !== '-' ? $div : ($d !== '' && $d !== '-' ? $d : 'Lainnya');
             if (!isset($divisiGroups[$groupKey])) {
@@ -92,7 +96,10 @@ class AdminController extends Controller
 
         $adminStats = [
             'total_karyawan' => $totalKaryawan,
+            'total_divisi' => count($divisiSet),
             'total_departemen' => $totalDept,
+            'total_section_head' => count(array_unique(array_filter(array_map(fn($k) => trim((string)($k['nrp_section_head'] ?? '')), $allKaryawan)))),
+            'total_foreman' => count(array_unique(array_filter(array_map(fn($k) => trim((string)($k['nrp_foreman'] ?? '')), $allKaryawan)))),
             'total_dinilai' => $totalDinilai,
             'pct_dinilai' => $pctDinilai,
             'total_belum' => $totalBelum,

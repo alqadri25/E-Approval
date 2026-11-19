@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 class SuperAdminController extends Controller
@@ -33,12 +34,16 @@ class SuperAdminController extends Controller
         $totalUser = User::count();
 
         $deptSet = [];
+        $divisiSet = [];
         $divisiGroups = [];
         foreach ($allKaryawan as $k) {
             $d = trim((string)($k['departemen'] ?? ''));
             $div = trim((string)($k['division'] ?? ''));
             if ($d !== '' && $d !== '-') {
                 $deptSet[$d] = true;
+            }
+            if ($div !== '' && $div !== '-') {
+                $divisiSet[$div] = true;
             }
             $groupKey = $div !== '' && $div !== '-' ? $div : ($d !== '' && $d !== '-' ? $d : 'Lainnya');
             if (!isset($divisiGroups[$groupKey])) {
@@ -76,6 +81,7 @@ class SuperAdminController extends Controller
         $stats = [
             'total_user' => $totalUser,
             'total_karyawan' => $totalKaryawan,
+            'total_divisi' => count($divisiSet),
             'total_departemen' => count($deptSet),
             'aktivitas_hari_ini' => $aktivitasHariIni,
         ];

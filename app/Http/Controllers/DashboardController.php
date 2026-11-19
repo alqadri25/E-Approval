@@ -1695,7 +1695,7 @@ class DashboardController extends Controller
         $totalDeptCount = count($uniqueDepts);
 
         $uniqueDivs = array_unique(array_filter(array_map(fn($k) => strtoupper(trim((string)($k['division'] ?? ''))), $allKaryawan), fn($d) => $d !== '' && $d !== '-'));
-        $totalDivCount = count($uniqueDivs) > 0 ? count($uniqueDivs) : 2;
+        $totalDivCount = count($uniqueDivs);
 
         $uniqueForemen = array_unique(array_filter(array_map(fn($k) => trim((string)($k['nrp_foreman'] ?? '')), $allKaryawan)));
         $totalForemanCount = count($uniqueForemen);
@@ -1969,8 +1969,8 @@ class DashboardController extends Controller
             }
         }
 
-        // Fallback: If no employees have departments yet, show PROD 1 & PROD 2
-        if (empty($divisiDefs)) {
+        // Only fallback if master karyawan actually has employees but departments were unassigned
+        if (empty($divisiDefs) && !empty($allKaryawan)) {
             $divisiDefs = [
                 $knownDeptDefs['PROD 1'],
                 $knownDeptDefs['PROD 2'],
