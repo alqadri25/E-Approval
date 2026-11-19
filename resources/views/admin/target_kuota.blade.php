@@ -485,15 +485,6 @@
                 <input type="hidden" name="departemen" value="{{ $currentDept }}">
                 <input type="hidden" name="batch" value="1">
 
-                <!-- Alert info selalu sinkron -->
-                <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-none flex items-center justify-between text-xs text-emerald-900 font-medium">
-                    <div class="flex items-center gap-2">
-                        <span class="text-base">✓</span>
-                        <span><strong>Selalu Sinkron: Target Induk Mengikuti Total KJ</strong> &bull; Perubahan angka kuota yang Anda simpan langsung terhubung ke tabel penilaian Foreman, Section Head, dan Department Head.</span>
-                    </div>
-                    <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Aktif &amp; Terhubung</span>
-                </div>
-
                 <!-- Matrix Table per KJ (Clean, Sharp & Minimalist) -->
                 <div class="overflow-x-auto border border-slate-300">
                     <table class="w-full text-xs text-left border-collapse">
