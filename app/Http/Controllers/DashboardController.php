@@ -729,6 +729,8 @@ class DashboardController extends Controller
         $deptSectionTotalDinilai = 0;
         $deptForemanDoneCount = 0;
         $deptSectionDoneCount = 0;
+        $deptMandiriCount = 0;
+        $deptAnggotaCount = 0;
         $hasAnyForeman = false;
 
         if ($user->isDepartmentHead()) {
@@ -761,6 +763,11 @@ class DashboardController extends Controller
             foreach ($deptSubordinates as $k) {
                 $nrp = $k['nrp'];
                 $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
+                if ($isSelf) {
+                    $deptMandiriCount++;
+                } else {
+                    $deptAnggotaCount++;
+                }
                 $doc = $docsByNrp[$nrp] ?? null;
                 $docId = $doc['id'] ?? null;
                 $status = $doc['status'] ?? 'belum_ada';
@@ -2233,6 +2240,8 @@ class DashboardController extends Controller
             'hasAnyForeman',
             'deptStageCounts',
             'deptSubordinateRows',
+            'deptMandiriCount',
+            'deptAnggotaCount',
             'deptDoneCount',
             'deptNeedActionCount',
             'deptWaitingSectionCount',

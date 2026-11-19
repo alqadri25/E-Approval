@@ -157,6 +157,28 @@
         $targetC = $deptTargetCounts['C'] ?? 0;
         $targetK = $deptTargetCounts['K'] ?? 0;
         $effectiveTotalTarget = isset($totalTargetDept) ? (int)$totalTargetDept : ($targetS + $targetA + $targetB + $targetC + $targetK);
+
+        if (!isset($deptMandiriCount) || !isset($deptAnggotaCount)) {
+            $deptMandiriCount = 0;
+            $deptAnggotaCount = 0;
+            if (!empty($deptSubordinateRows)) {
+                foreach ($deptSubordinateRows as $r) {
+                    if (!empty($r['is_self'])) {
+                        $deptMandiriCount++;
+                    } else {
+                        $deptAnggotaCount++;
+                    }
+                }
+            } elseif (!empty($deptSubordinates)) {
+                foreach ($deptSubordinates as $s) {
+                    if (!empty($user->nrp) && strcasecmp((string)($s['nrp'] ?? ''), (string)$user->nrp) === 0) {
+                        $deptMandiriCount++;
+                    } else {
+                        $deptAnggotaCount++;
+                    }
+                }
+            }
+        }
     @endphp
 
     <!-- 3. Key Stat Cards in a Row (4 Columns - Desain Identik dengan Section Head) -->
@@ -191,7 +213,7 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Target</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $effectiveTotalTarget }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Tahun {{ date('Y') }}</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">{{ $deptMandiriCount }} Mandiri, {{ $deptAnggotaCount }} Anggota</p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-none border border-blue-200">
