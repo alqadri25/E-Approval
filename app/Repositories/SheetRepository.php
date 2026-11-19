@@ -127,21 +127,7 @@ class SheetRepository implements SheetRepositoryInterface
 
             // 1. FAST LOCAL-FIRST: Check local SQLite database first (< 1ms)
             if (Schema::hasTable($localTable)) {
-                $localRows = $this->getFromLocal($table);
-                if (!empty($localRows)) {
-                    return $localRows;
-                }
-
-                // If local table exists and database is initialized (settings/users/periode exist),
-                // an empty table genuinely has 0 records (e.g. intentionally deleted by user).
-                // Do NOT query Google Apps Script and resurrect deleted data!
-                $isInitialized = DB::table('pengaturan')->exists()
-                    || DB::table('app_users')->exists()
-                    || DB::table('periode')->exists();
-
-                if ($isInitialized) {
-                    return [];
-                }
+                return $this->getFromLocal($table);
             }
 
             // 2. Fetch fresh data from Google Apps Script Web App only if local DB is empty
@@ -231,27 +217,7 @@ class SheetRepository implements SheetRepositoryInterface
         $localTable = $this->getLocalTableName($table);
         if (Schema::hasTable($localTable)) {
             $row = DB::table($localTable)->where($column, $value)->first();
-            if ($row) {
-                return (array)$row;
-            }
-
-            // If the local table exists and database is initialized,
-            // the record genuinely does not exist! Do NOT make blocking network calls or resurrect via all().
-            $isInitialized = DB::table('pengaturan')->exists()
-                || DB::table('app_users')->exists()
-                || DB::table('periode')->exists();
-
-            if ($isInitialized) {
-                return null;
-            }
-        }
-
-        // 2. Secondary check via all() only if table does not exist or has 0 rows
-        $records = $this->all($table);
-        foreach ($records as $record) {
-            if (isset($record[$column]) && (string)$record[$column] === (string)$value) {
-                return $record;
-            }
+            return $row ? (array)$row : null;
         }
 
         return null;

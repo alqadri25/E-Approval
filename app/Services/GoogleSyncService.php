@@ -1552,8 +1552,13 @@ class GoogleSyncService
      */
     public static function syncOperationalTablesFromGoogle(bool $force = false): array
     {
+        // Jangan pernah blokir navigasi halaman web biasa dengan synchronous HTTP call ke Google
+        if (!$force) {
+            return ['status' => 'skipped_no_force'];
+        }
+
         $cacheKey = 'last_google_operational_sync';
-        if (!$force && Cache::has($cacheKey)) {
+        if (Cache::has($cacheKey)) {
             return ['status' => 'skipped_cache_active'];
         }
 
@@ -1872,9 +1877,11 @@ class GoogleSyncService
                 return ['status' => 'success', 'timestamp' => now()->toIso8601String()];
             }
         } catch (\Throwable $e) {
+            Cache::put($cacheKey, true, 60);
             Log::info('syncOperationalTablesFromGoogle non-blocking notice: ' . $e->getMessage());
         }
 
+        Cache::put($cacheKey, true, 60);
         return ['status' => 'offline_or_failed'];
     }
 

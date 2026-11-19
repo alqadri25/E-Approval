@@ -145,10 +145,12 @@ class SuperAdminController extends Controller
             abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
         }
 
-        // Auto sync with Google Spreadsheet
-        try {
-            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle($request->boolean('sync'));
-        } catch (\Throwable $e) {}
+        // Sync dengan Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1
+        if ($request->boolean('sync')) {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+            } catch (\Throwable $e) {}
+        }
 
         // Auto sync with master karyawan & clean up phantom accounts so users are always 100% connected
         \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();

@@ -8613,17 +8613,15 @@ class PenilaianController extends Controller
         $user = Auth::user();
 
         $forceSync = $request->boolean('sync') || $request->boolean('refresh');
-        try {
-            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle($forceSync);
-            if ($forceSync) {
+        if ($forceSync) {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
                 \App\Services\GoogleSyncService::syncTargetPemantauan();
                 \App\Services\GoogleSyncService::syncDokumenDinilai();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Sync from Google on /laporan: " . $e->getMessage());
             }
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("Sync from Google on /laporan: " . $e->getMessage());
-        }
 
-        if ($request->boolean('sync')) {
             return redirect()->route('laporan.index', $request->except(['sync', 'refresh']))
                 ->with('success', 'Data Laporan berhasil disinkronkan langsung dari Google Spreadsheet!');
         }

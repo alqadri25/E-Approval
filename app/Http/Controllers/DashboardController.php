@@ -33,11 +33,13 @@ class DashboardController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // Auto-sync data operasional & karyawan dari Google Spreadsheet jika cache 30s expired atau force sync
-        try {
-            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle($request->boolean('sync'));
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("Sync from Google on dashboard: " . $e->getMessage());
+        // Sync dari Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1
+        if ($request->boolean('sync')) {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Sync from Google on dashboard: " . $e->getMessage());
+            }
         }
 
         // 1. Employee query (department filtered if department user)
