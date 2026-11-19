@@ -1981,20 +1981,24 @@ class KaryawanController extends Controller
                     \Illuminate\Support\Facades\Log::warning("Phantom leadership cleanup notice on bulk delete: " . $e->getMessage());
                 }
 
-                try {
-                    \App\Services\GoogleSyncService::syncTables([
-                        'karyawan',
-                        'dokumen',
-                        'Dokumen_Dinilai',
-                        'Target_Pemantauan',
-                        'users',
-                        'nilai',
-                        'indikator',
-                        'tanda_tangan',
-                        'kuota_departemen',
-                    ]);
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Google bulk delete sync notice: " . $e->getMessage());
+                // If deleting partial/filtered scope, sync remaining records to Google Spreadsheet
+                // If scope is 'all', wipeAllDataAndDrivePdfs already wiped all sheets cleanly!
+                if ($scope !== 'all') {
+                    try {
+                        \App\Services\GoogleSyncService::syncTables([
+                            'karyawan',
+                            'dokumen',
+                            'Dokumen_Dinilai',
+                            'Target_Pemantauan',
+                            'users',
+                            'nilai',
+                            'indikator',
+                            'tanda_tangan',
+                            'kuota_departemen',
+                        ]);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning("Google bulk delete sync notice: " . $e->getMessage());
+                    }
                 }
             });
         }

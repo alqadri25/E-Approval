@@ -233,13 +233,8 @@ Route::middleware('auth')->group(function () {
     });
 });
 
-// Persistent session keepalive endpoint with quiet background operational sync
+// Persistent session keepalive endpoint (ultra-lightweight heartbeat to keep session active)
 Route::get('/session-keepalive', function () {
-    // Quietly sync operational tables from Google Sheets in background if needed
-    try {
-        \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle();
-    } catch (\Throwable $e) {}
-
     return response()->json([
         'status' => 'ok',
         'authenticated' => \Illuminate\Support\Facades\Auth::check(),

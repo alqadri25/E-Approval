@@ -350,7 +350,7 @@ class GoogleSyncService
                     $data = $json['data'] ?? [];
                     $empRows = $data['karyawan'] ?? ($data['Master Karyawan'] ?? []);
 
-                    if (!empty($empRows) && is_array($empRows)) {
+                    if (is_array($empRows)) {
                         $pulledRowsCount = count($empRows);
                         $syncSource = "Google Apps Script & Spreadsheet (ID: {$targetSpreadsheet})";
 
@@ -358,9 +358,11 @@ class GoogleSyncService
                         $karyawanColSet = array_flip($karyawanCols);
 
                         DB::transaction(function () use ($empRows, $karyawanColSet) {
+                            $sheetNrps = [];
                             foreach ($empRows as $row) {
                                 $nrp = trim((string)($row['nrp'] ?? ''));
                                 if ($nrp === '') continue;
+                                $sheetNrps[] = $nrp;
 
                                 $cleanRow = [];
                                 foreach ($row as $k => $v) {
@@ -372,6 +374,16 @@ class GoogleSyncService
                                 if (!empty($cleanRow)) {
                                     DB::table('karyawan')->updateOrInsert(['nrp' => $nrp], $cleanRow);
                                 }
+                            }
+
+                            // Hapus karyawan lokal yang sudah tidak ada / dihapus di Google Spreadsheet
+                            DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
+
+                            if (empty($sheetNrps)) {
+                                if (Schema::hasTable('dokumen')) DB::table('dokumen')->delete();
+                                if (Schema::hasTable('nilai')) DB::table('nilai')->delete();
+                                if (Schema::hasTable('indikator')) DB::table('indikator')->delete();
+                                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->delete();
                             }
                         });
 
@@ -1482,7 +1494,7 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(15)->withoutVerifying()->post($targetAppscript, [
+            $response = Http::timeout(20)->withoutVerifying()->asJson()->post($targetAppscript, [
                 'action' => 'delete_employee_data',
                 'nrps' => array_values(array_map('strval', $nrps)),
                 'file_ids' => array_values(array_map('strval', $fileIds)),
@@ -1505,7 +1517,7 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(35)->withoutVerifying()->post($targetAppscript, [
+            $response = Http::timeout(35)->withoutVerifying()->asJson()->post($targetAppscript, [
                 'action' => 'wipe_all_data',
                 'wipe_drive_pdfs' => true,
                 'wipe_karyawan_and_users' => $wipeEmployeesAndUsers,
@@ -1542,37 +1554,6 @@ class GoogleSyncService
             if ($response->successful()) {
                 $json = $response->json();
                 $data = $json['data'] ?? [];
-
-                // 0. Sync karyawan (Master Karyawan dari Google Spreadsheet)
-                if (!empty($data['karyawan']) && is_array($data['karyawan'])) {
-                    DB::transaction(function () use ($data) {
-                        $sheetNrps = [];
-                        $kCols = Schema::getColumnListing('karyawan');
-                        $kColSet = array_flip($kCols);
-
-                        foreach ($data['karyawan'] as $kRow) {
-                            $nrp = trim((string)($kRow['nrp'] ?? ''));
-                            if ($nrp === '') continue;
-                            $sheetNrps[] = $nrp;
-
-                            $cleanK = [];
-                            foreach ($kRow as $kKey => $kVal) {
-                                $kLower = strtolower(trim((string)$kKey));
-                                if (isset($kColSet[$kLower])) {
-                                    $cleanK[$kLower] = $kVal;
-                                }
-                            }
-                            if (!empty($cleanK)) {
-                                DB::table('karyawan')->updateOrInsert(['nrp' => $nrp], $cleanK);
-                            }
-                        }
-
-                        // Hapus karyawan lokal yang sudah dihapus di Google Spreadsheet
-                        if (!empty($sheetNrps)) {
-                            DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
-                        }
-                    });
-                }
 
                 // 1. Sync dokumen (workflow statuses & scores)
                 if (!empty($data['dokumen']) && is_array($data['dokumen'])) {
@@ -1761,45 +1742,7 @@ class GoogleSyncService
                     });
                 }
 
-                // 5. Sync karyawan (employees from Google Sheets)
-                if (!empty($data['karyawan']) && is_array($data['karyawan'])) {
-                    DB::transaction(function () use ($data) {
-                        $karyawanCols = Schema::getColumnListing('karyawan');
-                        $colSet = array_flip($karyawanCols);
-                        $sheetNrps = [];
-                        foreach ($data['karyawan'] as $k) {
-                            $nrp = trim((string)($k['nrp'] ?? ''));
-                            if ($nrp === '') continue;
-                            $sheetNrps[] = $nrp;
-                            $cleanRow = [];
-                            foreach ($k as $col => $val) {
-                                $cLower = strtolower(trim((string)$col));
-                                if (isset($colSet[$cLower])) {
-                                    $cleanRow[$cLower] = $val;
-                                }
-                            }
-                            if (!empty($cleanRow)) {
-                                DB::table('karyawan')->updateOrInsert(['nrp' => $nrp], $cleanRow);
-                            }
-                        }
-                        if (!empty($sheetNrps)) {
-                            DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
-
-                            // Hapus juga dokumen & nilai orphan jika karyawan telah dihapus dari Google Sheets
-                            $orphanDocs = DB::table('dokumen')->whereNotIn('nrp', $sheetNrps)->pluck('id')->toArray();
-                            if (!empty($orphanDocs)) {
-                                if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $orphanDocs)->delete();
-                                if (Schema::hasTable('indikator')) DB::table('indikator')->whereIn('dokumen_id', $orphanDocs)->delete();
-                                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->whereIn('dokumen_id', $orphanDocs)->delete();
-                                if (Schema::hasTable('signature')) DB::table('signature')->whereIn('dokumen_id', $orphanDocs)->delete();
-                                if (Schema::hasTable('history_status')) DB::table('history_status')->whereIn('dokumen_id', $orphanDocs)->delete();
-                                DB::table('dokumen')->whereIn('id', $orphanDocs)->delete();
-                            }
-                        }
-                    });
-                }
-
-                // 6. Sync kuota_departemen (Target Kuota from Google Sheets)
+                // 2. Sync kuota_departemen (Target Kuota from Google Sheets)
                 if (!empty($data['kuota_departemen']) && is_array($data['kuota_departemen'])) {
                     DB::transaction(function () use ($data) {
                         $kdCols = Schema::getColumnListing('kuota_departemen');
@@ -1878,10 +1821,9 @@ class GoogleSyncService
                     });
                 }
 
-                // Auto-sync leadership accounts from karyawan & clean up phantom accounts
+                // Clean up phantom leadership accounts if any
                 try {
                     \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
-                    \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
                 } catch (\Throwable $e) {}
 
                 // Invalidate all repository caches so subsequent calls use fresh data
@@ -2770,7 +2712,7 @@ function wipeAllAppraisalSheetsData() {
 function deleteEmployeeRowsFromSheets(nrpsList) {
   if (!nrpsList || nrpsList.length === 0) return {};
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan'];
+  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users', 'Target_Pemantauan'];
   var nrpMap = {};
   for (var n = 0; n < nrpsList.length; n++) {
     var s = String(nrpsList[n] || '').trim().toLowerCase();
@@ -3010,11 +2952,13 @@ function doPost(e) {
     // PEMBERSIHAN TOTAL (WIPE ALL APPRAISAL DATA & DRIVE PDFS)
     if (action === 'wipe_all_data' || action === 'wipe_appraisals' || action === 'reset_database') {
       wipeAllAppraisalSheetsData();
-      var trashedPdfs = 0;
-      if (postData.wipe_drive_pdfs !== false) {
-        trashedPdfs = wipeAllAppraisalPdfsInDrive();
-      }
       cleanUnusedSheets(true);
+      var trashedPdfs = 0;
+      if (postData.wipe_drive_pdfs !== false && String(postData.wipe_drive_pdfs) !== 'false') {
+        try {
+          trashedPdfs = wipeAllAppraisalPdfsInDrive();
+        } catch (eDrive) {}
+      }
       return jsonResponse({
         status: 'success',
         action: 'wipe_all_data',

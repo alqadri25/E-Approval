@@ -633,6 +633,13 @@ function resetTotalDatabaseSheets() {
     formatSheetColumns(kSheet, 'karyawan');
   }
 
+  // Bersihkan juga jika masih terdapat sheet Master Karyawan
+  var mkSheet = ss.getSheetByName('Master Karyawan');
+  if (mkSheet && mkSheet.getLastRow() > 1) {
+    mkSheet.deleteRows(2, mkSheet.getLastRow() - 1);
+    formatSheetColumns(mkSheet, 'karyawan');
+  }
+
   // 3. Bersihkan tabel Master Tanda Tangan
   var mtSheet = ss.getSheetByName('Master Tanda Tangan');
   if (mtSheet && mtSheet.getLastRow() > 1) {
@@ -880,15 +887,35 @@ function doPost(e) {
 
     // PEMBERSIHAN / RESET TOTAL DATA PENILAIAN ATAU SELURUH DATABASE
     if (action === 'wipe_all_data' || action === 'wipe_appraisals' || action === 'reset_database') {
-      var wipeAllEmployeesAndUsers = (postData.wipe_karyawan_and_users === true || postData.wipe_all === true || action === 'reset_database');
-      var trashedPdfs = (postData.wipe_drive_pdfs !== false) ? wipeAllAppraisalPdfsInDrive() : 0;
+      var wipeAllEmployeesAndUsers = (
+        postData.wipe_karyawan_and_users === true || 
+        postData.wipe_karyawan_and_users === 'true' || 
+        postData.wipe_karyawan_and_users === '1' || 
+        postData.wipe_karyawan_and_users === 1 || 
+        postData.wipe_all === true || 
+        postData.wipe_all === 'true' || 
+        postData.wipe_all === '1' || 
+        action === 'reset_database'
+      );
 
+      // 1. Bersihkan seluruh sheet database terlebih dahulu secara instan (< 100ms)
       if (wipeAllEmployeesAndUsers) {
         resetTotalDatabaseSheets();
       } else {
         wipeAllAppraisalSheetsData();
       }
       cleanUnusedSheets(true);
+
+      // 2. Bersihkan berkas PDF di Google Drive
+      var trashedPdfs = 0;
+      var shouldWipePdfs = (postData.wipe_drive_pdfs !== false && String(postData.wipe_drive_pdfs) !== 'false' && String(postData.wipe_drive_pdfs) !== '0');
+      if (shouldWipePdfs) {
+        try {
+          trashedPdfs = wipeAllAppraisalPdfsInDrive();
+        } catch (eDrive) {
+          Logger.log('Drive PDF wipe notice: ' + eDrive);
+        }
+      }
 
       return jsonResponse({
         status: 'success',
@@ -901,7 +928,13 @@ function doPost(e) {
     // HAPUS DATA KARYAWAN & BERKAS DRIVE (BERDASARKAN DAFTAR NRP / FILE ID)
     if (action === 'delete_employee_data' || action === 'delete_employees') {
       var nrps = postData.nrps || (postData.nrp ? [postData.nrp] : []);
+      if (typeof nrps === 'string') {
+        try { nrps = JSON.parse(nrps); } catch (e) { nrps = nrps.split(','); }
+      }
       var fileIds = postData.file_ids || (postData.file_id ? [postData.file_id] : []);
+      if (typeof fileIds === 'string') {
+        try { fileIds = JSON.parse(fileIds); } catch (e) { fileIds = fileIds.split(','); }
+      }
       var deletedRows = deleteEmployeeRowsFromSheets(nrps);
       var trashedDrivePdfs = deleteDriveFilesByNrps(nrps, fileIds);
       // Bersihkan juga akun users orphan jika karyawan induknya dihapus
