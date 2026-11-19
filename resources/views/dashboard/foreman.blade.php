@@ -173,7 +173,7 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Target</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ count($foremanSubordinates) }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Tahun {{ date('Y') }}</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Karyawan yang dinilai</p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-none border border-blue-200">
@@ -192,8 +192,8 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-emerald-700 transition-colors">Total Dinilai</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $stats['total_dinilai'] }}</p>
-                    <p class="text-[11px] text-emerald-600 font-bold mt-1 leading-none">
-                        ({{ count($foremanSubordinates) > 0 ? round(($stats['total_dinilai'] / count($foremanSubordinates)) * 100) : 0 }}%) Terevaluasi
+                    <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
+                        {{ $foremanDraftCount ?? 0 }} draft, {{ $foremanBelumCount ?? 0 }} belum dinilai
                     </p>
                 </div>
             </div>
