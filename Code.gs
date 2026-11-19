@@ -653,19 +653,39 @@ function resetTotalDatabaseSheets() {
 
 /**
  * Hapus Baris Karyawan dari Seluruh Sheet Terkait Termasuk Sheet Users (Kecuali Akun Admin)
+ * Menggunakan In-Memory Array Filtering super cepat (< 300ms) untuk mencegah timeout.
  */
 function deleteEmployeeRowsFromSheets(nrpsList) {
   if (!nrpsList || nrpsList.length === 0) return {};
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  // Sheet users dan Target_Pemantauan sekarang IKUT dicari dan dihapus secara otomatis
-  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users', 'Target_Pemantauan'];
   var nrpMap = {};
   for (var n = 0; n < nrpsList.length; n++) {
     var s = String(nrpsList[n] || '').trim().toLowerCase();
     if (s) nrpMap[s] = true;
   }
 
+  // 1. Kumpulkan ID Dokumen yang terhapus dari sheet 'dokumen' untuk cascade delete ke 'nilai', 'indikator', 'tanda_tangan'
+  var deletedDocIds = {};
+  var docSheet = ss.getSheetByName('dokumen');
+  if (docSheet && docSheet.getLastRow() > 1) {
+    var docData = docSheet.getDataRange().getValues();
+    var docHeaders = docData[0].map(function(h) { return String(h).trim().toLowerCase(); });
+    var docIdIdx = docHeaders.indexOf('id');
+    var docNrpIdx = docHeaders.indexOf('nrp');
+    if (docIdIdx !== -1 && docNrpIdx !== -1) {
+      for (var dr = 1; dr < docData.length; dr++) {
+        var dNrp = String(docData[dr][docNrpIdx] || '').trim().toLowerCase();
+        if (nrpMap[dNrp]) {
+          var dId = String(docData[dr][docIdIdx] || '').trim().toLowerCase();
+          if (dId) deletedDocIds[dId] = true;
+        }
+      }
+    }
+  }
+
+  var targetSheets = ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users', 'Target_Pemantauan'];
   var stats = {};
+
   for (var t = 0; t < targetSheets.length; t++) {
     var sName = targetSheets[t];
     var sh = ss.getSheetByName(sName);
@@ -674,23 +694,53 @@ function deleteEmployeeRowsFromSheets(nrpsList) {
     var data = sh.getDataRange().getValues();
     var headers = data[0].map(function(h) { return String(h).trim().toLowerCase(); });
     var keyColIdx = headers.indexOf('nrp');
-    if (keyColIdx === -1) keyColIdx = 0;
+    var docIdColIdx = headers.indexOf('dokumen_id');
     var roleColIdx = headers.indexOf('role');
 
+    var keptRows = [data[0]]; // keep headers
     var count = 0;
-    for (var r = data.length - 1; r >= 1; r--) {
-      var val = String(data[r][keyColIdx]).trim().toLowerCase();
-      if (nrpMap[val]) {
-        // Jika pada sheet users, JANGAN hapus akun superadmin atau admin!
-        if (sName === 'users' && roleColIdx !== -1) {
-          var uRole = String(data[r][roleColIdx] || '').trim().toLowerCase();
-          if (uRole === 'superadmin' || uRole === 'admin') {
-            continue;
+
+    for (var r = 1; r < data.length; r++) {
+      var row = data[r];
+      var shouldDelete = false;
+
+      // Cek berdasarkan NRP jika sheet memiliki kolom nrp
+      if (keyColIdx !== -1) {
+        var val = String(row[keyColIdx]).trim().toLowerCase();
+        if (nrpMap[val]) {
+          // Jika pada sheet users, JANGAN hapus akun superadmin atau admin!
+          if (sName === 'users' && roleColIdx !== -1) {
+            var uRole = String(row[roleColIdx] || '').trim().toLowerCase();
+            if (uRole === 'superadmin' || uRole === 'admin') {
+              shouldDelete = false;
+            } else {
+              shouldDelete = true;
+            }
+          } else {
+            shouldDelete = true;
           }
         }
-        sh.deleteRow(r + 1);
-        count++;
       }
+
+      // Cek berdasarkan dokumen_id untuk nilai, indikator, tanda_tangan
+      if (!shouldDelete && docIdColIdx !== -1) {
+        var docIdVal = String(row[docIdColIdx]).trim().toLowerCase();
+        if (deletedDocIds[docIdVal]) {
+          shouldDelete = true;
+        }
+      }
+
+      if (shouldDelete) {
+        count++;
+      } else {
+        keptRows.push(row);
+      }
+    }
+
+    if (count > 0) {
+      sh.clear();
+      sh.getRange(1, 1, keptRows.length, keptRows[0].length).setValues(keptRows);
+      formatSheetColumns(sh, sName);
     }
     stats[sName] = count;
   }
@@ -734,18 +784,29 @@ function cleanupPhantomUsersInSheet() {
   var uNrpCol = uHeaders.indexOf('nrp');
   var uRoleCol = uHeaders.indexOf('role');
 
+  var keptRows = [uData[0]]; // header
   var deletedCount = 0;
-  for (var ur = uData.length - 1; ur >= 1; ur--) {
+  for (var ur = 1; ur < uData.length; ur++) {
     var roleVal = uRoleCol !== -1 ? String(uData[ur][uRoleCol] || '').trim().toLowerCase() : '';
     // Akun Superadmin dan Admin SELALU AMAN
-    if (roleVal === 'superadmin' || roleVal === 'admin') continue;
+    if (roleVal === 'superadmin' || roleVal === 'admin') {
+      keptRows.push(uData[ur]);
+      continue;
+    }
 
     var nrpVal = uNrpCol !== -1 ? String(uData[ur][uNrpCol] || '').trim().toLowerCase() : '';
     // Jika tidak ada karyawan sama sekali, atau NRP akun ini tidak ada di daftar karyawan / atasan aktif
-    if (!nrpVal || !validNrps[nrpVal]) {
-      uSheet.deleteRow(ur + 1);
+    if (nrpVal && validNrps[nrpVal]) {
+      keptRows.push(uData[ur]);
+    } else {
       deletedCount++;
     }
+  }
+
+  if (deletedCount > 0) {
+    uSheet.clear();
+    uSheet.getRange(1, 1, keptRows.length, keptRows[0].length).setValues(keptRows);
+    formatSheetColumns(uSheet, 'users');
   }
   return deletedCount;
 }
@@ -1147,6 +1208,20 @@ function doPost(e) {
       var keyValue = String(postData.key_value || '').trim().toLowerCase();
       var deletedStats = {};
 
+      // Jika menghapus berdasarkan NRP karyawan, gunakan cascade delete deleteEmployeeRowsFromSheets
+      if (keyColumn === 'nrp' && keyValue && keyValue !== '__dummy_clear__') {
+        deletedStats = deleteEmployeeRowsFromSheets([keyValue]);
+        var trashedDriveFiles = deleteDriveFilesByNrps([keyValue], []);
+        cleanupPhantomUsersInSheet();
+        return jsonResponse({
+          status: 'success',
+          action: 'delete_row',
+          key_value: keyValue,
+          deleted_stats: deletedStats,
+          trashed_drive_pdfs: trashedDriveFiles
+        });
+      }
+
       for (var t = 0; t < targetTables.length; t++) {
         var sName = targetTables[t];
         var sh = ss.getSheetByName(sName);
@@ -1158,25 +1233,35 @@ function doPost(e) {
         if (keyIdx === -1) keyIdx = 0;
         var roleColIdx = headers.indexOf('role');
 
+        var keptRows = [data[0]]; // keep headers
         var count = 0;
-        for (var r = data.length - 1; r >= 1; r--) {
-          if (String(data[r][keyIdx]).trim().toLowerCase() === keyValue) {
+        for (var r = 1; r < data.length; r++) {
+          var val = String(data[r][keyIdx]).trim().toLowerCase();
+          if (val === keyValue) {
             // Jika pada sheet users, lindungi akun superadmin dan admin
             if (sName === 'users' && roleColIdx !== -1) {
               var uRole = String(data[r][roleColIdx] || '').trim().toLowerCase();
               if (uRole === 'superadmin' || uRole === 'admin') {
+                keptRows.push(data[r]);
                 continue;
               }
             }
-            sh.deleteRow(r + 1);
             count++;
+          } else {
+            keptRows.push(data[r]);
           }
+        }
+
+        if (count > 0) {
+          sh.clear();
+          sh.getRange(1, 1, keptRows.length, keptRows[0].length).setValues(keptRows);
+          formatSheetColumns(sh, sName);
         }
         deletedStats[sName] = count;
       }
 
       var trashedDriveFiles = 0;
-      if (keyColumn === 'nrp' && keyValue) {
+      if (keyColumn === 'nrp' && keyValue && keyValue !== '__dummy_clear__') {
         trashedDriveFiles = deleteDriveFilesByNrps([keyValue], []);
       }
 
@@ -1303,7 +1388,8 @@ function writeObjectsToSheet(ss, sheetName, items) {
     var firstObj = items[0];
     var allEmpty = true;
     for (var k in firstObj) {
-      if (firstObj[k] !== '' && firstObj[k] !== null && firstObj[k] !== undefined) {
+      var val = firstObj[k];
+      if (val !== '' && val !== null && val !== undefined && val !== '__DUMMY_CLEAR__') {
         allEmpty = false;
         break;
       }

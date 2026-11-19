@@ -1749,6 +1749,12 @@ class KaryawanController extends Controller
                 }
 
                 try {
+                    \App\Services\GoogleSyncService::syncEmployeeRow('delete', $nrp);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Row delete sync notice for NRP {$nrp}: " . $e->getMessage());
+                }
+
+                try {
                     \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
                 } catch (\Throwable $e) {
                     \Illuminate\Support\Facades\Log::warning("Phantom leadership cleanup notice: " . $e->getMessage());
@@ -1981,24 +1987,21 @@ class KaryawanController extends Controller
                     \Illuminate\Support\Facades\Log::warning("Phantom leadership cleanup notice on bulk delete: " . $e->getMessage());
                 }
 
-                // If deleting partial/filtered scope, sync remaining records to Google Spreadsheet
-                // If scope is 'all', wipeAllDataAndDrivePdfs already wiped all sheets cleanly!
-                if ($scope !== 'all') {
-                    try {
-                        \App\Services\GoogleSyncService::syncTables([
-                            'karyawan',
-                            'dokumen',
-                            'Dokumen_Dinilai',
-                            'Target_Pemantauan',
-                            'users',
-                            'nilai',
-                            'indikator',
-                            'tanda_tangan',
-                            'kuota_departemen',
-                        ]);
-                    } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::warning("Google bulk delete sync notice: " . $e->getMessage());
-                    }
+                // Sinkronisasi status terbaru seluruh tabel ke Google Spreadsheet (termasuk mengosongkan jika seluruh data dihapus)
+                try {
+                    \App\Services\GoogleSyncService::syncTables([
+                        'karyawan',
+                        'dokumen',
+                        'Dokumen_Dinilai',
+                        'Target_Pemantauan',
+                        'users',
+                        'nilai',
+                        'indikator',
+                        'tanda_tangan',
+                        'kuota_departemen',
+                    ]);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Google bulk delete sync notice: " . $e->getMessage());
                 }
             });
         }

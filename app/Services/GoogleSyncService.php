@@ -689,8 +689,17 @@ class GoogleSyncService
 
             if (empty($rows)) {
                 $emptyHeaders = self::getStandardHeaders($table);
-                $payload[$table] = [array_fill_keys($emptyHeaders, '')];
-                $emptyTables[] = $table;
+                $keyCol = match($table) {
+                    'karyawan', 'Dokumen_Dinilai', 'Master Tanda Tangan' => 'nrp',
+                    'dokumen', 'kuota_departemen', 'periode' => 'id',
+                    'nilai', 'indikator', 'tanda_tangan' => 'dokumen_id',
+                    'users' => 'email',
+                    default => 'id',
+                };
+                $placeholder = array_fill_keys($emptyHeaders, '');
+                $placeholder[$keyCol] = '__DUMMY_CLEAR__';
+                $payload[$table] = [$placeholder];
+                $emptyTables[] = ['table' => $table, 'keyCol' => $keyCol];
             } else {
                 $payload[$table] = $rows;
             }
@@ -701,30 +710,23 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(12)->withoutVerifying()->post($appscriptUrl, [
+            $response = Http::timeout(60)->withoutVerifying()->post($appscriptUrl, [
                 'action' => 'push_all',
                 'data' => $payload,
             ]);
 
             // Clean up temporary blank rows for empty tables so sheet has 0 data rows and styled headers
             if (!empty($emptyTables)) {
-                foreach (array_unique($emptyTables) as $emptyTable) {
-                    $keyCol = match($emptyTable) {
-                        'karyawan', 'Dokumen_Dinilai' => 'nrp',
-                        'dokumen', 'kuota_departemen' => 'id',
-                        'nilai', 'indikator', 'tanda_tangan' => 'dokumen_id',
-                        'users' => 'email',
-                        default => 'id',
-                    };
+                foreach ($emptyTables as $item) {
                     try {
-                        Http::timeout(5)->withoutVerifying()->post($appscriptUrl, [
+                        Http::timeout(10)->withoutVerifying()->post($appscriptUrl, [
                             'action' => 'delete_row',
-                            'tables' => [$emptyTable],
-                            'key_column' => $keyCol,
-                            'key_value' => '',
+                            'tables' => [$item['table']],
+                            'key_column' => $item['keyCol'],
+                            'key_value' => '__DUMMY_CLEAR__',
                         ]);
                     } catch (\Throwable $e) {
-                        Log::warning("Failed cleaning placeholder row for {$emptyTable}: " . $e->getMessage());
+                        Log::warning("Failed cleaning placeholder row for {$item['table']}: " . $e->getMessage());
                     }
                 }
             }
@@ -773,7 +775,9 @@ class GoogleSyncService
         $cleanAction = ($action === 'delete') ? 'delete_row' : 'upsert_row';
         $payload = [
             'action' => $cleanAction,
-            'tables' => ['karyawan', 'dokumen'],
+            'tables' => ($cleanAction === 'delete') 
+                ? ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'nilai', 'indikator', 'tanda_tangan', 'Master Tanda Tangan', 'users']
+                : ['karyawan', 'dokumen'],
             'key_column' => 'nrp',
             'key_value' => (string)$nrp,
         ];
@@ -1494,12 +1498,19 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(20)->withoutVerifying()->asJson()->post($targetAppscript, [
+            $response = Http::timeout(45)->withoutVerifying()->asJson()->post($targetAppscript, [
                 'action' => 'delete_employee_data',
                 'nrps' => array_values(array_map('strval', $nrps)),
                 'file_ids' => array_values(array_map('strval', $fileIds)),
             ]);
-            return $response->json() ?? ['success' => true];
+            $resData = $response->json() ?? ['success' => true];
+            // Jika Web App Google masih menggunakan versi lama (unknown_action), lakukan fallback delete_row per NRP
+            if (isset($resData['status']) && $resData['status'] === 'unknown_action') {
+                foreach ($nrps as $singleNrp) {
+                    self::syncEmployeeRow('delete', (string)$singleNrp);
+                }
+            }
+            return $resData;
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
@@ -1517,12 +1528,13 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(35)->withoutVerifying()->asJson()->post($targetAppscript, [
+            $response = Http::timeout(60)->withoutVerifying()->asJson()->post($targetAppscript, [
                 'action' => 'wipe_all_data',
                 'wipe_drive_pdfs' => true,
                 'wipe_karyawan_and_users' => $wipeEmployeesAndUsers,
             ]);
-            return $response->json() ?? ['success' => true];
+            $resData = $response->json() ?? ['success' => true];
+            return $resData;
         } catch (\Throwable $e) {
             return ['success' => false, 'message' => $e->getMessage()];
         }
