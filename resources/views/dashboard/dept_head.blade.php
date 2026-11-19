@@ -134,11 +134,11 @@
                             Tugas Department Head Tuntas 100%
                         </span>
                         <span class="text-xs font-bold text-emerald-950">
-                            Seluruh {{ $deptTotalKaryawan }} Penilaian Karya Telah Disahkan / Disetujui Penuh
+                            Seluruh {{ $deptTotalKaryawan }} Penilaian Karyawan Telah Disahkan / Disetujui Penuh
                         </span>
                     </div>
                     <p class="text-xs text-emerald-800 mt-1">
-                        Semua berkas penilaian karya departemen telah diverifikasi dan disetujui resmi sebagai tingkat persetujuan tertinggi.
+                        Semua berkas penilaian karyawan departemen telah diverifikasi dan disetujui resmi sebagai tingkat persetujuan tertinggi.
                     </p>
                 </div>
             </div>

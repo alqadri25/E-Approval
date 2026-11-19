@@ -93,7 +93,7 @@ class AuthController extends Controller
                 'kasus' => $u->role,
                 'kasus_badge' => $u->roleLabel(),
                 'kasus_title' => $u->nama,
-                'deskripsi' => $u->isSuperadmin() ? 'Hak akses penuh, manajemen akun & pengaturan sistem' : 'Monitoring penilaian karya & kontrol operasional',
+                'deskripsi' => $u->isSuperadmin() ? 'Hak akses penuh, manajemen akun & pengaturan sistem' : 'Monitoring penilaian karyawan & kontrol operasional',
                 'db_user' => $u,
             ];
         }

@@ -1898,7 +1898,7 @@ class GoogleSyncService
 /**
  * =========================================================================
  * GOOGLE APPS SCRIPT: PT MUSASHI AUTO PARTS INDONESIA
- * SISTEM E-APPROVAL & DIGITAL SIGNATURE PENILAIAN KARYA
+ * SISTEM E-APPROVAL & DIGITAL SIGNATURE PENILAIAN KARYAWAN
  * =========================================================================
  * Tautan Spreadsheet ID : __SS_ID__
  * Tautan Drive Folder ID : __DR_ID__

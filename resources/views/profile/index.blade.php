@@ -201,7 +201,7 @@
                                 <strong class="font-black text-emerald-900 block text-[11.5px]">Otomasi Barcode Tanda Tangan (Sheet users):</strong>
                                 <p class="text-[11px] text-emerald-800 leading-relaxed">
                                     Tanda tangan digital Anda kini menggunakan <strong>Barcode Tanda Tangan Resmi (QR Code)</strong> yang tersinkronisasi langsung dari kolom <code class="font-mono bg-emerald-100 px-1 py-0.5 text-emerald-950 font-bold">barcodettd</code> sheet <strong>users</strong>.
-                                    Anda <strong>tidak perlu lagi mengunggah tanda tangan</strong> secara manual. Barcode ini akan langsung digunakan secara otomatis saat Anda menandatangani penilaian karya.
+                                    Anda <strong>tidak perlu lagi mengunggah tanda tangan</strong> secara manual. Barcode ini akan langsung digunakan secara otomatis saat Anda menandatangani penilaian karyawan.
                                 </p>
                             </div>
                         </div>
@@ -267,7 +267,7 @@
                 <div class="p-4 bg-slate-100 border border-slate-300 text-slate-600 text-xs space-y-1.5">
                     <strong class="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Keamanan &amp; Integrasi Cloud:</strong>
                     <p class="text-[11px] leading-relaxed">
-                        Barcode tanda tangan digital ini memuat data identitas resmi (NRP &amp; Nama) yang terenkripsi dan otomatis tersinkronisasi ke Google Spreadsheet saat proses penilaian karya difinalisasi.
+                        Barcode tanda tangan digital ini memuat data identitas resmi (NRP &amp; Nama) yang terenkripsi dan otomatis tersinkronisasi ke Google Spreadsheet saat proses penilaian karyawan difinalisasi.
                     </p>
                 </div>
 
@@ -275,7 +275,7 @@
                 <div class="p-4 bg-slate-100 border border-slate-300 text-slate-600 text-xs space-y-1.5">
                     <strong class="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Keamanan &amp; Integrasi Cloud:</strong>
                     <p class="text-[11px] leading-relaxed">
-                        Tanda tangan digital Anda disimpan secara aman di server lokal dan otomatis tersinkronisasi ke folder database dokumen (Google Drive &amp; Sheets) saat berkas penilaian karya difinalisasi.
+                        Tanda tangan digital Anda disimpan secara aman di server lokal dan otomatis tersinkronisasi ke folder database dokumen (Google Drive &amp; Sheets) saat berkas penilaian karyawan difinalisasi.
                     </p>
                 </div>
 

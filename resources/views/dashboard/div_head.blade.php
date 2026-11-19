@@ -155,11 +155,11 @@
                         Tugas Division Head Tuntas 100%
                     </span>
                     <span class="text-xs font-bold text-emerald-950">
-                        Seluruh {{ $totKaryawan }} Penilaian Karya Telah Disahkan Final
+                        Seluruh {{ $totKaryawan }} Penilaian Karyawan Telah Disahkan Final
                     </span>
                 </div>
                 <p class="text-xs text-emerald-800 mt-1">
-                    Semua berkas penilaian karya dalam lingkup divisi telah disahkan penuh oleh Division Head dan terarsip aman.
+                    Semua berkas penilaian karyawan dalam lingkup divisi telah disahkan penuh oleh Division Head dan terarsip aman.
                 </p>
             </div>
         </div>
@@ -279,7 +279,7 @@
                     Pelacakan Alur Status Dokumen (Section Head &rarr; Dept Head &rarr; Division Head)
                 </h3>
                 <p class="text-xs text-slate-500">
-                    Memantau alur berkas penilaian karya dari tingkat Seksi, tinjauan Departemen, hingga pengesahan akhir Division Head
+                    Memantau alur berkas penilaian karyawan dari tingkat Seksi, tinjauan Departemen, hingga pengesahan akhir Division Head
                 </p>
             </div>
             <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-none border border-slate-200 self-start sm:self-auto">
@@ -547,7 +547,7 @@
                         </div>
                     </div>
 
-                    <!-- Breakdown 4 Bobot Komponen Penilaian Karya -->
+                    <!-- Breakdown 4 Bobot Komponen Penilaian Karyawan -->
                     <div class="mt-3 pt-2.5 border-t border-slate-200/80 grid grid-cols-2 gap-2 text-[11px]">
                         <div>
                             <span class="text-slate-500 block text-[10px]">Hasil Kerja (55%):</span>

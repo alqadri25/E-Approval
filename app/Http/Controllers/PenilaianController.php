@@ -1275,7 +1275,7 @@ class PenilaianController extends Controller
             '07-006-SH' => 'Form Section Head (07-006)',
             '07-006-DH' => 'Form Dept Head (07-006)',
             '07-006-DIV' => 'Form Div Head (07-006)',
-            default => 'Form Penilaian Karya',
+            default => 'Form Penilaian Karyawan',
         };
     }
 
@@ -2287,7 +2287,7 @@ class PenilaianController extends Controller
         $formSettings = [
             'tahun_penilaian' => $allSettings['tahun_penilaian'] ?? ($periode['tahun'] ?? 2025),
             'periode_penilaian' => $allSettings['periode_penilaian'] ?? 'Jan - Des',
-            'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYA',
+            'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYAWAN',
             'nama_perusahaan' => $allSettings['nama_perusahaan'] ?? 'PT MUSASHI AUTO PARTS INDONESIA',
             'catatan_petunjuk_penilai' => $allSettings['catatan_petunjuk_penilai'] ?? 'Pilih salah satu dari 5 pilihan kalimat kriteria di bawah ini yang paling sesuai.',
             'label_kerahasiaan' => $allSettings['label_kerahasiaan'] ?? 'RAHASIA',
@@ -4558,7 +4558,7 @@ class PenilaianController extends Controller
             $formSettings = [
                 'tahun_penilaian' => $allSettings['tahun_penilaian'] ?? ($periode['tahun'] ?? 2025),
                 'periode_penilaian' => $allSettings['periode_penilaian'] ?? 'Jan - Des',
-                'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYA',
+                'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYAWAN',
                 'nama_perusahaan' => $allSettings['nama_perusahaan'] ?? 'PT MUSASHI AUTO PARTS INDONESIA',
                 'catatan_petunjuk_penilai' => $allSettings['catatan_petunjuk_penilai'] ?? 'Pilih salah satu dari 5 pilihan kalimat kriteria di bawah ini yang paling sesuai.',
                 'label_kerahasiaan' => $allSettings['label_kerahasiaan'] ?? 'RAHASIA',
@@ -4732,7 +4732,7 @@ class PenilaianController extends Controller
 
         $safeName = Str::slug((string)$karyawan['nama_lengkap'], '_') ?: 'karyawan';
         $safeNrp = preg_replace('/[^A-Za-z0-9._-]/', '-', (string)$karyawan['nrp']) ?: 'nrp';
-        $filename = "Penilaian_Karya_{$kodeForm}_{$safeNrp}_{$safeName}.pdf";
+        $filename = "Penilaian_Karyawan_{$kodeForm}_{$safeNrp}_{$safeName}.pdf";
 
         return [
             'pdf' => $pdf,
@@ -8739,7 +8739,7 @@ class PenilaianController extends Controller
         $xlsxBinary = ExcelKaryawanExporter::buildXlsxBinary('Laporan Penilaian', $headers, $exportRows, $centeredCols);
 
         $deptLabel = $data['filterDept'] ? strtoupper(Str::slug($data['filterDept'], '_')) : 'SEMUA';
-        $filename = "Laporan_Penilaian_Karya_{$deptLabel}_" . date('Ymd_His') . '.xlsx';
+        $filename = "Laporan_Penilaian_Karyawan_{$deptLabel}_" . date('Ymd_His') . '.xlsx';
 
         return response($xlsxBinary, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -8825,7 +8825,7 @@ class PenilaianController extends Controller
         $formSettings = [
             'tahun_penilaian' => $allSettings['tahun_penilaian'] ?? ($periode['tahun'] ?? 2025),
             'periode_penilaian' => $allSettings['periode_penilaian'] ?? 'Jan - Des',
-            'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYA',
+            'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYAWAN',
             'nama_perusahaan' => $allSettings['nama_perusahaan'] ?? 'PT MUSASHI AUTO PARTS INDONESIA',
             'catatan_petunjuk_penilai' => $allSettings['catatan_petunjuk_penilai'] ?? 'Pilih salah satu dari 5 pilihan kalimat kriteria di bawah ini yang paling sesuai.',
             'label_kerahasiaan' => $allSettings['label_kerahasiaan'] ?? 'RAHASIA',
@@ -8943,7 +8943,7 @@ class PenilaianController extends Controller
 
         $deptLabel = $data['filterDept'] ? strtoupper(Str::slug($data['filterDept'], '_')) : 'SEMUA';
         $atasanLabel = $data['filterAtasan'] ? '_' . strtoupper(Str::slug($data['filterAtasan'], '_')) : '';
-        $zipFilename = "Laporan_Penilaian_Karya_{$deptLabel}{$atasanLabel}_" . date('Ymd_His') . ".zip";
+        $zipFilename = "Laporan_Penilaian_Karyawan_{$deptLabel}{$atasanLabel}_" . date('Ymd_His') . ".zip";
 
         return response()->download($tempZipPath, $zipFilename, [
             'Content-Type' => 'application/zip',

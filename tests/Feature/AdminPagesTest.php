@@ -28,7 +28,7 @@ class AdminPagesTest extends TestCase
         // Header & Role
         $response->assertSee('Dashboard Admin');
         $response->assertSee('E-Approval');
-        $response->assertSee('Admin Penilaian Karya');
+        $response->assertSee('Admin Penilaian Karyawan');
 
         // 4 Stat Cards: Dynamic real employee & department stats
         $response->assertSee('Total Karyawan');

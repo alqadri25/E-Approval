@@ -23,7 +23,7 @@ class Phase1Test extends TestCase
     {
         $this->artisan('sheets:setup')
             ->assertSuccessful()
-            ->expectsOutputToContain('TTD Digital Penilaian Karya - Google Sheets Setup')
+            ->expectsOutputToContain('TTD Digital Penilaian Karyawan - Google Sheets Setup')
             ->expectsOutputToContain('Setup tab dan header selesai');
     }
 
@@ -31,7 +31,7 @@ class Phase1Test extends TestCase
     {
         $response = $this->get('/login');
         $response->assertStatus(200);
-        $response->assertSee('TTD Digital Penilaian Karya');
+        $response->assertSee('TTD Digital Penilaian Karyawan');
         $response->assertSee('Super Administrator');
     }
 

@@ -58,7 +58,7 @@
                 </div>
                 <div>
                     <h2 class="text-base font-black text-slate-900 tracking-tight">Pusat Sinkronisasi Database</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Sinkronkan data master karyawan riil Excel (<code class="text-slate-700 font-bold">DATA PK.xlsx</code>), dokumen penilaian karya, dan akun pimpinan</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Sinkronkan data master karyawan riil Excel (<code class="text-slate-700 font-bold">DATA PK.xlsx</code>), dokumen penilaian karyawan, dan akun pimpinan</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -430,7 +430,7 @@
                 <h3 class="text-xs font-black text-amber-950 uppercase tracking-wide">Standar Struktur Folder Google Drive &amp; Format Penamaan PDF</h3>
             </div>
             <p class="text-[11px] text-amber-950 leading-relaxed">
-                Seluruh dokumen PDF hasil penilaian karya yang diarsipkan ke Google Drive akan otomatis ditata secara rapi dan profesional dengan format resmi PT Musashi:
+                Seluruh dokumen PDF hasil penilaian karyawan yang diarsipkan ke Google Drive akan otomatis ditata secara rapi dan profesional dengan format resmi PT Musashi:
             </p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 <!-- Box A: Struktur Folder -->
@@ -503,7 +503,7 @@
                         <h3 class="text-xs font-black text-indigo-950 uppercase tracking-wide">Kirim / Push Data ke Spreadsheet</h3>
                     </div>
                     <p class="text-[11px] text-indigo-900/80 mt-1.5 leading-relaxed">
-                        Kirim seluruh 180 data karyawan, 180 dokumen penilaian karya, target kuota, dan akun pengguna saat ini ke Google Spreadsheet.
+                        Kirim seluruh data karyawan, dokumen penilaian karyawan, target kuota, dan akun pengguna saat ini ke Google Spreadsheet.
                     </p>
                 </div>
                 <form method="POST" action="{{ $user->isSuperadmin() ? route('superadmin.google.push') : route('admin.google.push') }}"

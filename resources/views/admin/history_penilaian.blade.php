@@ -12,7 +12,7 @@
                 History Penilaian
             </h1>
             <p class="text-xs sm:text-sm text-red-100 font-medium mt-1">
-                Catatan riwayat aktivitas penilaian karya karyawan yang terhubung langsung dengan Google Spreadsheet.
+                Catatan riwayat aktivitas penilaian karyawan yang terhubung langsung dengan Google Spreadsheet.
             </p>
         </div>
 

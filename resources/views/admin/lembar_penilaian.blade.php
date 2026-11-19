@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Lembar Penilaian PK - Formulir Resmi Penilaian Karya'])
+@extends('layouts.app', ['title' => 'Lembar Penilaian PK - Formulir Resmi Penilaian Karyawan'])
 
 @section('content')
 <div class="space-y-5" x-data="lembarPenilaianPkHandler()">
@@ -9,10 +9,10 @@
             <div>
                 <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
                     <span>Lembar Penilaian PK</span>
-                    <span class="text-xs font-normal text-rose-200 font-sans tracking-normal">(Formulir Resmi Penilaian Karya)</span>
+                    <span class="text-xs font-normal text-rose-200 font-sans tracking-normal">(Formulir Resmi Penilaian Karyawan)</span>
                 </h1>
                 <p class="mt-1 text-xs sm:text-sm text-rose-100/90 leading-relaxed">
-                    Formulir resmi penilaian karya PT Musashi Auto Parts Indonesia yang digunakan oleh penilai dan terhubung real-time dengan Kelola Form &amp; Periode.
+                    Formulir resmi penilaian karyawan PT Musashi Auto Parts Indonesia yang digunakan oleh penilai dan terhubung real-time dengan Kelola Form &amp; Periode.
                 </p>
             </div>
 
@@ -71,7 +71,7 @@
     <div class="bg-white border border-slate-300 p-3 sm:p-4 shadow-sm rounded-none space-y-3">
         <div class="flex items-center justify-between border-b border-slate-200 pb-2">
             <h2 class="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
-                <span>📑</span> Pilih Jenis Formulir Penilaian Karya yang Ingin Ditampilkan:
+                <span>📑</span> Pilih Jenis Formulir Penilaian Karyawan yang Ingin Ditampilkan:
             </h2>
             <span class="text-[11px] font-bold text-slate-500">
                 Pilih tab untuk berganti jenis form
@@ -205,7 +205,7 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- WUJUD ASLI LEMBAR FORMULIR PENILAIAN KARYA (FULL-WIDTH RESMI MUSASHI)     -->
+    <!-- WUJUD ASLI LEMBAR FORMULIR PENILAIAN KARYAWAN (FULL-WIDTH RESMI MUSASHI)     -->
     <!-- IDENTIK DENGAN TAMPILAN DI KELOLA FORM & SAAT PENILAI MELAKUKAN PENILAIAN -->
     <!-- ========================================================================= -->
     <div id="officialFormSheet" class="bg-white border-2 border-slate-900 shadow-xl rounded-none p-4 sm:p-6 overflow-x-auto text-slate-900">
@@ -272,13 +272,13 @@
                         NUR EKA PURNAMA
                     </td>
 
-                    <!-- Col 4 & 5: PENILAIAN KARYA Title -->
+                    <!-- Col 4 & 5: PENILAIAN KARYAWAN Title -->
                     <!-- Bilingual: Rowspan 2 (no KJ banner) -->
                     <template x-if="currentFormMeta.is_bilingual">
                         <td colspan="2" rowspan="2" class="py-1.5 px-2 text-center bg-white border-r-2 border-b border-slate-900 align-middle">
                             <h4 class="text-xs sm:text-sm font-black tracking-wide text-slate-900 uppercase leading-tight" 
                                 x-text="formSettings.judul_form_pk + ' / 仕事の評価'">
-                                PENILAIAN KARYA / 仕事の評価
+                                PENILAIAN KARYAWAN / 仕事の評価
                             </h4>
                         </td>
                     </template>
@@ -287,7 +287,7 @@
                         <td colspan="2" class="py-1.5 px-2 text-center bg-white border-r-2 border-b border-slate-900 align-middle">
                             <h4 class="text-xs sm:text-sm font-black tracking-wide text-slate-900 uppercase leading-tight" 
                                 x-text="formSettings.judul_form_pk">
-                                PENILAIAN KARYA
+                                PENILAIAN KARYAWAN
                             </h4>
                         </td>
                     </template>

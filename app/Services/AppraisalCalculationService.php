@@ -84,7 +84,7 @@ class AppraisalCalculationService
     {
         return match ($kodeForm) {
             '07-001' => [
-                'name' => 'Form Penilaian Karya KJ 1-3',
+                'name' => 'Form Penilaian Karyawan KJ 1-3',
                 'level_form' => 'KJ13',
                 'groups' => [
                     'hasil_kerja' => [
@@ -119,7 +119,7 @@ class AppraisalCalculationService
             ],
 
             '07-002' => [
-                'name' => 'Form Penilaian Karya KJ 4-5 Non Jabatan',
+                'name' => 'Form Penilaian Karyawan KJ 4-5 Non Jabatan',
                 'level_form' => 'KJ45',
                 'groups' => [
                     'hasil_kerja' => [
@@ -155,7 +155,7 @@ class AppraisalCalculationService
             ],
 
             '07-003' => [
-                'name' => 'Form Penilaian Karya Leader',
+                'name' => 'Form Penilaian Karyawan Leader',
                 'level_form' => 'LEADER',
                 'groups' => [
                     'hasil_kerja' => [
@@ -202,7 +202,7 @@ class AppraisalCalculationService
             ],
 
             '07-004' => [
-                'name' => 'Form Penilaian Karya Foreman',
+                'name' => 'Form Penilaian Karyawan Foreman',
                 'level_form' => 'FOREMAN',
                 'groups' => [
                     'hasil_kerja' => [
@@ -249,7 +249,7 @@ class AppraisalCalculationService
             ],
 
             '07-006-SH' => [
-                'name' => 'Form Penilaian Karya Section Head (Gol. 4 Up)',
+                'name' => 'Form Penilaian Karyawan Section Head (Gol. 4 Up)',
                 'level_form' => 'SECTION_HEAD',
                 'groups' => [
                     'hasil_kerja' => [
@@ -296,7 +296,7 @@ class AppraisalCalculationService
             ],
 
             '07-006-DH' => [
-                'name' => 'Form Penilaian Karya Department Head (Gol. 4 Up)',
+                'name' => 'Form Penilaian Karyawan Department Head (Gol. 4 Up)',
                 'level_form' => 'DEPT_HEAD',
                 'groups' => [
                     'hasil_kerja' => [
@@ -343,7 +343,7 @@ class AppraisalCalculationService
             ],
 
             '07-006-DIV' => [
-                'name' => 'Form Penilaian Karya Division Head (Gol. 4 Up)',
+                'name' => 'Form Penilaian Karyawan Division Head (Gol. 4 Up)',
                 'level_form' => 'DIV_HEAD',
                 'groups' => [
                     'hasil_kerja' => [

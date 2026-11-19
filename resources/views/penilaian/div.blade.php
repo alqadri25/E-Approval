@@ -55,7 +55,7 @@
                 Data Penilaian
             </h1>
             <p class="text-xs text-red-100 font-medium mt-1">
-                Meninjau hasil penilaian karya dari Section Head &amp; Department Head, menetapkan pengesahan nilai akhir, dan membubuhkan tanda tangan digital Division Head.
+                Meninjau hasil penilaian karyawan dari Section Head &amp; Department Head, menetapkan pengesahan nilai akhir, dan membubuhkan tanda tangan digital Division Head.
             </p>
         </div>
 

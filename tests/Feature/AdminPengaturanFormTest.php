@@ -38,7 +38,7 @@ class AdminPengaturanFormTest extends TestCase
         $response = $this->actingAs($admin)->post(route('admin.simpanPengaturanForm'), [
             'tahun_penilaian' => 2026,
             'periode_penilaian' => 'Semester I - 2026',
-            'judul_form_pk' => 'PENILAIAN KARYA PT MUSASHI',
+            'judul_form_pk' => 'PENILAIAN KARYAWAN PT MUSASHI',
             'nama_perusahaan' => 'PT MUSASHI AUTO PARTS INDONESIA',
             'catatan_petunjuk_penilai' => 'Pilih kalimat skor kriteria rubrik yang sesuai.',
             'status_periode' => 'aktif',
@@ -51,7 +51,7 @@ class AdminPengaturanFormTest extends TestCase
 
         $this->assertEquals('2026', DB::table('pengaturan')->where('key', 'tahun_penilaian')->value('value'));
         $this->assertEquals('Semester I - 2026', DB::table('pengaturan')->where('key', 'periode_penilaian')->value('value'));
-        $this->assertEquals('PENILAIAN KARYA PT MUSASHI', DB::table('pengaturan')->where('key', 'judul_form_pk')->value('value'));
+        $this->assertEquals('PENILAIAN KARYAWAN PT MUSASHI', DB::table('pengaturan')->where('key', 'judul_form_pk')->value('value'));
     }
 
     public function test_foreman_forbidden_from_pengaturan_form()

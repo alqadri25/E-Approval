@@ -7,7 +7,7 @@
     $rowsByDocId = [];
     foreach ($employeeRows as $rowItem) {
         $kode = trim((string)($rowItem['kode_form'] ?? ''));
-        $label = $kode !== '' ? \App\Http\Controllers\PenilaianController::getFormName($kode) : 'Form Penilaian Karya';
+        $label = $kode !== '' ? \App\Http\Controllers\PenilaianController::getFormName($kode) : 'Form Penilaian Karyawan';
         $pdfFormCounts[$label] = ($pdfFormCounts[$label] ?? 0) + 1;
         if (!empty($rowItem['doc_id'])) {
             $rowsByDocId[(string)$rowItem['doc_id']] = [
@@ -1530,7 +1530,7 @@ window.laporanExportModal = function () {
             const cells = tr ? tr.querySelectorAll('td') : [];
             const nrp = rowInfo ? rowInfo.nrp : (cells[1] ? cells[1].textContent.trim() : '');
             const nama = rowInfo ? rowInfo.nama : (cells[2] ? cells[2].textContent.trim() : '');
-            const formLabel = rowInfo ? rowInfo.formLabel : 'Form Penilaian Karya';
+            const formLabel = rowInfo ? rowInfo.formLabel : 'Form Penilaian Karyawan';
 
             this.clearDownloadTimer();
             this.confirmModal = {

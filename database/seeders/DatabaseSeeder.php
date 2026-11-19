@@ -38,7 +38,7 @@ class DatabaseSeeder extends Seeder
             // 2 Admin
             [
                 'id' => 2,
-                'nama' => 'Admin Penilaian Karya',
+                'nama' => 'Admin Penilaian Karyawan',
                 'email' => 'admin@musashi.co.id',
                 'password_hash' => $defaultPassword,
                 'role' => 'admin',

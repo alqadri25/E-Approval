@@ -1,6 +1,6 @@
-# TTD Digital Penilaian Karya - PT Musashi Auto Parts Indonesia
+# TTD Digital Penilaian Karyawan - PT Musashi Auto Parts Indonesia
 
-Aplikasi web modern berbasis Laravel 11 untuk proses **Penilaian Karya (PK)** karyawan bertingkat dengan alur persetujuan tanda tangan digital (Foreman &rarr; Section Head &rarr; Department Head), integrasi database utama Google Sheets (API v4), dan penyimpanan arsip dokumen resmi PDF ber-QR Code di Google Drive.
+Aplikasi web modern berbasis Laravel 11 untuk proses **Penilaian Karyawan (PK)** karyawan bertingkat dengan alur persetujuan tanda tangan digital (Foreman &rarr; Section Head &rarr; Department Head), integrasi database utama Google Sheets (API v4), dan penyimpanan arsip dokumen resmi PDF ber-QR Code di Google Drive.
 
 ---
 
@@ -8,7 +8,7 @@ Aplikasi web modern berbasis Laravel 11 untuk proses **Penilaian Karya (PK)** ka
 - **Framework**: Laravel 11, PHP 8.2 / 8.3
 - **Frontend**: Blade + Tailwind CSS + Alpine.js (tanpa SPA, responsive, status badge, tombol minimal 44px)
 - **Database Utama**: Google Sheets API v4 (`google/apiclient` + Service Account) melalui **Repository Pattern** (`SheetRepositoryInterface`)
-- **Penyimpanan Dokumen**: Google Drive API v3 (Folder terstruktur `/Penilaian Karya/{Tahun}/{Departemen}/`)
+- **Penyimpanan Dokumen**: Google Drive API v3 (Folder terstruktur `/Penilaian Karyawan/{Tahun}/{Departemen}/`)
 - **Generator PDF**: `barryvdh/laravel-dompdf`
 - **QR Code Verifikasi**: `simplesoftwareio/simple-qrcode`
 - **Autentikasi**: Laravel Session Auth, password hash bcrypt, role-based authorization dengan Laravel Gates & Policies
@@ -90,7 +90,7 @@ vendor/bin/phpunit
 
 ---
 
-## 6. Integrasi Lengkap 3 File Excel Penilaian Karya
+## 6. Integrasi Lengkap 3 File Excel Penilaian Karyawan
 
 Aplikasi web ini telah mengintegrasikan secara penuh seluruh formulir, rubrik penilaian, rekapitulasi, dan kalibrasi kuota dari 3 file Excel utama:
 

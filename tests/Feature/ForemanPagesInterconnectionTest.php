@@ -166,7 +166,7 @@ class ForemanPagesInterconnectionTest extends TestCase
             // Follow redirect to the assessment form
             $formRes = $this->actingAs($foreman)->get($targetUrl);
             $formRes->assertStatus(200);
-            $formRes->assertSee('Penilaian Karya');
+            $formRes->assertSee('Penilaian Karyawan');
             $formRes->assertSee($nrp);
 
             // Check that PDF button exists and works

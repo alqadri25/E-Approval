@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'Dashboard' }} - E-Approval - {{ config('app.name', 'TTD Digital Penilaian Karya') }}</title>
+    <title>{{ $title ?? 'Dashboard' }} - E-Approval - {{ config('app.name', 'TTD Digital Penilaian Karyawan') }}</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('musashi.png') }}?v={{ file_exists(public_path('musashi.png')) ? filemtime(public_path('musashi.png')) : '1' }}">

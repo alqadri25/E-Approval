@@ -26,7 +26,7 @@ class GoogleClientService
         }
 
         $client = new GoogleApiClient();
-        $client->setApplicationName('TTD Digital Penilaian Karya');
+        $client->setApplicationName('TTD Digital Penilaian Karyawan');
         $client->setScopes([
             GoogleSheets::SPREADSHEETS,
             GoogleDrive::DRIVE,

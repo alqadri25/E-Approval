@@ -1676,7 +1676,7 @@ class DashboardController extends Controller
                 'tipe' => 'docking',
             ],
             [
-                'user' => 'Admin Penilaian Karya',
+                'user' => 'Admin Penilaian Karyawan',
                 'aksi' => 'Mengubah batas target kuota nilai tahun 2025',
                 'waktu' => '3 jam yang lalu',
                 'tipe' => 'config',

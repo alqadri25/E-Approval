@@ -262,7 +262,7 @@ class Phase3PenilaianTest extends TestCase
         $follow->assertStatus(200);
         $follow->assertSee('Code PDV Mapin - 07-001');
         $follow->assertSee('KJ : 1 - 3');
-        $follow->assertSee('PENILAIAN KARYA');
+        $follow->assertSee('PENILAIAN KARYAWAN');
         $follow->assertSee('NUR EKA PURNAMA', false);
     }
 

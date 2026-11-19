@@ -10,7 +10,7 @@
                 {{ $user->isSuperadmin() ? 'Dashboard Super Admin' : 'Dashboard Admin' }}
             </h1>
             <p class="text-xs text-red-100 font-medium mt-0.5">
-                Selamat datang, <strong class="text-white">{{ $user->nama ?? ($user->isSuperadmin() ? 'Super Administrator' : 'Admin Penilaian Karya') }}</strong> &bull; Pantauan realisasi &amp; struktur penilaian karyawan riil
+                Selamat datang, <strong class="text-white">{{ $user->nama ?? ($user->isSuperadmin() ? 'Super Administrator' : 'Admin Penilaian Karyawan') }}</strong> &bull; Pantauan realisasi &amp; struktur penilaian karyawan riil
             </p>
         </div>
         

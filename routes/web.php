@@ -62,7 +62,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/karyawan/template', [KaryawanController::class, 'downloadTemplate'])->name('karyawan.template');
     Route::get('/karyawan/export', [KaryawanController::class, 'export'])->name('karyawan.export');
 
-    // Penilaian Karya & Digital Signature
+    // Penilaian Karyawan & Digital Signature
     Route::get('/penilaian/cari', [PenilaianController::class, 'cari'])->name('penilaian.cari');
     Route::get('/penilaian/riwayat', [PenilaianController::class, 'riwayat'])->name('penilaian.riwayat');
     Route::get('/penilaian/section', [PenilaianController::class, 'sectionIndex'])->name('penilaian.section');

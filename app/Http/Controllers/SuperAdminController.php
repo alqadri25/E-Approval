@@ -229,7 +229,7 @@ class SuperAdminController extends Controller
             'DIV-11000' => ['alias' => 'DIV-11000DIVHEAD@musashi.id', 'label' => 'Bambang Widodo (Division Head 1)', 'scope' => 'Manufacturing Division (PROD 1)'],
             'DIV-12000' => ['alias' => 'DIV-12000DIVHEAD@musashi.id', 'label' => 'Hendra Gunawan (Division Head 2)', 'scope' => 'Technical & QA Division'],
             
-            'ADM-001' => ['alias' => 'admin@musashi.co.id', 'label' => 'Admin Utama', 'scope' => 'Admin Penilaian Karya'],
+            'ADM-001' => ['alias' => 'admin@musashi.co.id', 'label' => 'Admin Utama', 'scope' => 'Admin Penilaian Karyawan'],
             'ADM-002' => ['alias' => 'admin2@musashi.co.id', 'label' => 'Admin Operasional', 'scope' => 'Admin Operasional Sistem'],
             'SA-001' => ['alias' => 'superadmin@musashi.co.id', 'label' => 'Super Administrator', 'scope' => 'Hak Akses Penuh Sistem'],
         ];

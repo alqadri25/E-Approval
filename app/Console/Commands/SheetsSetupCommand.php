@@ -29,7 +29,7 @@ class SheetsSetupCommand extends Command
     public function handle(SheetRepositoryInterface $repository, GoogleClientService $googleService): int
     {
         $this->info('=====================================================');
-        $this->info('  TTD Digital Penilaian Karya - Google Sheets Setup  ');
+        $this->info('  TTD Digital Penilaian Karyawan - Google Sheets Setup  ');
         $this->info('=====================================================');
 
         $spreadsheetId = $googleService->getSpreadsheetId();

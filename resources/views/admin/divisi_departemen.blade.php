@@ -297,7 +297,7 @@
             </div>
 
             <div class="p-3 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
-                <span>Perubahan struktur divisi &amp; departemen akan mempengaruhi jalur persetujuan penilaian karya.</span>
+                <span>Perubahan struktur divisi &amp; departemen akan mempengaruhi jalur persetujuan penilaian karyawan.</span>
                 <span class="font-bold text-emerald-800">100% Sesuai Data Master</span>
             </div>
         </div>

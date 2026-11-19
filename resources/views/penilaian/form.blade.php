@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Form Penilaian Karya - ' . $dokumen['kode_form']])
+@extends('layouts.app', ['title' => 'Form Penilaian Karyawan - ' . $dokumen['kode_form']])
 
 @section('content')
 <style>
@@ -574,7 +574,7 @@
     @endif
 
     <!-- ========================================================================= -->
-    <!-- FORMULIR RESMI PENILAIAN KARYA (PERSIS SEPERTI GAMBAR EXCEL MUSASHI)      -->
+    <!-- FORMULIR RESMI PENILAIAN KARYAWAN (PERSIS SEPERTI GAMBAR EXCEL MUSASHI)      -->
     <!-- ========================================================================= -->
     <div id="officialFormSheet" class="bg-white border-2 border-slate-900 shadow-xl rounded-none p-4 sm:p-6 overflow-x-auto text-slate-900">
         
@@ -728,13 +728,13 @@
                 @if($isGol4Up)
                 <td colspan="2" rowspan="2" class="w-[31%] py-2 px-2 text-center bg-white border-r-2 border-slate-900 border-b border-slate-900 align-middle">
                     <h2 class="text-sm sm:text-base font-black tracking-wide text-slate-900 uppercase leading-tight">
-                        {{ $formSettings['judul_form_pk'] ?? 'PENILAIAN KARYA' }} / 仕事の評価
+                        {{ $formSettings['judul_form_pk'] ?? 'PENILAIAN KARYAWAN' }} / 仕事の評価
                     </h2>
                 </td>
                 @else
                 <td colspan="2" class="w-[31%] py-1 px-2 text-center bg-white border-r-2 border-slate-900 border-b border-slate-900 align-middle">
                     <h2 class="text-sm sm:text-base font-black tracking-wide text-slate-900 uppercase leading-tight">
-                        {{ $formSettings['judul_form_pk'] ?? 'PENILAIAN KARYA' }}
+                        {{ $formSettings['judul_form_pk'] ?? 'PENILAIAN KARYAWAN' }}
                     </h2>
                 </td>
                 @endif

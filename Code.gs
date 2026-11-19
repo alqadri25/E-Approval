@@ -1,7 +1,7 @@
 /**
  * =========================================================================
  * GOOGLE APPS SCRIPT: PT MUSASHI AUTO PARTS INDONESIA
- * SISTEM E-APPROVAL & DIGITAL SIGNATURE PENILAIAN KARYA
+ * SISTEM E-APPROVAL & DIGITAL SIGNATURE PENILAIAN KARYAWAN
  * =========================================================================
  * Tautan Spreadsheet ID : 14-xI_m24eXSj1L2aiX_gytMWrrS9HnjH5HzcRgWV_9g
  * Tautan Drive Folder ID : 1zB2loWV14fCpLWMCnNiEa4dVKAvhLZYE

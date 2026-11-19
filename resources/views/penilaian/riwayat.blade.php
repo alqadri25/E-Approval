@@ -20,7 +20,7 @@
                 Riwayat Penilaian
             </h1>
             <p class="text-xs text-red-100 font-medium mt-1">
-                Catatan historis penilaian karya yang telah diselesaikan beserta akumulasi poin dan perbandingan target.
+                Catatan historis penilaian karyawan yang telah diselesaikan beserta akumulasi poin dan perbandingan target.
             </p>
         </div>
 

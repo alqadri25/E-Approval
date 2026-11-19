@@ -35,7 +35,7 @@
                             <span class="capitalize">{{ $activePeriod['status'] ?? 'Aktif' }}</span>
                         </div>
                         <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                            Dashboard Pengawasan Penilaian Karya
+                            Dashboard Pengawasan Penilaian Karyawan
                         </h1>
                         <p class="mt-1 text-slate-300 text-sm max-w-2xl">
                             Role: <strong class="text-white">{{ $user->roleLabel() }}</strong> &bull; Hak Akses: <strong class="text-emerald-300">{{ $user->departemen === 'ALL' ? 'Seluruh Departemen (Multi-Division)' : $user->departemen }}</strong>

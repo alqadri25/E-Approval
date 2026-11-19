@@ -185,9 +185,9 @@
                     </div>
                     <p class="text-xs text-emerald-800 mt-1">
                         @if($hasForemanSubordinates)
-                            Semua berkas penilaian karya telah ditandatangani digital oleh Anda dan saat ini sedang dalam proses tinjauan Department Head.
+                            Semua berkas penilaian karyawan telah ditandatangani digital oleh Anda dan saat ini sedang dalam proses tinjauan Department Head.
                         @else
-                            Semua berkas penilaian karya telah ditandatangani digital oleh Anda (bawahan KJ 1-5 tuntas setelah pengesahan Department Head, sedangkan form Section Head 07-006 diteruskan ke Division Head).
+                            Semua berkas penilaian karyawan telah ditandatangani digital oleh Anda (bawahan KJ 1-5 tuntas setelah pengesahan Department Head, sedangkan form Section Head 07-006 diteruskan ke Division Head).
                         @endif
                     </p>
                 </div>
@@ -879,7 +879,7 @@
             </div>
             <div class="p-3 bg-slate-50 border border-slate-200 rounded-none">
                 <span class="font-bold text-[#92302e] block mb-1">Langkah 2: Evaluasi Nilai</span>
-                <p>Klik tombol <strong>Nilai</strong> untuk mengisi form penilaian karya sesuai kriteria prestasi kerja dan kompetensi.</p>
+                <p>Klik tombol <strong>Nilai</strong> untuk mengisi form penilaian karyawan sesuai kriteria prestasi kerja dan kompetensi.</p>
             </div>
             <div class="p-3 bg-slate-50 border border-slate-200 rounded-none">
                 <span class="font-bold text-[#92302e] block mb-1">Langkah 3: TTD & Kirim</span>

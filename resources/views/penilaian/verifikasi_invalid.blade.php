@@ -13,7 +13,7 @@
             </p>
         </div>
         <p class="text-[11px] text-slate-400">
-            Pastikan Anda memindai kode QR resmi yang tercetak pada dokumen penilaian karya Musashi yang sah.
+            Pastikan Anda memindai kode QR resmi yang tercetak pada dokumen penilaian karyawan Musashi yang sah.
         </p>
         <div class="pt-2">
             <a href="{{ route('login') }}" class="min-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200">

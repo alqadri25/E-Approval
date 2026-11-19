@@ -17,7 +17,7 @@
                 </span>
             </div>
             <p class="text-xs text-slate-500 mt-1">
-                Rekapitulasi otomatis form penilaian karya dan kontrol kesesuaian distribusi nilai terhadap target kuota departemen.
+                Rekapitulasi otomatis form penilaian karyawan dan kontrol kesesuaian distribusi nilai terhadap target kuota departemen.
             </p>
         </div>
 

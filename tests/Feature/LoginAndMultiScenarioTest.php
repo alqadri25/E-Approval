@@ -21,7 +21,7 @@ class LoginAndMultiScenarioTest extends TestCase
     {
         $response = $this->get('/login');
         $response->assertStatus(200);
-        $response->assertSee('TTD Digital Penilaian Karya');
+        $response->assertSee('TTD Digital Penilaian Karyawan');
         $response->assertSee('Pilih Hak Akses / Role');
         $response->assertSee('Email Perusahaan');
         $response->assertSee('Password Akun');
