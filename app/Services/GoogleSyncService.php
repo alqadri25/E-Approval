@@ -1593,7 +1593,7 @@ class GoogleSyncService
                             $nrpDiv = !empty($d['nrp_div_head']) ? trim((string)$d['nrp_div_head']) : null;
                             $namaDiv = !empty($d['nama_div_head']) ? trim((string)$d['nama_div_head']) : null;
 
-                            if ((!$nrpS && !$nrpD) && $nrp !== '') {
+                            if ((!$nrpS || !$nrpD) && $nrp !== '') {
                                 $kRow = DB::table('karyawan')->where('nrp', $nrp)->first();
                                 if ($kRow) {
                                     $nrpF = $nrpF ?: (!empty($kRow->nrp_foreman) ? trim((string)$kRow->nrp_foreman) : null);

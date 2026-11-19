@@ -334,6 +334,43 @@ class User extends Authenticatable
         return false;
     }
 
+    /**
+     * Check if this user (Section Head, Dept Head, etc.) has any subordinates under their scope.
+     */
+    public function hasAnySubordinates(): bool
+    {
+        if (!$this->isSectionHead() && !$this->isDepartmentHead() && !$this->isDivisionHead() && !$this->isForeman()) {
+            return false;
+        }
+
+        try {
+            $repository = app(\App\Contracts\SheetRepositoryInterface::class);
+            $allKaryawan = $repository->all('karyawan');
+
+            foreach ($allKaryawan as $k) {
+                if (strcasecmp($k['nrp'] ?? '', $this->nrp ?? '') === 0) {
+                    continue;
+                }
+                if ($this->isSectionHead() && $this->matchesSectionHeadScope($k)) {
+                    return true;
+                }
+                if ($this->isDepartmentHead() && $this->matchesDeptHeadScope($k)) {
+                    return true;
+                }
+                if ($this->isDivisionHead() && $this->matchesDivisionHeadScope($k)) {
+                    return true;
+                }
+                if ($this->isForeman() && !empty($k['nrp_foreman']) && strcasecmp($k['nrp_foreman'], $this->nrp) === 0) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $e) {
+            return false;
+        }
+
+        return false;
+    }
+
     public static function normalizeDepartmentName(?string $dept): string
     {
         $clean = strtoupper(trim((string)preg_replace('/\s+/', ' ', (string)($dept ?? ''))));
@@ -395,9 +432,32 @@ class User extends Authenticatable
     }
 
     /**
+     * Get Section name for this user (derived from karyawan record or user fields)
+     */
+    public function getSectionName(): string
+    {
+        $sect = trim((string)($this->karyawan?->seksi ?: ($this->karyawan?->nama_sect ?: '')));
+        if ($sect !== '' && $sect !== '-') {
+            return $sect;
+        }
+        $nrp = trim((string)$this->nrp);
+        if ($nrp !== '') {
+            $emp = \Illuminate\Support\Facades\DB::table('karyawan')->where('nrp', $nrp)->first();
+            if ($emp) {
+                $s = trim((string)($emp->seksi ?: ($emp->nama_sect ?: '')));
+                if ($s !== '' && $s !== '-') {
+                    return $s;
+                }
+            }
+        }
+        return '';
+    }
+
+    /**
      * Check whether an employee record falls under this Section Head's scope.
      * Explicit nrp_section_head assignment takes precedence over section/dept matching.
      * For Section Head without Foreman (SH-E11510), strictly excludes Foreman/Leader/SH/DH positions.
+     * Fallback matching: If employee has no line category, is not an upper head, and has matching section.
      */
     public function matchesSectionHeadScope(array $karyawan): bool
     {
@@ -429,6 +489,39 @@ class User extends Authenticatable
             $sect = strtoupper(trim((string)($karyawan['seksi'] ?? $karyawan['nama_sect'] ?? '')));
             $myDept = strtoupper(trim((string)($this->departemen ?: 'PROD 2')));
             return $dept === $myDept && $sect === 'FACTORY 3';
+        }
+
+        // Section-based fallback: Karyawan tanpa line category dalam seksi yang sama dengan Section Head
+        $lineCat = trim((string)($karyawan['line_category'] ?? ''));
+        $noLineCat = ($lineCat === '' || $lineCat === '-' || strtolower($lineCat) === 'null');
+        if ($noLineCat) {
+            $empJab = strtoupper(trim((string)($karyawan['jabatan'] ?? '')));
+            $isUpper = (
+                str_contains($empJab, 'SECTION HEAD') ||
+                str_contains($empJab, 'SECT HEAD') ||
+                str_contains($empJab, 'DEPUTY SECTION HEAD') ||
+                str_contains($empJab, 'KASIE') ||
+                str_contains($empJab, 'DEPT HEAD') ||
+                str_contains($empJab, 'DEPARTMENT HEAD') ||
+                str_contains($empJab, 'DIV HEAD') ||
+                str_contains($empJab, 'DIVISION HEAD') ||
+                str_contains($empJab, 'MANAGER') ||
+                str_contains($empJab, 'MANAJER')
+            ) && !str_contains($empJab, 'NON KASIE');
+
+            if (!$isUpper) {
+                $mySect = $this->getSectionName();
+                $empSect = trim((string)($karyawan['seksi'] ?? $karyawan['nama_sect'] ?? ''));
+
+                if ($mySect !== '' && $mySect !== '-' && $empSect !== '' && $empSect !== '-') {
+                    $normMySect = strtoupper(trim(preg_replace('/\s*(SEC|SECTION)\.?$/i', '', $mySect)));
+                    $normEmpSect = strtoupper(trim(preg_replace('/\s*(SEC|SECTION)\.?$/i', '', $empSect)));
+
+                    if ($normMySect === $normEmpSect || str_contains($normEmpSect, $normMySect) || str_contains($normMySect, $normEmpSect)) {
+                        return true;
+                    }
+                }
+            }
         }
 
         return false;

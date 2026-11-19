@@ -38,6 +38,7 @@
 
 @php
     $isGol4Up = in_array($kodeForm ?? ($dokumen['kode_form'] ?? ''), ['07-006-SH', '07-006-DH', '07-006-DIV']);
+    $isSubordinate07006 = $isGol4Up && !\App\Http\Controllers\PenilaianController::isActualSectionHead($karyawan) && !\App\Http\Controllers\PenilaianController::isActualDeptHead($karyawan) && !\App\Http\Controllers\PenilaianController::isActualDivHead($karyawan);
     $isTanpaForemanStd = !$isGol4Up && empty($karyawan['nrp_foreman']);
     $showForemanData = !$isTanpaForemanStd || !empty($ttdByLevel['foreman']) || !empty($scoresByLevel['foreman']);
     $currentUserSignatureUrl = Auth::user()?->signature_url;
@@ -213,7 +214,11 @@
                     <span>🔏</span> Kirim
                 </button>
                 @elseif($subFormVariant === 'section_head')
-                <button type="button" @click="openSignModal('foreman', 'Section Head (Mandiri)')" class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 transition-all whitespace-nowrap flex-shrink-0">
+                @php
+                    $isSelfDoc = ($dokumen['nrp'] === Auth::user()?->nrp);
+                    $btnSignTitle = $isSelfDoc ? 'Section Head (Mandiri)' : 'Section Head (Penilai 1)';
+                @endphp
+                <button type="button" @click="openSignModal('foreman', '{{ $btnSignTitle }}')" class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 transition-all whitespace-nowrap flex-shrink-0">
                     <span>🔏</span> Kirim
                 </button>
                 @else
@@ -592,7 +597,7 @@
                 '07-002' => 'KJ : 4 - 5 non jabatan',
                 '07-003' => 'LEADER',
                 '07-004' => 'FOREMAN',
-                '07-006-SH' => 'SECTION HEAD / セクションヘッド',
+                '07-006-SH' => ($isSubordinate07006 ? ('GOLONGAN ' . ($karyawan['golongan'] ?? 'IV') . ' (KJ 5+)') : 'SECTION HEAD / セクションヘッド'),
                 '07-006-DH' => 'DEPARTMENT HEAD / 部長',
                 '07-006-DIV' => 'DIVISION HEAD / 事業部長',
                 default => 'KJ : ' . ($karyawan['kj'] ?? '1 - 3'),
@@ -602,7 +607,8 @@
             
             $col1Title = match($subFormVariant) {
                 'div_head' => '',
-                'dept_head', 'section_head' => 'Mandiri / 自分',
+                'dept_head' => 'Mandiri / 自分',
+                'section_head' => ($isSubordinate07006 ? 'Section Head / Penilai 1' : 'Mandiri / 自分'),
                 default => 'Foreman (jika ada)',
             };
             $col2Title = match($subFormVariant) {
@@ -2848,7 +2854,9 @@ function penilaianApp() {
             } else if (this.subFormVariant === 'dept_head' && this.signLevel === 'foreman') {
                 return 'Setelah Anda menandatangani formulir evaluasi mandiri ini, status akan otomatis berpindah ke "Menunggu Div Head" dan langsung masuk ke dashboard Division Head.';
             } else if (this.subFormVariant === 'section_head' && this.signLevel === 'foreman') {
-                return 'Setelah Anda menandatangani formulir evaluasi mandiri Section Head ini, status akan otomatis berpindah ke "Menunggu Dept Head" dan langsung masuk ke dashboard Department Head.';
+                return this.isSelfAssessment 
+                    ? 'Setelah Anda menandatangani formulir evaluasi mandiri Section Head ini, status akan otomatis berpindah ke "Menunggu Dept Head" dan langsung masuk ke dashboard Department Head.'
+                    : 'Setelah Anda menandatangani formulir penilaian Section Head ini, status akan otomatis berpindah ke "Menunggu Dept Head" dan langsung masuk ke dashboard Department Head.';
             } else if (this.subFormVariant === 'section_head' && this.signLevel === 'section_head') {
                 return 'Setelah Anda menandatangani formulir Section Head ini, status akan otomatis berpindah ke "Menunggu Div Head" untuk persetujuan akhir Division Head.';
             } else if (this.signLevel === 'foreman') {

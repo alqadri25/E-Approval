@@ -75,29 +75,83 @@ class DatabaseSyncService
         $allKaryawan = DB::table('karyawan')->get();
         $existingDocNrps = DB::table('dokumen')->pluck('nrp')->map(fn($n) => trim((string)$n))->flip()->toArray();
 
+        // Map Section Heads by section for employees without line category
+        $shMap = [];
+        foreach ($allKaryawan as $emp) {
+            $pos = strtoupper(trim((string)$emp->jabatan));
+            $isSh = (str_contains($pos, 'SECTION HEAD') || str_contains($pos, 'SECT HEAD') || str_contains($pos, 'DEPUTY SECTION HEAD')) && !str_contains($pos, 'NON KASIE');
+            if ($isSh) {
+                $s = strtoupper(trim((string)($emp->seksi ?: ($emp->nama_sect ?: ''))));
+                if ($s !== '' && $s !== '-') {
+                    $normS = strtoupper(trim(preg_replace('/\s*(SEC|SECTION)\.?$/i', '', $s)));
+                    if (!isset($shMap[$normS]) || !str_contains($pos, 'DEPUTY')) {
+                        $shMap[$normS] = $emp;
+                    }
+                }
+            }
+        }
+
         $docsCreated = 0;
         foreach ($allKaryawan as $k) {
             $kArray = (array)$k;
             $nrp = trim((string)$k->nrp);
-            if (!isset($existingDocNrps[$nrp])) {
-                $kodeForm = PenilaianController::determineKodeForm($kArray);
-                
-                // Determine appropriate initial status
-                $isDiv = $kodeForm === '07-006-DIV' || ($k->level_form ?? '') === 'DIV_HEAD' || str_contains(strtoupper($k->jabatan ?? ''), 'DIV HEAD') || str_contains(strtoupper($k->jabatan ?? ''), 'DIVISION HEAD');
-                $isDept = $kodeForm === '07-006-DH' || ($k->level_form ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($k->jabatan ?? ''), 'DEPT HEAD') || str_contains(strtoupper($k->jabatan ?? ''), 'DEPARTMENT HEAD');
-                $isSect = $kodeForm === '07-006-SH' || ($k->level_form ?? '') === 'SECTION_HEAD' || str_contains(strtoupper($k->jabatan ?? ''), 'SECTION HEAD') || str_contains(strtoupper($k->jabatan ?? ''), 'SECT HEAD');
-                
-                if ($isDiv) {
-                    $status = 'menunggu_div_head';
-                } elseif ($isDept) {
-                    $status = 'menunggu_dept_head';
-                } elseif ($isSect) {
-                    $status = 'menunggu_section_head';
-                } else {
-                    $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
-                    $status = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
-                }
+            $kodeForm = PenilaianController::determineKodeForm($kArray);
 
+            // Check if employee has no line category and matches a Section Head in the same section
+            $lineCat = trim((string)($k->line_category ?? ''));
+            $noLineCat = ($lineCat === '' || $lineCat === '-' || strtolower($lineCat) === 'null');
+            $posUpper = strtoupper(trim((string)($k->jabatan ?? '')));
+            $isUpper = (
+                str_contains($posUpper, 'SECTION HEAD') ||
+                str_contains($posUpper, 'SECT HEAD') ||
+                str_contains($posUpper, 'DEPUTY SECTION HEAD') ||
+                str_contains($posUpper, 'KASIE') ||
+                str_contains($posUpper, 'DEPT HEAD') ||
+                str_contains($posUpper, 'DEPARTMENT HEAD') ||
+                str_contains($posUpper, 'DIV HEAD') ||
+                str_contains($posUpper, 'DIVISION HEAD') ||
+                str_contains($posUpper, 'MANAGER') ||
+                str_contains($posUpper, 'MANAJER')
+            ) && !str_contains($posUpper, 'NON KASIE');
+
+            $resolvedShNrp = !empty($k->nrp_section_head) && trim((string)$k->nrp_section_head) !== '-' ? trim((string)$k->nrp_section_head) : null;
+            $resolvedShNama = null;
+
+            if ($noLineCat && !$isUpper) {
+                $s = strtoupper(trim((string)($k->seksi ?: ($k->nama_sect ?: ''))));
+                $normS = strtoupper(trim(preg_replace('/\s*(SEC|SECTION)\.?$/i', '', $s)));
+                if ($normS !== '' && isset($shMap[$normS])) {
+                    $shObj = $shMap[$normS];
+                    $resolvedShNrp = $shObj->nrp;
+                    $resolvedShNama = $shObj->nama_lengkap;
+
+                    // Update karyawan table if empty
+                    if (empty($k->nrp_section_head) || trim((string)$k->nrp_section_head) === '-') {
+                        DB::table('karyawan')->where('nrp', $nrp)->update([
+                            'nrp_section_head' => $resolvedShNrp,
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+            }
+
+            $isDiv = $kodeForm === '07-006-DIV' || ($k->level_form ?? '') === 'DIV_HEAD' || str_contains($posUpper, 'DIV HEAD') || str_contains($posUpper, 'DIVISION HEAD');
+            $isDept = $kodeForm === '07-006-DH' || ($k->level_form ?? '') === 'DEPT_HEAD' || str_contains($posUpper, 'DEPT HEAD') || str_contains($posUpper, 'DEPARTMENT HEAD');
+            $isActualSH = (str_contains($posUpper, 'SECTION HEAD') || str_contains($posUpper, 'SECT HEAD') || str_contains($posUpper, 'DEPUTY SECTION HEAD')) && !str_contains($posUpper, 'NON KASIE');
+            $isSubordinate07006 = str_starts_with($kodeForm, '07-006') && !$isActualSH && !$isDept && !$isDiv;
+
+            if ($isDiv) {
+                $status = 'menunggu_div_head';
+            } elseif ($isDept) {
+                $status = 'menunggu_dept_head';
+            } elseif ($isActualSH || $isSubordinate07006) {
+                $status = 'menunggu_section_head';
+            } else {
+                $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
+                $status = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
+            }
+
+            if (!isset($existingDocNrps[$nrp])) {
                 DB::table('dokumen')->insert([
                     'periode_id' => $periodeId,
                     'nrp' => $nrp,
@@ -111,17 +165,33 @@ class DatabaseSyncService
                     'hash_dokumen' => null,
                     'kode_verifikasi' => 'PK-' . $periodeTahun . '-' . $nrp . '-' . strtoupper(Str::random(6)),
                     'version' => 1,
+                    'nrp_section_head' => $resolvedShNrp,
+                    'nama_section_head' => $resolvedShNama,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
                 $docsCreated++;
                 $existingDocNrps[$nrp] = true;
             } else {
-                // Keep kode_form synchronized with employee's actual position/KJ/golongan
-                DB::table('dokumen')->where('nrp', $nrp)->update([
+                $docUpdate = [
                     'kode_form' => $kodeForm,
                     'updated_at' => now(),
-                ]);
+                ];
+                if ($resolvedShNrp) {
+                    $docUpdate['nrp_section_head'] = $resolvedShNrp;
+                    if ($resolvedShNama) {
+                        $docUpdate['nama_section_head'] = $resolvedShNama;
+                    }
+                }
+                // If subordinate with 07-006 has no scores yet and status was incorrectly set to menunggu_dept_head, reset to menunggu_section_head
+                $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->first();
+                if ($existingDoc && $isSubordinate07006 && empty($existingDoc->total_nilai) && empty($existingDoc->grade_original) && $existingDoc->status === 'menunggu_dept_head') {
+                    $hasScores = DB::table('nilai')->where('dokumen_id', $existingDoc->id)->exists();
+                    if (!$hasScores) {
+                        $docUpdate['status'] = 'menunggu_section_head';
+                    }
+                }
+                DB::table('dokumen')->where('nrp', $nrp)->update($docUpdate);
             }
         }
 

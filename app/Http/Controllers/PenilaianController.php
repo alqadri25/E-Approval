@@ -1059,6 +1059,58 @@ class PenilaianController extends Controller
     }
 
     /**
+     * Check whether an employee is genuinely a Section Head or Deputy Section Head (excluding GOL 4 NON KASIE).
+     */
+    public static function isActualSectionHead(array $karyawan): bool
+    {
+        $jab = strtoupper(trim((string)($karyawan['jabatan'] ?? '')));
+        if (str_contains($jab, 'NON KASIE') || str_contains($jab, 'NON-KASIE')) {
+            return false;
+        }
+        return str_contains($jab, 'SECTION HEAD')
+            || str_contains($jab, 'SECT HEAD')
+            || str_contains($jab, 'SECT. HEAD')
+            || str_contains($jab, 'DEPUTY SECTION HEAD')
+            || str_contains($jab, 'KASIE')
+            || str_contains($jab, 'KEPALA SEKSI');
+    }
+
+    /**
+     * Check whether an employee is genuinely a Department Head / Manager.
+     */
+    public static function isActualDeptHead(array $karyawan): bool
+    {
+        $jab = strtoupper(trim((string)($karyawan['jabatan'] ?? '')));
+        return str_contains($jab, 'DEPT HEAD')
+            || str_contains($jab, 'DEPARTMENT HEAD')
+            || str_contains($jab, 'DEPT. HEAD')
+            || str_contains($jab, 'MANAGER')
+            || str_contains($jab, 'MANAJER');
+    }
+
+    /**
+     * Check whether an employee is genuinely a Division Head.
+     */
+    public static function isActualDivHead(array $karyawan): bool
+    {
+        $jab = strtoupper(trim((string)($karyawan['jabatan'] ?? '')));
+        return str_contains($jab, 'DIV HEAD')
+            || str_contains($jab, 'DIVISION HEAD')
+            || str_contains($jab, 'DIV. HEAD');
+    }
+
+    /**
+     * Check whether an employee uses Form 07-006 but is a subordinate (e.g. GOL 4 NON KASIE, Staff)
+     * who must be evaluated by their Section Head first before Department Head.
+     */
+    public static function isSubordinateForm07006(array $karyawan, ?string $kodeForm = null): bool
+    {
+        $kf = $kodeForm ?? ($karyawan['kode_form'] ?? '');
+        $is07006 = str_starts_with(strtoupper(trim($kf)), '07-006');
+        return $is07006 && !self::isActualSectionHead($karyawan) && !self::isActualDeptHead($karyawan) && !self::isActualDivHead($karyawan);
+    }
+
+    /**
      * Determine whether an employee/document record is exempt from target quota limits
      * because it uses Form 07-006 (Section Head / Dept Head / Division Head).
      */
@@ -2047,13 +2099,28 @@ class PenilaianController extends Controller
             }
 
             if (!$userObj) {
-                $isSectionHeadRole = str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'SECTION HEAD') || ($karyawan['level_form'] ?? '') === 'SECTION_HEAD';
+                $isSubordinate07006 = self::isSubordinateForm07006($karyawan, $dokumen['kode_form'] ?? null);
+                $isSectionHeadRole = self::isActualSectionHead($karyawan);
+
                 // Resolve from employee hierarchical NRP fields
                 if ($level === 'foreman') {
-                    $signerNrp = $isGol4Up ? ($karyawan['nrp'] ?? null) : ($karyawan['nrp_foreman'] ?? null);
-                    $signerName = $isGol4Up ? ($karyawan['nama_lengkap'] ?? null) : ($karyawan['foreman_nama'] ?? null);
+                    if ($isSubordinate07006) {
+                        $signerNrp = $karyawan['nrp_section_head'] ?? null;
+                        $signerName = $karyawan['section_head_nama'] ?? null;
+                        $signerRole = 'section_head';
+                    } elseif ($isGol4Up) {
+                        $signerNrp = $karyawan['nrp'] ?? null;
+                        $signerName = $karyawan['nama_lengkap'] ?? null;
+                    } else {
+                        $signerNrp = $karyawan['nrp_foreman'] ?? null;
+                        $signerName = $karyawan['foreman_nama'] ?? null;
+                    }
                 } elseif ($level === 'section_head') {
-                    if ($isGol4Up) {
+                    if ($isSubordinate07006) {
+                        $signerNrp = $karyawan['nrp_dept_head'] ?? null;
+                        $signerName = $karyawan['dept_head_nama'] ?? null;
+                        $signerRole = 'dept_head';
+                    } elseif ($isGol4Up) {
                         $signerNrp = $isSectionHeadRole ? ($karyawan['nrp_dept_head'] ?? null) : ($karyawan['nrp_section_head'] ?? $karyawan['nrp_dept_head'] ?? null);
                         $signerName = $isSectionHeadRole ? ($karyawan['dept_head_nama'] ?? null) : ($karyawan['section_head_nama'] ?? $karyawan['dept_head_nama'] ?? null);
                     } else {
@@ -2061,7 +2128,11 @@ class PenilaianController extends Controller
                         $signerName = $karyawan['section_head_nama'] ?? null;
                     }
                 } elseif ($level === 'dept_head') {
-                    if ($isGol4Up) {
+                    if ($isSubordinate07006) {
+                        $signerNrp = $karyawan['nrp_div_head'] ?? null;
+                        $signerName = $karyawan['div_head_nama'] ?? null;
+                        $signerRole = 'div_head';
+                    } elseif ($isGol4Up) {
                         $signerNrp = $isSectionHeadRole ? ($karyawan['nrp_div_head'] ?? null) : ($karyawan['nrp_dept_head'] ?? $karyawan['nrp_div_head'] ?? null);
                         $signerName = $isSectionHeadRole ? ($karyawan['div_head_nama'] ?? null) : ($karyawan['dept_head_nama'] ?? $karyawan['div_head_nama'] ?? null);
                     } else {
@@ -2090,9 +2161,9 @@ class PenilaianController extends Controller
 
             // Fallback display names if still blank
             $defaultRoleLabels = [
-                'foreman' => 'Foreman (Penilai 1)',
-                'section_head' => 'Section Head',
-                'dept_head' => 'Department Head',
+                'foreman' => ($isSubordinate07006 ?? false ? 'Section Head / Penilai 1' : 'Foreman (Penilai 1)'),
+                'section_head' => ($isSubordinate07006 ?? false ? 'Department Head' : 'Section Head'),
+                'dept_head' => ($isSubordinate07006 ?? false ? 'Division Head' : 'Department Head'),
                 'div_head' => 'Division Head',
             ];
             $displayName = $signerName ?: ($defaultRoleLabels[$level] ?? strtoupper($level));
@@ -2410,7 +2481,8 @@ class PenilaianController extends Controller
         }
 
         // 10. Determine Role Permissions for Editing
-        $isDirectSubordinate = !empty($karyawan['nrp_section_head']) && strcasecmp($karyawan['nrp_section_head'], $user->nrp) === 0;
+        $isDirectSubordinate = (!empty($karyawan['nrp_section_head']) && strcasecmp($karyawan['nrp_section_head'], $user->nrp) === 0)
+            || ($user->isSectionHead() && $user->matchesSectionHeadScope($karyawan));
         $isSectionHeadWithoutForeman = $user->isSectionHead() && !$user->hasForemanSubordinates();
         $isDeptHeadSubordinate = ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) && !empty($karyawan['nrp_dept_head']) && strcasecmp($karyawan['nrp_dept_head'], $user->nrp) === 0;
         $isDivHeadSubordinate = ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && !empty($karyawan['nrp_div_head']) && strcasecmp($karyawan['nrp_div_head'], $user->nrp) === 0;
@@ -3098,7 +3170,8 @@ class PenilaianController extends Controller
         }
 
         $dept = $karyawan['departemen'] ?? ($dokumen['departemen'] ?? '');
-        $isDirectSubordinate = !empty($karyawan['nrp_section_head']) && strcasecmp($karyawan['nrp_section_head'], $user->nrp) === 0;
+        $isDirectSubordinate = (!empty($karyawan['nrp_section_head']) && strcasecmp($karyawan['nrp_section_head'], $user->nrp) === 0)
+            || ($user->isSectionHead() && $user->matchesSectionHeadScope($karyawan));
         $isSectionHeadWithoutForeman = $user->isSectionHead() && !$user->hasForemanSubordinates();
         $isDeptHeadSubordinate = ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) && !empty($karyawan['nrp_dept_head']) && strcasecmp($karyawan['nrp_dept_head'], $user->nrp) === 0;
         $isDivHeadSubordinate = ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && !empty($karyawan['nrp_div_head']) && strcasecmp($karyawan['nrp_div_head'], $user->nrp) === 0;
@@ -3651,11 +3724,13 @@ class PenilaianController extends Controller
                 'foreman' => (
                     $subFormVariant === 'div_head' ? 'selesai' : (
                         $subFormVariant === 'dept_head' ? 'menunggu_div_head' : (
-                            empty($karyawanArr['nrp_foreman']) && !empty($karyawanArr['nrp_section_head']) ? 'menunggu_dept_head' : 'menunggu_section_head'
+                            $isGol4Up ? 'menunggu_dept_head' : (
+                                empty($karyawanArr['nrp_foreman']) && !empty($karyawanArr['nrp_section_head']) ? 'menunggu_dept_head' : 'menunggu_section_head'
+                            )
                         )
                     )
                 ),
-                'section_head' => ($isGol4Up ? 'menunggu_div_head' : 'menunggu_dept_head'),
+                'section_head' => ($isGol4Up ? ($subFormVariant === 'dept_head' ? 'selesai' : 'menunggu_div_head') : 'menunggu_dept_head'),
                 'dept_head' => 'selesai',
                 default => $dokumen['status'],
             };
@@ -3679,11 +3754,21 @@ class PenilaianController extends Controller
 
             // Simpan identitas atasan penandatangan pada dokumen agar selalu tersimpan & sinkron ke spreadsheet
             if ($signLevel === 'foreman') {
-                $updateData['nrp_foreman'] = $user->nrp;
-                $updateData['nama_foreman'] = $user->nama;
+                if ($isGol4Up && empty($karyawanArr['nrp_foreman'])) {
+                    $updateData['nrp_section_head'] = $user->nrp;
+                    $updateData['nama_section_head'] = $user->nama;
+                } else {
+                    $updateData['nrp_foreman'] = $user->nrp;
+                    $updateData['nama_foreman'] = $user->nama;
+                }
             } elseif ($signLevel === 'section_head') {
-                $updateData['nrp_section_head'] = $user->nrp;
-                $updateData['nama_section_head'] = $user->nama;
+                if ($isGol4Up) {
+                    $updateData['nrp_dept_head'] = $user->nrp;
+                    $updateData['nama_dept_head'] = $user->nama;
+                } else {
+                    $updateData['nrp_section_head'] = $user->nrp;
+                    $updateData['nama_section_head'] = $user->nama;
+                }
             } elseif ($signLevel === 'dept_head') {
                 if ($isGol4Up) {
                     $updateData['nrp_div_head'] = $user->nrp;
@@ -4533,9 +4618,12 @@ class PenilaianController extends Controller
             }
         }
 
+        $isSubordinate07006 = self::isSubordinateForm07006($karyawan, $kodeForm);
+
         $col1Title = match($subFormVariant) {
             'div_head' => '',
-            'dept_head', 'section_head' => 'Mandiri / 自分',
+            'dept_head' => 'Mandiri / 自分',
+            'section_head' => ($isSubordinate07006 ? 'Section Head / Penilai 1' : 'Mandiri / 自分'),
             default => 'Foreman (jika ada)',
         };
         $col2Title = match($subFormVariant) {
@@ -4554,7 +4642,7 @@ class PenilaianController extends Controller
             '07-002' => 'KJ : 4 - 5 non jabatan',
             '07-003' => 'LEADER',
             '07-004' => 'FOREMAN',
-            '07-006-SH' => 'SECTION HEAD / セクションヘッド',
+            '07-006-SH' => ($isSubordinate07006 ? ('GOLONGAN ' . ($karyawan['golongan'] ?? 'IV') . ' (KJ 5+)') : 'SECTION HEAD / セクションヘッド'),
             '07-006-DH' => 'DEPARTMENT HEAD / 部長',
             '07-006-DIV' => 'DIVISION HEAD / 事業部長',
             default => 'KJ : ' . ($karyawan['kj'] ?? '1 - 3'),
@@ -4726,13 +4814,7 @@ class PenilaianController extends Controller
         // Subordinates under this Section Head (termasuk diri sendiri)
         $subordinates = array_filter($allKaryawan, function ($k) use ($user) {
             if ($user->isAdmin() || $user->isSuperadmin()) return true;
-            if (!empty($k['nrp_section_head']) && strcasecmp($k['nrp_section_head'], $user->nrp) === 0) {
-                return true;
-            }
-            if (strcasecmp($k['nrp'] ?? '', $user->nrp) === 0) {
-                return true;
-            }
-            return false;
+            return $user->matchesSectionHeadScope($k);
         });
 
         // Filter by Foreman if requested
