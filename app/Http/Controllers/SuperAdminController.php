@@ -160,6 +160,11 @@ class SuperAdminController extends Controller
 
         $allUsers = User::orderBy('id', 'asc')->get();
 
+        // If logged-in user is not Super Admin (e.g. Admin), hide Super Admin accounts entirely
+        if (!$user->isSuperadmin()) {
+            $allUsers = $allUsers->reject(fn($u) => $u->isSuperadmin());
+        }
+
         // Only display system administrators and active leadership accounts found in Master Karyawan
         $allUsers = $allUsers->filter(function ($u) use ($karyawanNrps) {
             if ($u->isAdmin() || $u->isSuperadmin()) {
@@ -237,13 +242,16 @@ class SuperAdminController extends Controller
         // Filter role tab & dropdown
         $rawRole = $request->input('role');
         $activeRole = ($rawRole === null || $rawRole === '' || $rawRole === 'semua') ? 'semua' : trim($rawRole);
+        if (!$user->isSuperadmin() && $activeRole === 'superadmin') {
+            $activeRole = 'semua';
+        }
         $search = trim($request->input('q', '') ?? '');
         $statusFilter = trim($request->input('status', '') ?? '');
 
         // Tab counts
         $counts = [
             'semua' => $allUsers->count(),
-            'superadmin' => $allUsers->where('role', 'superadmin')->count(),
+            'superadmin' => $user->isSuperadmin() ? $allUsers->where('role', 'superadmin')->count() : 0,
             'admin' => $allUsers->where('role', 'admin')->count(),
             'foreman' => $allUsers->whereIn('role', ['foreman', 'ketua'])->count(),
             'section_head' => $allUsers->where('role', 'section_head')->count(),
@@ -354,6 +362,10 @@ class SuperAdminController extends Controller
         }
 
         $targetUser = User::findOrFail($id);
+
+        if (!$currentUser->isSuperadmin() && $targetUser->isSuperadmin()) {
+            return redirect()->back()->with('error', 'Admin tidak memiliki wewenang mengubah akun Super Admin.');
+        }
 
         $validator = Validator::make($request->all(), [
             'nama' => 'required|string|max:150',

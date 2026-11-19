@@ -51,9 +51,16 @@
 
 <!-- Role Filter Metric Cards (Semua, Super Admin, Admin, Foreman, Section Head, Dept. Head, Div. Head) - Sharp Cards Grid -->
     @php
+        $isSuperadmin = auth()->user()->isSuperadmin();
         $tabs = [
             'semua' => ['label' => 'Semua', 'count' => $counts['semua'] ?? 0, 'sub' => 'Total Akun Sistem', 'code' => 'ALL'],
-            'superadmin' => ['label' => 'Super Admin', 'count' => $counts['superadmin'] ?? 0, 'sub' => 'Akses Tertinggi', 'code' => 'SPR'],
+        ];
+
+        if ($isSuperadmin) {
+            $tabs['superadmin'] = ['label' => 'Super Admin', 'count' => $counts['superadmin'] ?? 0, 'sub' => 'Akses Tertinggi', 'code' => 'SPR'];
+        }
+
+        $tabs += [
             'admin' => ['label' => 'Admin', 'count' => $counts['admin'] ?? 0, 'sub' => 'Admin Penilaian', 'code' => 'ADM'],
             'foreman' => ['label' => 'Foreman', 'count' => $counts['foreman'] ?? 0, 'sub' => 'Penilai Tingkat 1', 'code' => 'FRM'],
             'section_head' => ['label' => 'Section Head', 'count' => $counts['section_head'] ?? 0, 'sub' => 'Penilai Tingkat 2', 'code' => 'SH'],
@@ -61,7 +68,7 @@
             'div_head' => ['label' => 'Div. Head', 'count' => $counts['div_head'] ?? 0, 'sub' => 'Penilai Final Divisi', 'code' => 'DIV'],
         ];
         $currentRoute = request()->routeIs('admin.*') ? 'admin.users' : 'superadmin.users';
-        $gridCols = 'lg:grid-cols-7';
+        $gridCols = $isSuperadmin ? 'lg:grid-cols-7' : 'lg:grid-cols-6';
     @endphp
 
     <div class="grid grid-cols-2 sm:grid-cols-3 {{ $gridCols }} gap-3">
@@ -103,7 +110,9 @@
             <!-- Filter Role (Sebelum Filter Semua Status) -->
             <select name="role" onchange="this.form.submit()" class="py-2 px-3 border border-slate-300 hover:border-slate-400 text-xs font-semibold text-slate-700 bg-white rounded-none focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] transition shadow-xs">
                 <option value="semua" {{ $activeRole === 'semua' ? 'selected' : '' }}>Semua Role</option>
-                <option value="superadmin" {{ $activeRole === 'superadmin' ? 'selected' : '' }}>Super Admin</option>
+                @if(auth()->user()->isSuperadmin())
+                    <option value="superadmin" {{ $activeRole === 'superadmin' ? 'selected' : '' }}>Super Admin</option>
+                @endif
                 <option value="admin" {{ $activeRole === 'admin' ? 'selected' : '' }}>Admin</option>
                 <option value="foreman" {{ $activeRole === 'foreman' ? 'selected' : '' }}>Foreman</option>
                 <option value="section_head" {{ $activeRole === 'section_head' ? 'selected' : '' }}>Section Head</option>
