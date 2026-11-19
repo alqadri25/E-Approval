@@ -347,6 +347,8 @@ class SuperAdminController extends Controller
             'aktif' => $request->boolean('aktif', true) ? 1 : 0,
         ]);
 
+        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
+
         return redirect()->back()->with('success', "User '{$request->input('nama')}' berhasil ditambahkan ke dalam sistem!");
     }
 
@@ -389,6 +391,8 @@ class SuperAdminController extends Controller
         }
         $targetUser->save();
 
+        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
+
         return redirect()->back()->with('success', "Data user '{$targetUser->nama}' berhasil diperbarui.");
     }
 
@@ -416,6 +420,8 @@ class SuperAdminController extends Controller
         $targetUser->aktif = $targetUser->aktif ? 0 : 1;
         $targetUser->save();
 
+        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
+
         $statusText = $targetUser->aktif ? 'diaktifkan' : 'dinonaktifkan';
         return redirect()->back()->with('success', "Akun user '{$targetUser->nama}' berhasil {$statusText}.");
     }
@@ -439,6 +445,8 @@ class SuperAdminController extends Controller
 
         $targetUser->password_hash = Hash::make('password123');
         $targetUser->save();
+
+        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
 
         return redirect()->back()->with('success', "Password untuk user '{$targetUser->nama}' berhasil direset menjadi 'password123'.");
     }
@@ -466,6 +474,8 @@ class SuperAdminController extends Controller
 
         $userName = $targetUser->nama;
         $targetUser->delete();
+
+        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
 
         return redirect()->back()->with('success', "Akun '{$userName}' berhasil dihapus dari sistem.");
     }

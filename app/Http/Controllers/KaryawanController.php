@@ -769,18 +769,9 @@ class KaryawanController extends Controller
             \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
         } catch (\Throwable $e) {}
 
-        // Sinkronisasi tambah karyawan ke Google Spreadsheet secara background non-blocking
-        if (function_exists('defer')) {
-            defer(function () use ($newEmployee) {
-                try {
-                    \App\Services\GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users', 'audit_log']);
-                } catch (\Throwable $e) {
-                    \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $newEmployee['nrp']);
-                }
-            });
-        } else {
-            \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $newEmployee['nrp']);
-        }
+        // Sinkronisasi tambah karyawan & dokumen ke Google Spreadsheet secara background non-blocking (< 5ms)
+        \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $newEmployee['nrp']);
+        \App\Services\GoogleSyncService::syncTablesAsync(['karyawan', 'dokumen', 'users']);
 
         $targetRoute = str_contains((string)url()->previous(), '/admin/karyawan') ? 'admin.karyawan' : 'karyawan.index';
         return redirect()->route($targetRoute)->with('success', "Karyawan {$newEmployee['nama_lengkap']} (NRP: {$newEmployee['nrp']}) berhasil ditambahkan!");
@@ -1667,12 +1658,8 @@ class KaryawanController extends Controller
                 exit;
             }
 
-            // Sync to Google Spreadsheet with safe short timeout (< 2s)
-            try {
-                \App\Services\GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users']);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning("Google syncTables notice on import: " . $e->getMessage());
-            }
+            // Sync to Google Spreadsheet via non-blocking background process (< 5ms)
+            \App\Services\GoogleSyncService::syncTablesAsync(['karyawan', 'dokumen', 'users']);
 
             return redirect()->route($targetRoute)->with('success', $successMsg);
         }
@@ -1739,48 +1726,19 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
 
-        // Background Drive PDF deletion, phantom account cleanup, and Google Spreadsheet sync
-        if (function_exists('defer')) {
-            defer(function () use ($nrp, $driveFileIds) {
-                try {
-                    \App\Services\GoogleSyncService::deleteGoogleDriveEmployeePdfs([$nrp], $driveFileIds);
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Drive PDF delete notice for NRP {$nrp}: " . $e->getMessage());
-                }
-
-                try {
-                    \App\Services\GoogleSyncService::syncEmployeeRow('delete', $nrp);
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Row delete sync notice for NRP {$nrp}: " . $e->getMessage());
-                }
-
-                try {
-                    \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Phantom leadership cleanup notice: " . $e->getMessage());
-                }
-
-                try {
-                    \App\Services\GoogleSyncService::syncTables([
-                        'karyawan',
-                        'dokumen',
-                        'Dokumen_Dinilai',
-                        'Target_Pemantauan',
-                        'users',
-                        'nilai',
-                        'indikator',
-                        'tanda_tangan',
-                        'kuota_departemen',
-                    ]);
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Google delete sync notice: " . $e->getMessage());
-                }
-            });
-        } else {
-            try {
-                \App\Services\GoogleSyncService::syncEmployeeRowAsync('delete', $nrp);
-            } catch (\Throwable $e) {}
-        }
+        // Background Drive PDF deletion, phantom account cleanup, and Google Spreadsheet sync (< 5ms)
+        \App\Services\GoogleSyncService::syncEmployeeRowAsync('delete', $nrp);
+        \App\Services\GoogleSyncService::syncTablesAsync([
+            'karyawan',
+            'dokumen',
+            'Dokumen_Dinilai',
+            'Target_Pemantauan',
+            'users',
+            'nilai',
+            'indikator',
+            'tanda_tangan',
+            'kuota_departemen',
+        ]);
 
         return redirect()->back()->with('success', "Data karyawan {$nama} (NRP: {$nrp}) berhasil dihapus!");
     }
@@ -1968,43 +1926,18 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
 
-        // Background Drive PDF deletion, phantom account cleanup, and Google Spreadsheet sync
-        if (function_exists('defer')) {
-            defer(function () use ($scope, $targetNrps, $driveFileIds) {
-                try {
-                    if ($scope === 'all') {
-                        \App\Services\GoogleSyncService::wipeAllDataAndDrivePdfs(null, true);
-                    } else {
-                        \App\Services\GoogleSyncService::deleteGoogleDriveEmployeePdfs($targetNrps, $driveFileIds);
-                    }
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Drive PDF bulk delete notice: " . $e->getMessage());
-                }
-
-                try {
-                    \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Phantom leadership cleanup notice on bulk delete: " . $e->getMessage());
-                }
-
-                // Sinkronisasi status terbaru seluruh tabel ke Google Spreadsheet (termasuk mengosongkan jika seluruh data dihapus)
-                try {
-                    \App\Services\GoogleSyncService::syncTables([
-                        'karyawan',
-                        'dokumen',
-                        'Dokumen_Dinilai',
-                        'Target_Pemantauan',
-                        'users',
-                        'nilai',
-                        'indikator',
-                        'tanda_tangan',
-                        'kuota_departemen',
-                    ]);
-                } catch (\Throwable $e) {
-                    \Illuminate\Support\Facades\Log::warning("Google bulk delete sync notice: " . $e->getMessage());
-                }
-            });
-        }
+        // Background Drive PDF deletion, phantom account cleanup, and Google Spreadsheet sync (< 5ms)
+        \App\Services\GoogleSyncService::syncTablesAsync([
+            'karyawan',
+            'dokumen',
+            'Dokumen_Dinilai',
+            'Target_Pemantauan',
+            'users',
+            'nilai',
+            'indikator',
+            'tanda_tangan',
+            'kuota_departemen',
+        ]);
 
         return redirect()->route('admin.karyawan')->with('success', "Berhasil menghapus {$deletedCount} data karyawan ({$scopeDescription}) secara massal beserta seluruh dokumen penilaian terkait dan menyinkronkannya ke Google Spreadsheet!");
     }

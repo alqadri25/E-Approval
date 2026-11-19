@@ -291,6 +291,8 @@ class ProfileController extends Controller
             } catch (\Throwable $e) {}
         }
 
+        \App\Services\GoogleSyncService::syncTablesAsync(['Master Tanda Tangan', 'users']);
+
         return redirect()->route('profile.index')->with('success', 'Gambar tanda tangan digital berhasil dihapus.');
     }
 }

@@ -3329,12 +3329,9 @@ class AdminController extends Controller
             \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
         } catch (\Throwable $e) {}
 
-        // Sinkronisasi update karyawan ke Google Spreadsheet secara real-time
-        try {
-            \App\Services\GoogleSyncService::syncTables(['karyawan', 'dokumen', 'users', 'audit_log']);
-        } catch (\Throwable $e) {
-            \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $nrp);
-        }
+        // Sinkronisasi update karyawan ke Google Spreadsheet secara background non-blocking (< 5ms)
+        \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $nrp);
+        \App\Services\GoogleSyncService::syncTablesAsync(['karyawan', 'dokumen', 'users']);
 
         $redirectTo = (url()->previous() && str_contains(url()->previous(), 'karyawan') && !str_contains(url()->previous(), 'admin'))
             ? route('karyawan.index')

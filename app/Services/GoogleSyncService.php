@@ -904,24 +904,25 @@ class GoogleSyncService
     }
 
     /**
-     * Non-blocking Async Dispatch for Full Tables Sync to Google Spreadsheet.
+     * Non-blocking Async Dispatch for Tables Sync to Google Spreadsheet.
      * Fires artisan google:sync-row sync_all in background immediately (< 5ms response time).
      */
-    public static function syncTablesAsync(array $tables = ['karyawan', 'dokumen']): void
+    public static function syncTablesAsync(array $tables = []): void
     {
         try {
             $artisanPath = base_path('artisan');
+            $tablesArg = !empty($tables) ? ' --tables=' . escapeshellarg(implode(',', $tables)) : '';
 
             if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-                $cmd = "start /B \"\" php \"{$artisanPath}\" google:sync-row sync_all > NUL 2>&1";
+                $cmd = "start /B \"\" php \"{$artisanPath}\" google:sync-row sync_all{$tablesArg} > NUL 2>&1";
                 pclose(popen($cmd, "r"));
             } else {
-                $cmd = "php \"{$artisanPath}\" google:sync-row sync_all > /dev/null 2>&1 &";
+                $cmd = "php \"{$artisanPath}\" google:sync-row sync_all{$tablesArg} > /dev/null 2>&1 &";
                 exec($cmd);
             }
         } catch (\Throwable $e) {
             Log::warning("Async Google syncTables launch failed: " . $e->getMessage() . ", running synchronously");
-            self::syncTables($tables);
+            self::syncTables($tables ?: ['karyawan', 'dokumen']);
         }
     }
 

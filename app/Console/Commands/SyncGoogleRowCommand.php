@@ -12,7 +12,7 @@ class SyncGoogleRowCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'google:sync-row {action : upsert, delete, sync_all, or upload_pdf} {--nrp= : Employee NRP} {--doc-id= : Document ID for PDF upload}';
+    protected $signature = 'google:sync-row {action : upsert, delete, sync_all, or upload_pdf} {--nrp= : Employee NRP} {--doc-id= : Document ID for PDF upload} {--tables= : Comma-separated tables to sync}';
 
     /**
      * The console command description.
@@ -28,13 +28,18 @@ class SyncGoogleRowCommand extends Command
     {
         $action = strtolower(trim($this->argument('action')));
 
-        if ($action === 'sync_all') {
-            $res = GoogleSyncService::syncTables(['karyawan', 'dokumen', 'Dokumen_Dinilai', 'Target_Pemantauan', 'users', 'nilai', 'indikator', 'tanda_tangan', 'audit_log']);
+        if ($action === 'sync_all' || $action === 'sync_tables') {
+            $rawTables = $this->option('tables');
+            $tables = !empty($rawTables)
+                ? array_filter(array_map('trim', explode(',', (string)$rawTables)))
+                : ['karyawan', 'dokumen', 'Dokumen_Dinilai', 'Target_Pemantauan', 'users', 'nilai', 'indikator', 'tanda_tangan', 'audit_log'];
+
+            $res = GoogleSyncService::syncTables($tables);
             if ($res['success'] ?? false) {
-                $this->info("Successfully synced all tables to Google Spreadsheet.");
+                $this->info("Successfully synced tables (" . implode(', ', $tables) . ") to Google Spreadsheet.");
                 return Command::SUCCESS;
             }
-            $this->error("Failed syncing all tables: " . ($res['error'] ?? 'Unknown error'));
+            $this->error("Failed syncing tables: " . ($res['error'] ?? 'Unknown error'));
             return Command::FAILURE;
         }
 
