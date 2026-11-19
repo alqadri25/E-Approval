@@ -12,7 +12,7 @@
                     <span class="text-xs font-normal text-rose-200 font-sans tracking-normal">(Formulir Resmi Penilaian Karyawan)</span>
                 </h1>
                 <p class="mt-1 text-xs sm:text-sm text-rose-100/90 leading-relaxed">
-                    Formulir resmi penilaian karyawan PT Musashi Auto Parts Indonesia yang digunakan oleh penilai dan terhubung real-time dengan Kelola Form &amp; Periode.
+                    Formulir resmi penilaian karyawan yang digunakan oleh penilai dan terhubung real-time dengan Kelola Form &amp; Periode.
                 </p>
             </div>
 
