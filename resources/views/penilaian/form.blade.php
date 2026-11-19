@@ -2014,7 +2014,7 @@
                     <button type="submit" :disabled="isSigning" class="min-btn px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] disabled:opacity-60 shadow-md shadow-red-200 flex items-center gap-1.5 cursor-pointer">
                         <span x-show="!isSigning">🔒</span>
                         <svg x-show="isSigning" class="animate-spin w-3.5 h-3.5 text-white inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <span x-text="isSigning ? 'Menyimpan & Membubuhkan...' : 'Kunci & Bubuhkan Barcode TTD'">Kunci &amp; Bubuhkan Barcode TTD</span>
+                        <span x-text="isSigning ? 'Mengirim...' : 'Kirim'">Kirim</span>
                     </button>
                 </div>
 
