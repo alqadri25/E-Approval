@@ -162,22 +162,6 @@
                 <span>📄</span> PDF
             </a>
 
-            <!-- Tombol Revisi jika Status Dokumen SELESAI (Ingin merevisi? Klik untuk isi lagi) -->
-            @if($dokumen['status'] === 'selesai' && (Auth::user()->isDivisionHead() || in_array(Auth::user()->role, ['div_head', 'division_head']) || Auth::user()->isDepartmentHead() || Auth::user()->isAdmin()))
-            <form method="POST" action="{{ route('penilaian.bukaRevisi', $dokumen['id']) }}" onsubmit="return confirm('Apakah Anda yakin ingin merevisi dokumen penilaian ini? Dokumen akan dibuka kembali sehingga Anda dapat mengisi dan mengubah penilaian lagi.')" class="inline-flex items-center gap-1.5 flex-shrink-0">
-                @csrf
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-300 rounded-xl shadow-xs">
-                    <span class="text-xs text-amber-950 font-bold hidden sm:inline">Ingin merevisi?</span>
-                    <button type="submit" 
-                            class="min-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black text-white bg-amber-600 hover:bg-amber-700 active:scale-95 transition shadow-xs cursor-pointer"
-                            title="Klik untuk membuka kembali dokumen dan mengisi penilaian lagi">
-                        <span>✏️</span>
-                        <span>Klik untuk Isi Lagi</span>
-                    </button>
-                </div>
-            </form>
-            @endif
-
             @if($canEditSectionHead && !$isTanpaForemanStd)
             <button type="button" @click="copyForemanScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor sebagai acuan dasar (dapat Anda modifikasi)">
                 <span>📋</span> {{ $isGol4Up ? 'Sama dg Section Head' : 'Sama dg Foreman' }}
