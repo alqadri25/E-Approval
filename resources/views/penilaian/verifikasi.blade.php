@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Verifikasi Dokumen Penilaian Karyawan'])
+@extends('layouts.app', ['title' => 'Verifikasi Dokumen Penilaian Karya'])
 
 @section('content')
 <div class="max-w-2xl mx-auto py-8 px-4">
@@ -13,7 +13,7 @@
                 DOKUMEN ASLI &amp; TERVERIFIKASI
             </span>
             <h1 class="text-xl font-black mt-1">PT Musashi Auto Parts Indonesia</h1>
-            <p class="text-xs text-emerald-200 mt-0.5">Sistem Tanda Tangan Digital &amp; Penilaian Karyawan Resmi</p>
+            <p class="text-xs text-emerald-200 mt-0.5">Sistem Tanda Tangan Digital &amp; Penilaian Karya Resmi</p>
         </div>
 
         <div class="p-6 space-y-6 text-xs">
@@ -106,7 +106,7 @@
 
             <div class="text-center pt-2">
                 <a href="{{ route('login') }}" class="min-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200">
-                    &larr; Masuk ke Sistem Penilaian Karyawan
+                    &larr; Masuk ke Sistem Penilaian Karya
                 </a>
             </div>
 

@@ -255,17 +255,17 @@
                     {{ $karyawan['nama_lengkap'] }}
                 </td>
 
-                <!-- Col 4 & 5: PENILAIAN KARYAWAN Title (Colspan 2) -->
+                <!-- Col 4 & 5: PENILAIAN KARYA Title (Colspan 2) -->
                 @if($isGol4Up)
                 <td colspan="2" rowspan="2" style="width: 31%; border-right: 1.2px solid #000000; border-bottom: 1px solid #000000; padding: 2px 2px; text-align: center; vertical-align: middle;">
                     <div style="font-size: 8.8pt; font-weight: bold; line-height: 1.1; text-transform: uppercase; letter-spacing: 0.5px;">
-                        {{ $formSettings['judul_form_pk'] ?? 'PENILAIAN KARYAWAN' }} / 仕事の評価
+                        {{ $formSettings['judul_form_pk'] ?? 'PENILAIAN KARYA' }} / 仕事の評価
                     </div>
                 </td>
                 @else
                 <td colspan="2" style="width: 31%; border-right: 1.2px solid #000000; border-bottom: 1px solid #000000; padding: 2px 2px; text-align: center; vertical-align: middle;">
                     <div style="font-size: 9.5pt; font-weight: bold; line-height: 1; text-transform: uppercase;">
-                        {{ $formSettings['judul_form_pk'] ?? 'PENILAIAN KARYAWAN' }}
+                        {{ $formSettings['judul_form_pk'] ?? 'PENILAIAN KARYA' }}
                     </div>
                 </td>
                 @endif

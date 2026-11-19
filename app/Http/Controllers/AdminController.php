@@ -2725,7 +2725,7 @@ class AdminController extends Controller
         $formSettings = [
             'tahun_penilaian' => $allSettings['tahun_penilaian'] ?? ($activePeriod->tahun ?? 2025),
             'periode_penilaian' => $allSettings['periode_penilaian'] ?? 'Jan - Des',
-            'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYAWAN',
+            'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYA',
             'nama_perusahaan' => $allSettings['nama_perusahaan'] ?? 'PT MUSASHI AUTO PARTS INDONESIA',
             'catatan_petunjuk_penilai' => $allSettings['catatan_petunjuk_penilai'] ?? 'Pilih salah satu dari 5 pilihan kalimat kriteria di bawah ini yang paling sesuai.',
             'status_periode' => $allSettings['status_periode'] ?? ($activePeriod->status ?? 'aktif'),

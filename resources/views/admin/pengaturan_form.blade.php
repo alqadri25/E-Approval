@@ -620,13 +620,13 @@
                                     NUR EKA PURNAMA
                                 </td>
 
-                                <!-- Col 4 & 5: PENILAIAN KARYAWAN Title -->
+                                <!-- Col 4 & 5: PENILAIAN KARYA Title -->
                                 <!-- Bilingual: Rowspan 2 (no KJ banner) -->
                                 <template x-if="currentFormMeta.is_bilingual">
                                     <td colspan="2" rowspan="2" class="py-1 px-2 text-center bg-white border-r-2 border-b border-slate-900 align-middle">
                                         <h4 class="text-xs font-black tracking-wide text-slate-900 uppercase leading-tight" 
                                             x-text="formSettings.judul_form_pk + ' / 仕事の評価'">
-                                            PENILAIAN KARYAWAN / 仕事の評価
+                                            PENILAIAN KARYA / 仕事の評価
                                         </h4>
                                     </td>
                                 </template>
@@ -635,7 +635,7 @@
                                     <td colspan="2" class="py-1 px-2 text-center bg-white border-r-2 border-b border-slate-900 align-middle">
                                         <h4 class="text-xs font-black tracking-wide text-slate-900 uppercase leading-tight" 
                                             x-text="formSettings.judul_form_pk">
-                                            PENILAIAN KARYAWAN
+                                            PENILAIAN KARYA
                                         </h4>
                                     </td>
                                 </template>
