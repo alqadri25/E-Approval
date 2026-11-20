@@ -2698,6 +2698,8 @@ class PenilaianController extends Controller
             || $isDeptHeadSubordinate
             || $isDivHeadSubordinate;
 
+        $isPenilaiAkhir = self::isUserPenilaiAkhir($user, $dokumen, $karyawan);
+
         $canEditForeman = false;
         $canEditSectionHead = false;
         $canEditDeptHead = false;
@@ -2717,100 +2719,115 @@ class PenilaianController extends Controller
             $canSignDeptHead = empty($ttdByLevel['dept_head']);
             $canRevisi = true;
         } else {
-            // Foreman rules
+            // 1. Foreman rules
             if ($user->isForeman() && $isMyDept) {
                 if ($dokumen['nrp'] === $user->nrp) {
-                    // Evaluasi Mandiri Foreman (misal KJ > 5 dengan Form 07-006 atau Form Foreman)
-                    if (in_array($status, ['menunggu_foreman', 'menunggu_section_head', 'draft', 'revisi'])) {
+                    // Evaluasi Mandiri Foreman (misal KJ > 5 dengan Form 07-006)
+                    if (in_array($status, ['menunggu_foreman', 'menunggu_section_head', 'draft', 'revisi']) && empty($ttdByLevel['foreman'])) {
                         $canEditForeman = true;
                         $canSignForeman = true;
                     }
                 } else {
-                    if (in_array($status, ['menunggu_foreman', 'draft', 'revisi'])) {
+                    // Menilai bawahan Form Standar (Penilai 1)
+                    if (in_array($status, ['menunggu_foreman', 'draft', 'revisi']) && empty($ttdByLevel['foreman'])) {
                         $canEditForeman = true;
                         $canSignForeman = true;
                     }
                 }
+                // Foreman bukan penilai akhir dan tidak dapat merevisi mandiri jika sudah selesai/submit
+                $canRevisi = false;
             }
 
-            // Section Head rules
+            // 2. Section Head / Gol 4 Non Kasie rules
             if ($user->isSectionHead() && $isMyDept) {
                 $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
-                // Evaluasi Mandiri Section Head / Form 07-006 -> Mengisi Kolom 1 (Mandiri / foreman slot)
                 if ($dokumen['nrp'] === $user->nrp || $isGol4UpDoc) {
-                    if ($dokumen['nrp'] === $user->nrp || in_array($status, ['menunggu_section_head', 'draft', 'revisi'])) {
+                    // Evaluasi Mandiri Section Head / Gol 4 Non Kasie pada Form 07-006 (Slot Kolom 1 / foreman)
+                    // HANYA dapat diedit & ditandatangani jika masih menunggu giliran mandiri dan BELUM menandatangani!
+                    if (in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi']) && empty($ttdByLevel['foreman'])) {
                         $canEditForeman = true;
                         $canSignForeman = true;
                     }
                     $canEditSectionHead = false;
                     $canSignSectionHead = false;
+                    $canRevisi = false;
                 } elseif (empty($karyawan['nrp_foreman']) || !$user->hasForemanSubordinates()) {
-                    // Kasus Section Head menilai bawahan KJ 1-5 tanpa Foreman:
+                    // Kasus Section Head menilai bawahan KJ 1-5 tanpa Foreman (langsung Penilai 1):
                     $canEditForeman = false;
                     $canSignForeman = false;
-                    if (in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi'])) {
+                    if (in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi']) && empty($ttdByLevel['section_head'])) {
                         $canEditSectionHead = true;
                         $canSignSectionHead = true;
                     }
                     $canRevisi = false;
                 } else {
-                    // Kasus normal dengan Foreman (Form 07-001/002/003):
-                    if (in_array($status, ['menunggu_section_head', 'revisi'])) {
+                    // Kasus normal dengan Foreman (Form 07-001 s/d 07-005):
+                    if (in_array($status, ['menunggu_section_head', 'revisi']) && empty($ttdByLevel['section_head'])) {
                         $canEditSectionHead = true;
                         $canSignSectionHead = true;
                         $canRevisi = true;
                     } else {
                         $canEditSectionHead = false;
                         $canSignSectionHead = false;
+                        $canRevisi = false;
                     }
                 }
             }
 
-            // Department Head rules
+            // 3. Department Head rules
             if ($user->isDepartmentHead() && $isMyDept) {
-                // Evaluasi Mandiri Dept Head (Diri Sendiri) -> Mengisi Kolom 1 (Mandiri)
                 if ($dokumen['nrp'] === $user->nrp) {
-                    if (in_array($status, ['menunggu_dept_head', 'draft', 'revisi'])) {
+                    // Evaluasi Mandiri Dept Head (Diri Sendiri) -> Mengisi Kolom 1 (Mandiri)
+                    if (in_array($status, ['menunggu_dept_head', 'draft', 'revisi']) && empty($ttdByLevel['foreman'])) {
                         $canEditForeman = true;
                         $canSignForeman = true;
                     }
-                // Aktif jika Section Head sudah selesai & status sudah 'menunggu_dept_head' atau 'revisi'!
+                    $canRevisi = false;
                 } elseif (in_array($status, ['menunggu_dept_head', 'revisi'])) {
                     $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
                     if ($isGol4UpDoc) {
-                        $canEditSectionHead = true;
-                        $canSignSectionHead = true;
-                        $canRevisi = true;
+                        // Menilai Section Head / Gol 4 Non Kasie pada Form 07-006 (Slot Kolom 2 / section_head)
+                        if (empty($ttdByLevel['section_head'])) {
+                            $canEditSectionHead = true;
+                            $canSignSectionHead = true;
+                            $canRevisi = true;
+                        }
                     } else {
-                        $canEditDeptHead = true;
-                        $canSignDeptHead = true;
-                        $canRevisi = true;
-                    }
-                }
-            }
-
-            // Division Head rules (Evaluasi Mandiri & Penilaian Ulang / Docking Kuota)
-            if (($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && ($isMyDept || $dokumen['nrp'] === $user->nrp)) {
-                $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
-                // Evaluasi Mandiri Division Head (Diri Sendiri) -> Mengisi Kolom 3 (Mandiri / 自分), TTD Kolom 1
-                if ($dokumen['nrp'] === $user->nrp) {
-                    if (empty($ttdByLevel['foreman'])) {
-                        $canEditDeptHead = true;
-                        $canSignForeman = true;
-                    }
-                } else {
-                    // Penilaian & Penyesuaian Kuota khusus Division Head untuk seluruh karyawan divisi
-                    // HANYA dapat diedit & difinalisasi jika dokumen sudah melalui Section Head dan Dept Head (status: menunggu_div_head / selesai)
-                    if (in_array($status, ['menunggu_div_head', 'selesai', 'revisi'])) {
-                        if ($status !== 'selesai' || empty($ttdByLevel['dept_head'])) {
+                        // Menilai Form Standar KJ 1-5 (Slot Kolom 3 / dept_head) - Dept Head adalah Penilai Akhir
+                        if (empty($ttdByLevel['dept_head'])) {
                             $canEditDeptHead = true;
                             $canSignDeptHead = true;
                             $canRevisi = true;
                         }
+                    }
+                } elseif ($status === 'selesai' && $isPenilaiAkhir) {
+                    // Dokumen Form Standar yang sudah selesai: Dept Head sebagai Penilai Akhir dapat membuka revisi
+                    $canRevisi = true;
+                }
+            }
+
+            // 4. Division Head rules
+            if (($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && ($isMyDept || $dokumen['nrp'] === $user->nrp)) {
+                $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+                if ($dokumen['nrp'] === $user->nrp) {
+                    // Evaluasi Mandiri Division Head
+                    if (empty($ttdByLevel['foreman'])) {
+                        $canEditDeptHead = true;
+                        $canSignForeman = true;
+                    }
+                    $canRevisi = false;
+                } else {
+                    // Penilaian & Finalisasi Kuota Division Head (Penilai Akhir)
+                    if (in_array($status, ['menunggu_div_head', 'selesai', 'revisi'])) {
+                        if ($status !== 'selesai' || empty($ttdByLevel['dept_head'])) {
+                            $canEditDeptHead = true;
+                            $canSignDeptHead = true;
+                        }
+                        $canRevisi = true;
                     } else {
-                        // Belum melalui Section Head / Dept Head -> Terkunci (Read-Only)
                         $canEditDeptHead = false;
                         $canSignDeptHead = false;
+                        $canRevisi = false;
                     }
                 }
             }
@@ -3005,7 +3022,8 @@ class PenilaianController extends Controller
             'penyesuaianRoute',
             'canViewForeman',
             'canViewSectionHead',
-            'canViewDeptHead'
+            'canViewDeptHead',
+            'isPenilaiAkhir'
         ));
     }
 
@@ -3378,6 +3396,55 @@ class PenilaianController extends Controller
     }
 
     /**
+     * Tentukan apakah user saat ini merupakan Penilai Akhir (Final Evaluator) untuk dokumen ini.
+     * Aturan Baku:
+     * 1. Superadmin & Admin selalu berwenang penuh (bisa revisi / override).
+     * 2. Pemilik dokumen (Evaluasi Mandiri / NRP sama) adalah subjek yang dinilai, BUKAN penilai akhir atas dirinya sendiri.
+     * 3. Foreman, Section Head, dan Gol 4 Non Kasie BUKAN penilai akhir (Penilai 1 / Penilai 2).
+     * 4. Division Head selalu merupakan penilai akhir untuk seluruh dokumen divisinya (baik Standar maupun 07-006).
+     * 5. Department Head merupakan penilai akhir untuk Form Standar (KJ 1-5).
+     *    Untuk Form 07-006, Department Head BUKAN penilai akhir KECUALI divisi/departemen tidak memiliki Division Head.
+     */
+    public static function isUserPenilaiAkhir(?User $user, array $dokumen, array $karyawan): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->isSuperadmin() || $user->isAdmin()) {
+            return true;
+        }
+
+        // Subjek yang dinilai (Evaluasi Mandiri) tidak pernah menjadi Penilai Akhir atas dokumennya sendiri
+        if (strcasecmp($dokumen['nrp'] ?? '', $user->nrp ?? '') === 0) {
+            return false;
+        }
+
+        $kodeForm = $dokumen['kode_form'] ?? '';
+        $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+        $isDivHead = $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']);
+        $isDeptHead = $user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']);
+
+        if (!$isDivHead && !$isDeptHead) {
+            return false;
+        }
+
+        if ($isDivHead) {
+            return true;
+        }
+
+        if ($isDeptHead) {
+            if (!$isGol4Up) {
+                return true;
+            }
+            $hasDivHeadApprover = !empty($karyawan['nrp_div_head']) || !empty($dokumen['nrp_div_head']);
+            return !$hasDivHeadApprover;
+        }
+
+        return false;
+    }
+
+    /**
      * Determine whether the given user is currently authorized to evaluate/fill scores & comments for this document.
      */
     private function isUserTurnToEvaluate(User $user, array $dokumen, array $karyawan): bool
@@ -3404,6 +3471,55 @@ class PenilaianController extends Controller
 
         $status = $dokumen['status'] ?? 'draft';
         $hasForeman = !empty($karyawan['nrp_foreman']);
+        $kodeForm = $dokumen['kode_form'] ?? '';
+        $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+
+        // Jika dokumen tidak dalam status 'revisi' dan dokumen sudah tersimpan,
+        // periksa apakah user saat ini telah menandatangani di level perannya.
+        // Jika sudah bertanda tangan, gilirannya telah selesai dan form terkunci (read-only).
+        if ($status !== 'revisi' && !empty($dokumen['id'])) {
+            $signedLevels = DB::table('tanda_tangan')->where('dokumen_id', $dokumen['id'])->pluck('level')->toArray();
+            
+            if ($user->isForeman()) {
+                if (in_array('foreman', $signedLevels)) {
+                    return false;
+                }
+            } elseif ($user->isSectionHead()) {
+                if ($dokumen['nrp'] === $user->nrp || $isGol4Up) {
+                    if (in_array('foreman', $signedLevels)) {
+                        return false;
+                    }
+                } else {
+                    if (in_array('section_head', $signedLevels)) {
+                        return false;
+                    }
+                }
+            } elseif ($user->isDepartmentHead()) {
+                if ($dokumen['nrp'] === $user->nrp) {
+                    if (in_array('foreman', $signedLevels)) {
+                        return false;
+                    }
+                } elseif ($isGol4Up) {
+                    if (in_array('section_head', $signedLevels)) {
+                        return false;
+                    }
+                } else {
+                    if (in_array('dept_head', $signedLevels)) {
+                        return false;
+                    }
+                }
+            } elseif ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
+                if ($dokumen['nrp'] === $user->nrp) {
+                    if (in_array('foreman', $signedLevels)) {
+                        return false;
+                    }
+                } else {
+                    if (in_array('dept_head', $signedLevels) && $status === 'selesai') {
+                        return false;
+                    }
+                }
+            }
+        }
 
         // Check Foreman: can only evaluate if employee has a foreman AND status is menunggu_foreman/draft/revisi, OR if self evaluation
         if ($user->isForeman()) {
@@ -4073,8 +4189,36 @@ class PenilaianController extends Controller
         }
 
         $karyawanRevisi = $this->repository->find('karyawan', 'nrp', $dokumen['nrp']);
+        if (!$karyawanRevisi) {
+            abort(404, 'Data karyawan tidak ditemukan.');
+        }
         $isGol4UpRevisi = in_array($dokumen['kode_form'] ?? '', ['07-006-SH', '07-006-DH', '07-006-DIV']);
         $hasForeman = !empty($karyawanRevisi['nrp_foreman']);
+
+        // STRICT ACCESS CONTROL:
+        // 1. Karyawan Ybs (Penilaian Mandiri) atau Penilai Pertama (Foreman pada form standar) TIDAK DAPAT mengembalikan revisi dokumen secara langsung.
+        //    Revisi bagi Penilai Pertama / Mandiri harus diajukan ke Admin / Superadmin melalui /admin/revisi-penilaian.
+        $isPenilaiPertama = ($user->isForeman() && !$user->isSectionHead() && !$user->isDepartmentHead() && !$user->isDivisionHead())
+            || (strcasecmp($dokumen['nrp'], $user->nrp) === 0);
+
+        if ($isPenilaiPertama && !$user->isAdmin() && !$user->isSuperadmin()) {
+            abort(403, 'Akses Ditolak: Penilai Pertama / Penilaian Mandiri tidak dapat mengembalikan dokumen penilaian secara mandiri. Jika terdapat kesalahan pengisian nilai, silakan ajukan permohonan revisi melalui Administrator / Superadmin.');
+        }
+
+        // 2. Jika dokumen sudah berstatus 'selesai', HANYA Penilai Akhir atau Admin yang dapat memproses revisi:
+        if (($dokumen['status'] ?? '') === 'selesai' && !self::isUserPenilaiAkhir($user, $dokumen, $karyawanRevisi)) {
+            abort(403, 'Akses Ditolak: Dokumen yang telah selesai hanya dapat direvisi oleh Penilai Akhir atau Administrator / Superadmin.');
+        }
+
+        // 3. Jika dokumen sedang berjalan, hanya evaluator pada giliran aktif atau penilai akhir yang dapat mengembalikan:
+        $isAuthorized = $user->isAdmin() 
+            || $user->isSuperadmin() 
+            || self::isUserPenilaiAkhir($user, $dokumen, $karyawanRevisi) 
+            || $this->isUserTurnToEvaluate($user, $dokumen, $karyawanRevisi);
+
+        if (!$isAuthorized) {
+            abort(403, 'Akses Ditolak: Anda tidak memiliki wewenang untuk merevisi dokumen ini.');
+        }
 
         $targetLevel = $request->input('target_level');
         if (!$targetLevel) {
@@ -4211,16 +4355,17 @@ class PenilaianController extends Controller
         $kodeForm = $dokumen['kode_form'] ?? '';
         $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
         $isSelf = (strcasecmp($dokumen['nrp'], $user->nrp) === 0);
-
-        // Security Guard: Pada Form 07-006 yang telah selesai, Department Head bukan penilai akhir (kecuali tanpa Division Head).
-        // Hanya Penilai Akhir (Division Head) atau Administrator yang berwenang membuka kembali revisi.
         $isAdmin = $user->isAdmin() || $user->isSuperadmin();
-        $isDivHead = $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']);
-        $isDeptHead = $user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']);
-        $hasDivHeadApprover = !empty($karyawan['nrp_div_head']) || !empty($dokumen['nrp_div_head']);
 
-        if (($dokumen['status'] ?? '') === 'selesai' && $isGol4Up && $isDeptHead && !$isAdmin && !$isDivHead && $hasDivHeadApprover) {
-            abort(403, 'Anda bukan penilai akhir untuk formulir 07-006 ini. Pembukaan revisi dokumen yang telah selesai hanya dapat dilakukan oleh Penilai Akhir (Division Head) atau Administrator.');
+        // STRICT ACCESS CONTROL: HANYA Penilai Akhir atau Administrator / Superadmin yang dapat membuka kembali dokumen yang sudah selesai!
+        // Penilai 1 (Foreman / Mandiri) dan Penilai 2 (Section Head) TIDAK BISA membuka revisi sendiri.
+        // Jika mereka butuh revisi nilai, wajib diajukan dan diproses melalui Administrator / Superadmin (/admin/revisi-penilaian).
+        if (!self::isUserPenilaiAkhir($user, $dokumen, $karyawan)) {
+            abort(403, 'Akses Ditolak: Anda bukan Penilai Akhir untuk dokumen ini. Pembukaan revisi dokumen yang telah diserahkan / selesai hanya dapat dilakukan oleh Penilai Akhir (Department Head untuk Form Standar, Division Head untuk Form 07-006) atau melalui Administrator / Superadmin pada menu Revisi Penilaian.');
+        }
+
+        if ($isSelf && !$isAdmin) {
+            abort(403, 'Akses Ditolak: Karyawan yang dinilai tidak dapat membuka revisi dokumen mandiri secara langsung. Silakan hubungi Administrator untuk mengajukan revisi.');
         }
 
         // 1. Determine new status and target signature to invalidate

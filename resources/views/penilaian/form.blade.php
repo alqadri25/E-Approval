@@ -520,37 +520,70 @@
         $isUserDeptHead = Auth::user()->isDepartmentHead() || in_array(Auth::user()->role, ['dept_head', 'department_head']);
         $hasDivHeadApprover = !empty($karyawan['nrp_div_head']) || !empty($dokumen['nrp_div_head']);
 
-        // Penilai Akhir / Final Evaluator check:
-        // - Superadmin / Admin selalu berwenang
-        // - Division Head selalu merupakan penilai akhir (baik Form Standar maupun Form 07-006)
-        // - Department Head adalah penilai akhir untuk Form Standar (KJ 1-5).
-        // - Untuk Form 07-006 (Section Head/Dept Head), Department Head BUKAN penilai akhir KECUALI tidak ada Division Head. Jika ada Division Head, penilai akhirnya adalah Division Head.
-        $isPenilaiAkhir = $isUserAdmin 
-            || $isUserDivHead 
-            || (!$isGol4Up && $isUserDeptHead) 
-            || ($isGol4Up && $isUserDeptHead && !$hasDivHeadApprover);
+        $isPenilaiAkhir = $isPenilaiAkhir ?? \App\Http\Controllers\PenilaianController::isUserPenilaiAkhir(Auth::user(), $dokumen, $karyawan);
     @endphp
-    @if($dokumen['status'] === 'selesai' && $isPenilaiAkhir)
-    <div class="no-print bg-emerald-50 border-2 border-emerald-400 rounded-none p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs mb-3">
-        <div class="flex items-center gap-2.5">
-            <span class="text-xl">✅</span>
+    @if($dokumen['status'] === 'selesai')
+        @if($isPenilaiAkhir)
+        <div class="no-print bg-emerald-50 border-2 border-emerald-400 rounded-none p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs mb-3">
+            <div class="flex items-center gap-2.5">
+                <span class="text-xl">✅</span>
+                <div>
+                    <h4 class="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                        Dokumen Penilaian Ini Telah Selesai &amp; Ditandatangani Lengkap
+                    </h4>
+                    <p class="text-[11.5px] text-emerald-800 mt-0.5">
+                        Seluruh penilaian dan tanda tangan digital telah tervalidasi. Jika Anda ingin melakukan perbaikan nilai atau merevisi penilaian, silakan klik tombol di samping.
+                    </p>
+                </div>
+            </div>
+            <div class="flex-shrink-0">
+                <form method="POST" action="{{ route('penilaian.bukaRevisi', $dokumen['id']) }}" onsubmit="return confirm('Apakah Anda yakin ingin merevisi dokumen penilaian ini? Dokumen akan dibuka kembali sehingga Anda dapat mengisi dan mengubah penilaian lagi.')">
+                    @csrf
+                    <button type="submit" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-none shadow-sm inline-flex items-center gap-1.5 transition cursor-pointer">
+                        <span>✏️</span>
+                        <span>Ingin merevisi? Klik untuk Isi Lagi</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        @else
+        <!-- Informasi Dokumen Selesai untuk Non-Penilai Akhir (Foreman, Section Head, Gol 4 Non Kasie, Penilaian Mandiri): Terkunci Read-Only -->
+        <div class="no-print bg-slate-50 border border-slate-300 rounded-none p-3.5 flex items-center gap-2.5 shadow-2xs mb-3">
+            <span class="text-lg">🔒</span>
             <div>
-                <h4 class="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide">
                     Dokumen Penilaian Ini Telah Selesai &amp; Ditandatangani Lengkap
                 </h4>
-                <p class="text-[11.5px] text-emerald-800 mt-0.5">
-                    Seluruh penilaian dan tanda tangan digital telah tervalidasi. Jika Anda ingin melakukan perbaikan nilai atau merevisi penilaian, silakan klik tombol di samping.
+                <p class="text-[11px] text-slate-600 mt-0.5">
+                    Seluruh penilaian dan tanda tangan digital telah tervalidasi secara permanen. Perubahan atau revisi nilai untuk peran Anda hanya dapat dilakukan setelah konfirmasi dan persetujuan <strong>Administrator / Superadmin</strong> (Menu Revisi Penilaian).
                 </p>
             </div>
         </div>
-        <div class="flex-shrink-0">
-            <form method="POST" action="{{ route('penilaian.bukaRevisi', $dokumen['id']) }}" onsubmit="return confirm('Apakah Anda yakin ingin merevisi dokumen penilaian ini? Dokumen akan dibuka kembali sehingga Anda dapat mengisi dan mengubah penilaian lagi.')">
-                @csrf
-                <button type="submit" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-none shadow-sm inline-flex items-center gap-1.5 transition cursor-pointer">
-                    <span>✏️</span>
-                    <span>Ingin merevisi? Klik untuk Isi Lagi</span>
-                </button>
-            </form>
+        @endif
+    @elseif($isSelfDoc && !empty($ttdByLevel['foreman']))
+    <!-- Informasi Tahap Berjalan untuk Penilaian Mandiri yang Sudah Menandatangani -->
+    <div class="no-print bg-sky-50 border border-sky-300 rounded-none p-3.5 flex items-center gap-2.5 shadow-2xs mb-3">
+        <span class="text-lg">📋</span>
+        <div>
+            <h4 class="text-xs font-bold text-sky-950 uppercase tracking-wide">
+                Penilaian Mandiri Telah Diserahkan
+            </h4>
+            <p class="text-[11px] text-sky-800 mt-0.5">
+                Evaluasi mandiri telah berhasil Anda tanda tangani dan diteruskan ke Atasan Langsung. Formulir saat ini berstatus <strong>Read-Only</strong>. Untuk perbaikan nilai, silakan ajukan permohonan ke Administrator.
+            </p>
+        </div>
+    </div>
+    @elseif(Auth::user()?->isForeman() && !$isSelfDoc && !empty($ttdByLevel['foreman']))
+    <!-- Informasi untuk Foreman yang Sudah Menandatangani Subordinat -->
+    <div class="no-print bg-sky-50 border border-sky-300 rounded-none p-3.5 flex items-center gap-2.5 shadow-2xs mb-3">
+        <span class="text-lg">📋</span>
+        <div>
+            <h4 class="text-xs font-bold text-sky-950 uppercase tracking-wide">
+                Penilaian Foreman Telah Diserahkan
+            </h4>
+            <p class="text-[11px] text-sky-800 mt-0.5">
+                Penilaian telah berhasil Anda tanda tangani dan diteruskan ke tahap berikutnya (Read-Only). Untuk perbaikan nilai, silakan hubungi Administrator.
+            </p>
         </div>
     </div>
     @endif
