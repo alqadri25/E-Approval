@@ -44,6 +44,9 @@
     $currentUserSignatureUrl = Auth::user()?->signature_url;
     $hasUserSignature = Auth::user()?->hasSignature() ?? false;
     $officialFallbackSvg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri(Auth::user()->nama, Auth::user()->role, Auth::user()->nrp);
+    $canViewForeman = $canViewForeman ?? true;
+    $canViewSectionHead = $canViewSectionHead ?? true;
+    $canViewDeptHead = $canViewDeptHead ?? true;
 @endphp
 
 <div x-data="penilaianApp()" class="max-w-[1300px] mx-auto space-y-5">
@@ -1135,8 +1138,8 @@
                                                 </button>
                                             </div>
                                         @else
-                                            @if($isTanpaForemanStd && !$showForemanData)
-                                                &nbsp;
+                                            @if(!$canViewForeman || ($isTanpaForemanStd && !$showForemanData))
+                                                <span class="font-bold font-mono text-sm text-slate-400">-</span>
                                             @else
                                                 <span class="font-bold font-mono text-sm text-slate-900">
                                                     {{ isset($scoresByLevel['foreman'][$aspectCode]) ? number_format($scoresByLevel['foreman'][$aspectCode], 0) : '-' }}
@@ -1196,9 +1199,13 @@
                                                 </button>
                                             </div>
                                         @else
-                                            <span class="font-bold font-mono text-sm text-slate-900">
-                                                {{ isset($scoresByLevel['section_head'][$aspectCode]) ? number_format($scoresByLevel['section_head'][$aspectCode], 0) : '-' }}
-                                            </span>
+                                            @if(!$canViewSectionHead)
+                                                <span class="font-bold font-mono text-sm text-slate-400">-</span>
+                                            @else
+                                                <span class="font-bold font-mono text-sm text-slate-900">
+                                                    {{ isset($scoresByLevel['section_head'][$aspectCode]) ? number_format($scoresByLevel['section_head'][$aspectCode], 0) : '-' }}
+                                                </span>
+                                            @endif
                                         @endif
                                     </td>
                                     @endif
@@ -1250,9 +1257,13 @@
                                                 </button>
                                             </div>
                                         @else
-                                            <span class="font-bold font-mono text-sm text-slate-900">
-                                                {{ isset($scoresByLevel['dept_head'][$aspectCode]) ? number_format($scoresByLevel['dept_head'][$aspectCode], 0) : '-' }}
-                                            </span>
+                                            @if(!$canViewDeptHead)
+                                                <span class="font-bold font-mono text-sm text-slate-400">-</span>
+                                            @else
+                                                <span class="font-bold font-mono text-sm text-slate-900">
+                                                    {{ isset($scoresByLevel['dept_head'][$aspectCode]) ? number_format($scoresByLevel['dept_head'][$aspectCode], 0) : '-' }}
+                                                </span>
+                                            @endif
                                         @endif
                                     </td>
 
@@ -1268,29 +1279,49 @@
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono font-bold text-slate-900">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @endif
                                     </td>
                                     @elseif($subFormVariant === 'dept_head')
                                     <td class="border-r border-slate-900 p-1 text-center font-mono font-bold text-slate-900">
-                                        <span x-text="totalsForeman['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @if(!$canViewForeman)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsForeman['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @endif
                                     </td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono font-bold text-slate-900">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @endif
                                     </td>
                                     @else
                                     <td class="border-r border-slate-900 p-1 text-center font-mono font-bold text-slate-900">
-                                        @if($isTanpaForemanStd && !$canEditForeman && !$showForemanData)
-                                            &nbsp;
+                                        @if(!$canViewForeman || ($isTanpaForemanStd && !$canEditForeman && !$showForemanData))
+                                            <span class="text-slate-400 font-normal">-</span>
                                         @else
                                             <span x-text="totalsForeman['{{ $groupKey }}']?.sum ?? '0'">0</span>
                                         @endif
                                     </td>
                                     <td class="border-r border-slate-900 p-1 text-center font-mono font-bold text-slate-900">
-                                        <span x-text="totalsSectionHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @if(!$canViewSectionHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsSectionHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @endif
                                     </td>
                                     <td class="p-1 text-center font-mono font-bold text-slate-900">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @endif
                                     </td>
                                     @endif
                                 </tr>
@@ -1321,29 +1352,49 @@
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono text-slate-900">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     @elseif($subFormVariant === 'dept_head')
                                     <td class="border-r border-slate-900 p-1 text-center font-mono text-slate-900">
-                                        <span x-text="totalsForeman['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @if(!$canViewForeman)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsForeman['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono text-slate-900">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     @else
                                     <td class="border-r border-slate-900 p-1 text-center font-mono text-slate-900">
-                                        @if($isTanpaForemanStd && !$canEditForeman && !$showForemanData)
-                                            &nbsp;
+                                        @if(!$canViewForeman || ($isTanpaForemanStd && !$canEditForeman && !$showForemanData))
+                                            <span class="text-slate-400 font-normal">-</span>
                                         @else
                                             <span x-text="totalsForeman['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
                                         @endif
                                     </td>
                                     <td class="border-r border-slate-900 p-1 text-center font-mono text-slate-900">
-                                        <span x-text="totalsSectionHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @if(!$canViewSectionHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsSectionHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     <td class="p-1 text-center font-mono text-slate-900">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     @endif
                                 </tr>
@@ -1357,29 +1408,49 @@
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     @elseif($subFormVariant === 'dept_head')
                                     <td class="border-r border-slate-900 p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
-                                        <span x-text="totalsForeman['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @if(!$canViewForeman)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsForeman['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     @else
                                     <td class="border-r border-slate-900 p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
-                                        @if($isTanpaForemanStd && !$canEditForeman && !$showForemanData)
-                                            &nbsp;
+                                        @if(!$canViewForeman || ($isTanpaForemanStd && !$canEditForeman && !$showForemanData))
+                                            <span class="text-slate-400 font-normal">-</span>
                                         @else
                                             <span x-text="totalsForeman['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
                                         @endif
                                     </td>
                                     <td class="border-r border-slate-900 p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
-                                        <span x-text="totalsSectionHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @if(!$canViewSectionHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsSectionHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     <td class="p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
-                                        <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @endif
                                     </td>
                                     @endif
                                 </tr>
@@ -2711,35 +2782,35 @@ function penilaianApp() {
         getActiveWeighted(groupKey) {
             let lvl = '{{ $activeLevel }}';
             let val = null;
-            if (lvl === 'dept_head') val = this.totalsDeptHead[groupKey]?.weighted;
-            else if (lvl === 'section_head') val = this.totalsSectionHead[groupKey]?.weighted;
-            else if (lvl === 'foreman') val = this.totalsForeman[groupKey]?.weighted;
+            if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) val = this.totalsDeptHead[groupKey]?.weighted;
+            else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) val = this.totalsSectionHead[groupKey]?.weighted;
+            else if (lvl === 'foreman' && {{ $canViewForeman ? 'true' : 'false' }}) val = this.totalsForeman[groupKey]?.weighted;
 
             if (val !== undefined && val !== null && val !== '' && val !== '0.00') {
                 return val;
             }
 
-            // Fallback: highest level with value > 0
-            if (parseFloat(this.totalsDeptHead[groupKey]?.weighted || 0) > 0) return this.totalsDeptHead[groupKey].weighted;
-            if (parseFloat(this.totalsSectionHead[groupKey]?.weighted || 0) > 0) return this.totalsSectionHead[groupKey].weighted;
-            if (parseFloat(this.totalsForeman[groupKey]?.weighted || 0) > 0) return this.totalsForeman[groupKey].weighted;
+            // Fallback: highest level with value > 0 that this user is permitted to view
+            if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.totalsDeptHead[groupKey]?.weighted || 0) > 0) return this.totalsDeptHead[groupKey].weighted;
+            if ({{ $canViewSectionHead ? 'true' : 'false' }} && parseFloat(this.totalsSectionHead[groupKey]?.weighted || 0) > 0) return this.totalsSectionHead[groupKey].weighted;
+            if ({{ $canViewForeman ? 'true' : 'false' }} && parseFloat(this.totalsForeman[groupKey]?.weighted || 0) > 0) return this.totalsForeman[groupKey].weighted;
             return '0.00';
         },
 
         getActiveGrandTotal() {
             let lvl = '{{ $activeLevel }}';
             let grand = null;
-            if (lvl === 'dept_head') grand = this.grandTotalDeptHead;
-            else if (lvl === 'section_head') grand = this.grandTotalSectionHead;
-            else if (lvl === 'foreman') grand = this.grandTotalForeman;
+            if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) grand = this.grandTotalDeptHead;
+            else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) grand = this.grandTotalSectionHead;
+            else if (lvl === 'foreman' && {{ $canViewForeman ? 'true' : 'false' }}) grand = this.grandTotalForeman;
 
             if (grand !== undefined && grand !== null && grand !== '' && grand !== '0.00') {
                 return grand;
             }
 
-            if (parseFloat(this.grandTotalDeptHead || 0) > 0) return this.grandTotalDeptHead;
-            if (parseFloat(this.grandTotalSectionHead || 0) > 0) return this.grandTotalSectionHead;
-            if (parseFloat(this.grandTotalForeman || 0) > 0) return this.grandTotalForeman;
+            if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.grandTotalDeptHead || 0) > 0) return this.grandTotalDeptHead;
+            if ({{ $canViewSectionHead ? 'true' : 'false' }} && parseFloat(this.grandTotalSectionHead || 0) > 0) return this.grandTotalSectionHead;
+            if ({{ $canViewForeman ? 'true' : 'false' }} && parseFloat(this.grandTotalForeman || 0) > 0) return this.grandTotalForeman;
             return '0.00';
         },
 

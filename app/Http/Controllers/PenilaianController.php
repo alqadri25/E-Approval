@@ -1174,6 +1174,115 @@ class PenilaianController extends Controller
     }
 
     /**
+     * Resolve hierarchical score privacy/visibility per role and viewer.
+     * Enforces that lower tiers / evaluated employees cannot view higher-tier evaluations.
+     *
+     * Rules:
+     * 1. Self-evaluation ($isSelfDoc): User can ONLY view their own Mandiri score. Superior evaluations are HIDDEN.
+     * 2. Foreman viewing subordinate: Foreman can ONLY view Foreman score. Section Head & Dept Head are HIDDEN.
+     * 3. Section Head viewing subordinate: Section Head can view Foreman & Section Head scores. Dept Head is HIDDEN.
+     * 4. Department Head viewing subordinate:
+     *    - On Form 07-006: Dept Head can view Mandiri (subordinate) & Dept Head score. Div Head score is HIDDEN.
+     *    - On Standard Forms: Dept Head is final evaluator, can view Foreman, Section Head, and Dept Head.
+     * 5. Division Head viewing subordinate: Can view all scores.
+     * 6. Admin / Superadmin: Can view all scores.
+     */
+    public static function resolveScoreVisibility(?User $user, array $dokumen, array $karyawan): array
+    {
+        if (!$user || $user->isSuperadmin() || $user->isAdmin()) {
+            return [
+                'can_view_foreman' => true,
+                'can_view_section_head' => true,
+                'can_view_dept_head' => true,
+            ];
+        }
+
+        $isSelfDoc = (strcasecmp($dokumen['nrp'] ?? '', $user->nrp ?? '') === 0);
+        $kodeForm = $dokumen['kode_form'] ?? ($karyawan['kode_form'] ?? '07-001');
+        $isGol4Up = self::isForm07006($kodeForm);
+        $subFormVariant = null;
+        if ($isGol4Up) {
+            if ($kodeForm === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION')) {
+                $subFormVariant = 'div_head';
+            } elseif ($kodeForm === '07-006-DH' || ($karyawan['level_form'] ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPARTMENT') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPT HEAD')) {
+                $subFormVariant = 'dept_head';
+            } else {
+                $subFormVariant = 'section_head';
+            }
+        }
+
+        // 1. DIRI SENDIRI / MANDIRI
+        // "YANG MANDIRI HANYA NILAI MANDIRI YANG BISA DILIHAT DIFORM"
+        if ($isSelfDoc) {
+            if ($subFormVariant === 'div_head') {
+                return [
+                    'can_view_foreman' => false,
+                    'can_view_section_head' => false,
+                    'can_view_dept_head' => true,
+                ];
+            }
+            return [
+                'can_view_foreman' => true,
+                'can_view_section_head' => false,
+                'can_view_dept_head' => false,
+            ];
+        }
+
+        // 2. DIVISION HEAD MENILAI BAWAHAN
+        if ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
+            return [
+                'can_view_foreman' => true,
+                'can_view_section_head' => true,
+                'can_view_dept_head' => true,
+            ];
+        }
+
+        // 3. DEPARTMENT HEAD MENILAI BAWAHAN
+        // "DEPARTEMEN HEAD BISA MENIAI BAWAHNNYA, KALAU MASIH SATU OPENILAI DAN DIRINYA SENDIRI MAKA HANYA ITU NILAI YANG BISA DILIHAT"
+        if ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
+            if ($isGol4Up) {
+                // Di Form 07-006: slot foreman = Mandiri, slot section_head = Dept Head, slot dept_head = Div Head
+                return [
+                    'can_view_foreman' => true,
+                    'can_view_section_head' => true,
+                    'can_view_dept_head' => false,
+                ];
+            }
+            return [
+                'can_view_foreman' => true,
+                'can_view_section_head' => true,
+                'can_view_dept_head' => true,
+            ];
+        }
+
+        // 4. SECTION HEAD MENILAI BAWAHAN
+        // "JADI UNTUK NILAI MISAL SECTION HEAD YAH HANYA SECTION HEAD ATAU YANG BAWAHANNYA BISA DINILAI"
+        if ($user->isSectionHead() || in_array($user->role, ['section_head', 'sechead'])) {
+            return [
+                'can_view_foreman' => true,
+                'can_view_section_head' => true,
+                'can_view_dept_head' => false,
+            ];
+        }
+
+        // 5. FOREMAN MENILAI BAWAHAN
+        if ($user->isForeman() || in_array($user->role, ['foreman'])) {
+            return [
+                'can_view_foreman' => true,
+                'can_view_section_head' => false,
+                'can_view_dept_head' => false,
+            ];
+        }
+
+        // Default: non-leader / staff viewing someone else's document
+        return [
+            'can_view_foreman' => false,
+            'can_view_section_head' => false,
+            'can_view_dept_head' => false,
+        ];
+    }
+
+    /**
      * Determine whether an employee/document record is exempt from target quota limits
      * because it uses Form 07-006 (Section Head / Dept Head / Division Head).
      */
@@ -2540,6 +2649,43 @@ class PenilaianController extends Controller
             }
         }
 
+        // 9b. HIERARCHICAL PRIVACY & CONFIDENTIALITY ENFORCEMENT
+        // Berlaku meskipun status sudah selesai: bawahan / mandiri tidak boleh melihat nilai atasan,
+        // penilai bawah tidak boleh melihat nilai penilai atas.
+        $visibility = self::resolveScoreVisibility($user, $dokumen, $karyawan);
+        $canViewForeman = $visibility['can_view_foreman'];
+        $canViewSectionHead = $visibility['can_view_section_head'];
+        $canViewDeptHead = $visibility['can_view_dept_head'];
+
+        if (!$canViewForeman) {
+            $scoresByLevel['foreman'] = [];
+        }
+        if (!$canViewSectionHead) {
+            $scoresByLevel['section_head'] = [];
+        }
+        if (!$canViewDeptHead) {
+            $scoresByLevel['dept_head'] = [];
+        }
+
+        // Recalculate level totals strictly for permitted visible scores
+        $calcForeman = $this->calcService->calculate($kodeForm, $scoresByLevel['foreman']);
+        $calcSectionHead = $this->calcService->calculate($kodeForm, $scoresByLevel['section_head']);
+        $calcDeptHead = $this->calcService->calculate($kodeForm, $scoresByLevel['dept_head']);
+
+        $isSelfDoc = (strcasecmp($dokumen['nrp'] ?? '', $user->nrp ?? '') === 0);
+        if ($isSelfDoc) {
+            $dokumen['total_nilai'] = !empty($calcForeman['grand_total']) ? $calcForeman['grand_total'] : null;
+            $dokumen['grade_original'] = !empty($calcForeman['grand_total']) ? $this->calcService->scoreToGrade($calcForeman['grand_total']) : null;
+            $dokumen['docking_final'] = null;
+        } elseif (!$canViewDeptHead && !$user->isAdmin()) {
+            $dokumen['docking_final'] = null;
+            if (empty($dokumen['total_nilai'])) {
+                $chosenScore = !empty($calcSectionHead['grand_total']) ? $calcSectionHead['grand_total'] : ($calcForeman['grand_total'] ?? 0);
+                $dokumen['total_nilai'] = $chosenScore > 0 ? $chosenScore : null;
+                $dokumen['grade_original'] = $chosenScore > 0 ? $this->calcService->scoreToGrade($chosenScore) : null;
+            }
+        }
+
         // 10. Determine Role Permissions for Editing
         $isDirectSubordinate = (!empty($karyawan['nrp_section_head']) && strcasecmp($karyawan['nrp_section_head'], $user->nrp) === 0)
             || ($user->isSectionHead() && $user->matchesSectionHeadScope($karyawan));
@@ -2856,7 +3002,10 @@ class PenilaianController extends Controller
             'kjOtherUsage',
             'isDivHeadViewer',
             'quotaScopeLabel',
-            'penyesuaianRoute'
+            'penyesuaianRoute',
+            'canViewForeman',
+            'canViewSectionHead',
+            'canViewDeptHead'
         ));
     }
 
@@ -4633,6 +4782,19 @@ class PenilaianController extends Controller
             }
         }
 
+        if ($user) {
+            $visibility = self::resolveScoreVisibility($user, $dokumen, $karyawan);
+            if (!$visibility['can_view_foreman']) {
+                $scoresByLevel['foreman'] = [];
+            }
+            if (!$visibility['can_view_section_head']) {
+                $scoresByLevel['section_head'] = [];
+            }
+            if (!$visibility['can_view_dept_head']) {
+                $scoresByLevel['dept_head'] = [];
+            }
+        }
+
         if (isset($sharedAssets['formSettings'])) {
             $formSettings = $sharedAssets['formSettings'];
         } else {
@@ -4664,6 +4826,14 @@ class PenilaianController extends Controller
         // Determine active calculation for bottom equation
         $calcActive = $calcDeptHead['grand_total'] > 0 ? $calcDeptHead :
                      ($calcSectionHead['grand_total'] > 0 ? $calcSectionHead : $calcForeman);
+
+        $isSelfDocPdf = $user && (strcasecmp($dokumen['nrp'] ?? '', $user->nrp ?? '') === 0);
+        if ($isSelfDocPdf) {
+            $dokumen['total_nilai'] = !empty($calcForeman['grand_total']) ? $calcForeman['grand_total'] : null;
+            $dokumen['grade_original'] = !empty($calcForeman['grand_total']) ? $this->calcService->scoreToGrade($calcForeman['grand_total']) : null;
+            $dokumen['docking_final'] = null;
+            $calcActive = $calcForeman;
+        }
 
         $dbIndikator = DB::table('indikator')->where('dokumen_id', $id)->first();
         $indikator = $dbIndikator ? (array)$dbIndikator : ($this->repository->find('indikator', 'dokumen_id', $id) ?? [
