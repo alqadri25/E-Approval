@@ -164,7 +164,7 @@
 
             @if($canEditSectionHead && !$isTanpaForemanStd)
             <button type="button" @click="copyForemanScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor sebagai acuan dasar (dapat Anda modifikasi)">
-                <span>📋</span> {{ $isGol4Up ? 'Sama dg Section Head' : 'Sama dg Foreman' }}
+                <span>📋</span> {{ $isGol4Up ? 'Sama dg Mandiri' : 'Sama dg Foreman' }}
             </button>
             @elseif($canEditDeptHead)
             <button type="button" @click="copySectionHeadScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor sebagai acuan dasar (dapat Anda modifikasi)">
@@ -199,8 +199,7 @@
                 </button>
                 @elseif($subFormVariant === 'section_head')
                 @php
-                    $isSelfDoc = ($dokumen['nrp'] === Auth::user()?->nrp);
-                    $btnSignTitle = $isSelfDoc ? 'Section Head (Mandiri)' : 'Section Head (Penilai 1)';
+                    $btnSignTitle = 'Mandiri / 自分';
                 @endphp
                 <button type="button" @click="openSignModal('foreman', '{{ $btnSignTitle }}')" class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 transition-all whitespace-nowrap flex-shrink-0">
                     <span>🔏</span> Kirim
@@ -607,8 +606,7 @@
             
             $col1Title = match($subFormVariant) {
                 'div_head' => '',
-                'dept_head' => 'Mandiri / 自分',
-                'section_head' => ($isSubordinate07006 ? 'Section Head / Penilai 1' : 'Mandiri / 自分'),
+                'dept_head', 'section_head' => 'Mandiri / 自分',
                 default => 'Foreman (jika ada)',
             };
             $col2Title = match($subFormVariant) {
@@ -2854,9 +2852,7 @@ function penilaianApp() {
             } else if (this.subFormVariant === 'dept_head' && this.signLevel === 'foreman') {
                 return 'Setelah Anda menandatangani formulir evaluasi mandiri ini, status akan otomatis berpindah ke "Menunggu Div Head" dan langsung masuk ke dashboard Division Head.';
             } else if (this.subFormVariant === 'section_head' && this.signLevel === 'foreman') {
-                return this.isSelfAssessment 
-                    ? 'Setelah Anda menandatangani formulir evaluasi mandiri Section Head ini, status akan otomatis berpindah ke "Menunggu Dept Head" dan langsung masuk ke dashboard Department Head.'
-                    : 'Setelah Anda menandatangani formulir penilaian Section Head ini, status akan otomatis berpindah ke "Menunggu Dept Head" dan langsung masuk ke dashboard Department Head.';
+                return 'Setelah Anda menandatangani formulir evaluasi mandiri ini, status akan otomatis berpindah ke "Menunggu Dept Head" dan langsung masuk ke dashboard Department Head.';
             } else if (this.subFormVariant === 'section_head' && this.signLevel === 'section_head') {
                 return 'Setelah Anda menandatangani formulir Section Head ini, status akan otomatis berpindah ke "Menunggu Div Head" untuk persetujuan akhir Division Head.';
             } else if (this.signLevel === 'foreman') {

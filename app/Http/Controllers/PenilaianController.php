@@ -2119,37 +2119,28 @@ class PenilaianController extends Controller
 
                 // Resolve from employee hierarchical NRP fields
                 if ($level === 'foreman') {
-                    if ($isSubordinate07006) {
-                        $signerNrp = $karyawan['nrp_section_head'] ?? null;
-                        $signerName = $karyawan['section_head_nama'] ?? null;
-                        $signerRole = 'section_head';
-                    } elseif ($isGol4Up) {
+                    if ($isGol4Up) {
                         $signerNrp = $karyawan['nrp'] ?? null;
-                        $signerName = $karyawan['nama_lengkap'] ?? null;
+                        $signerName = $karyawan['nama_lengkap'] ?? ($karyawan['nama'] ?? null);
+                        $signerRole = 'mandiri';
                     } else {
                         $signerNrp = $karyawan['nrp_foreman'] ?? null;
                         $signerName = $karyawan['foreman_nama'] ?? null;
                     }
                 } elseif ($level === 'section_head') {
-                    if ($isSubordinate07006) {
+                    if ($isGol4Up) {
                         $signerNrp = $karyawan['nrp_dept_head'] ?? null;
                         $signerName = $karyawan['dept_head_nama'] ?? null;
                         $signerRole = 'dept_head';
-                    } elseif ($isGol4Up) {
-                        $signerNrp = $isSectionHeadRole ? ($karyawan['nrp_dept_head'] ?? null) : ($karyawan['nrp_section_head'] ?? $karyawan['nrp_dept_head'] ?? null);
-                        $signerName = $isSectionHeadRole ? ($karyawan['dept_head_nama'] ?? null) : ($karyawan['section_head_nama'] ?? $karyawan['dept_head_nama'] ?? null);
                     } else {
                         $signerNrp = $karyawan['nrp_section_head'] ?? null;
                         $signerName = $karyawan['section_head_nama'] ?? null;
                     }
                 } elseif ($level === 'dept_head') {
-                    if ($isSubordinate07006) {
+                    if ($isGol4Up) {
                         $signerNrp = $karyawan['nrp_div_head'] ?? null;
                         $signerName = $karyawan['div_head_nama'] ?? null;
                         $signerRole = 'div_head';
-                    } elseif ($isGol4Up) {
-                        $signerNrp = $isSectionHeadRole ? ($karyawan['nrp_div_head'] ?? null) : ($karyawan['nrp_dept_head'] ?? $karyawan['nrp_div_head'] ?? null);
-                        $signerName = $isSectionHeadRole ? ($karyawan['div_head_nama'] ?? null) : ($karyawan['dept_head_nama'] ?? $karyawan['div_head_nama'] ?? null);
                     } else {
                         $signerNrp = $karyawan['nrp_dept_head'] ?? null;
                         $signerName = $karyawan['dept_head_nama'] ?? null;
@@ -2176,9 +2167,9 @@ class PenilaianController extends Controller
 
             // Fallback display names if still blank
             $defaultRoleLabels = [
-                'foreman' => ($isSubordinate07006 ?? false ? 'Section Head / Penilai 1' : 'Foreman (Penilai 1)'),
-                'section_head' => ($isSubordinate07006 ?? false ? 'Department Head' : 'Section Head'),
-                'dept_head' => ($isSubordinate07006 ?? false ? 'Division Head' : 'Department Head'),
+                'foreman' => ($isGol4Up ? 'Mandiri / 自分' : 'Foreman (Penilai 1)'),
+                'section_head' => ($isGol4Up ? 'Department Head' : 'Section Head'),
+                'dept_head' => ($isGol4Up ? 'Division Head' : 'Department Head'),
                 'div_head' => 'Division Head',
             ];
             $displayName = $signerName ?: ($defaultRoleLabels[$level] ?? strtoupper($level));
@@ -4659,8 +4650,7 @@ class PenilaianController extends Controller
 
         $col1Title = match($subFormVariant) {
             'div_head' => '',
-            'dept_head' => 'Mandiri / 自分',
-            'section_head' => ($isSubordinate07006 ? 'Section Head / Penilai 1' : 'Mandiri / 自分'),
+            'dept_head', 'section_head' => 'Mandiri / 自分',
             default => 'Foreman (jika ada)',
         };
         $col2Title = match($subFormVariant) {
