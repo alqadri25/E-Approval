@@ -142,15 +142,28 @@
                     {{ $dokumen['status'] === 'selesai' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 
                       ($dokumen['status'] === 'revisi' ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300') }}">
                     <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $dokumen['status'] === 'selesai' ? 'bg-emerald-500' : ($dokumen['status'] === 'revisi' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse') }}"></span>
-                    {{ match($dokumen['status'] ?? '') {
-                        'menunggu_div_head' => 'MENUNGGU DIVISION HEAD',
-                        'menunggu_dept_head' => 'MENUNGGU DEPARTMENT HEAD',
-                        'menunggu_section_head' => 'MENUNGGU SECTION HEAD',
-                        'menunggu_foreman' => 'MENUNGGU FOREMAN',
-                        'selesai' => 'SELESAI',
-                        'revisi' => 'PERLU REVISI',
-                        default => strtoupper(str_replace('_', ' ', $dokumen['status'] ?? 'DRAFT'))
-                    } }}
+                    @php
+                        $isSelfDoc = (strcasecmp($dokumen['nrp'] ?? '', Auth::user()?->nrp ?? '') === 0);
+                        $isMandiriStage = $isGol4Up && in_array($dokumen['status'] ?? '', ['menunggu_section_head', 'menunggu_foreman', 'draft', 'belum_ada']) && empty($ttdByLevel['foreman']);
+                        $isViewerSelfOrAuthorized = $isSelfDoc || in_array($rolePrefix ?? '', ['foreman', 'sechead']) || (Auth::user()?->isAdmin() || Auth::user()?->isSuperadmin());
+                        
+                        $statusBadgeText = match($dokumen['status'] ?? '') {
+                            'menunggu_div_head' => 'MENUNGGU DIVISION HEAD',
+                            'menunggu_dept_head' => 'MENUNGGU DEPARTMENT HEAD',
+                            'menunggu_section_head' => $isMandiriStage 
+                                ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
+                                : 'MENUNGGU SECTION HEAD',
+                            'menunggu_foreman' => $isMandiriStage 
+                                ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
+                                : 'MENUNGGU FOREMAN',
+                            'selesai' => 'SELESAI',
+                            'revisi' => 'PERLU REVISI',
+                            default => $isMandiriStage 
+                                ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
+                                : strtoupper(str_replace('_', ' ', $dokumen['status'] ?? 'DRAFT'))
+                        };
+                    @endphp
+                    {{ $statusBadgeText }}
                 </span>
             </div>
 
@@ -550,7 +563,7 @@
                 @if($waitingForLevel === 'foreman')
                     Form Penilaian Terkunci: Masih Menunggu Penilaian Foreman
                 @elseif($waitingForLevel === 'section_head')
-                    Form Penilaian Terkunci: Masih Menunggu Penilaian Section Head
+                    Form Penilaian Terkunci: {{ $isGol4Up ? 'Masih Menunggu Evaluasi Mandiri Karyawan' : 'Masih Menunggu Penilaian Section Head' }}
                 @elseif($waitingForLevel === 'dept_head')
                     Form Penilaian Terkunci: Masih Menunggu Penilaian Department Head
                 @else
@@ -561,7 +574,11 @@
                 @if($waitingForLevel === 'foreman')
                     Karyawan ini berada di bawah supervisi Foreman (<strong>{{ $karyawan['foreman_nama'] ?? 'Foreman' }}</strong>). Seluruh kolom penilaian, komentar, dan Indikator Evaluasi Potensi Karyawan saat ini terkunci (Read-Only). Kolom Section Head baru akan aktif setelah Foreman menyelesaikan dan menandatangani penilaian secara digital.
                 @elseif($waitingForLevel === 'section_head')
-                    Dokumen penilaian ini sedang dalam tahap evaluasi oleh Section Head. Seluruh kolom penilaian, komentar, dan Indikator Evaluasi Potensi Karyawan saat ini terkunci (Read-Only) dan baru dapat diisi oleh Department Head setelah Section Head menandatangani penilaian.
+                    @if($isGol4Up)
+                        Dokumen penilaian ini sedang dalam tahap evaluasi mandiri oleh karyawan yang bersangkutan (<strong>{{ $karyawan['nama_lengkap'] ?? ($karyawan['nama'] ?? 'Karyawan') }}</strong>). Seluruh kolom penilaian saat ini terkunci (Read-Only) dan baru dapat diisi oleh Department Head setelah evaluasi mandiri selesai ditandatangani.
+                    @else
+                        Dokumen penilaian ini sedang dalam tahap evaluasi oleh Section Head. Seluruh kolom penilaian, komentar, dan Indikator Evaluasi Potensi Karyawan saat ini terkunci (Read-Only) dan baru dapat diisi oleh Department Head setelah Section Head menandatangani penilaian.
+                    @endif
                 @elseif($waitingForLevel === 'dept_head')
                     Dokumen penilaian ini sedang dalam tahap review dan penilaian oleh Department Head. Seluruh kolom penilaian dan indikator terkunci (Read-Only) hingga giliran Division Head tiba.
                 @else

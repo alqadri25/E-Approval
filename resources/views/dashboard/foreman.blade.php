@@ -653,7 +653,11 @@
                             </span>
                         </td>
                         <td class="py-3 px-4 text-center border border-slate-200">
-                            @if($sub['is_evaluated'] || in_array($sub['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']))
+                            @if(($sub['action_type'] ?? '') === 'belum_dinilai')
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                                    Belum dinilai
+                                </span>
+                            @elseif($sub['is_evaluated'] || in_array($sub['status'], ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']))
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-[#fbe8e8] text-[#92302e] border border-[#92302e]/20">
                                     Sudah dinilai
                                 </span>
