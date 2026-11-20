@@ -673,9 +673,14 @@
                         </td>
                         <td class="py-3 px-4 text-center border border-slate-200">
                             @if($sub['doc_id'])
+                                @php
+                                    $isNeedEvaluate = in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_ada', 'revisi'])
+                                        || ($sub['action_type'] ?? '') === 'belum_dinilai'
+                                        || (strcasecmp($sub['nrp'] ?? '', $user->nrp ?? '') === 0 && in_array($sub['status'], ['menunggu_section_head', 'draft']));
+                                @endphp
                                 <a href="{{ route('penilaian.show.foreman', $sub['doc_id']) }}" 
-                                   class="inline-block px-2.5 py-1 rounded-none text-xs font-bold transition-colors {{ in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_ada', 'revisi']) ? 'bg-[#92302e] text-white hover:bg-[#7e2524]' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' }}">
-                                    {{ in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_ada', 'revisi']) ? 'Nilai' : 'Lihat' }}
+                                   class="inline-block px-2.5 py-1 rounded-none text-xs font-bold transition-colors {{ $isNeedEvaluate ? 'bg-[#92302e] text-white hover:bg-[#7e2524]' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' }}">
+                                    {{ $isNeedEvaluate ? 'Nilai' : 'Lihat' }}
                                 </a>
                             @else
                                 <form method="POST" action="{{ route('penilaian.buka') }}" class="inline">

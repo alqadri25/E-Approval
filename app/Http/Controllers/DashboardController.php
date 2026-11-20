@@ -105,8 +105,12 @@ class DashboardController extends Controller
 
             foreach ($missingDocEmployees as $k) {
                 $maxDocId++;
-                $status = 'menunggu_section_head';
-                if (!empty($k['nrp_foreman'])) {
+                $expectedKodeForm = PenilaianController::determineKodeForm($k);
+                $is07006 = PenilaianController::isForm07006($expectedKodeForm);
+
+                if ($is07006) {
+                    $status = 'menunggu_section_head';
+                } elseif (!empty($k['nrp_foreman'])) {
                     $status = 'menunggu_foreman';
                 } elseif (!empty($k['nrp_section_head'])) {
                     $status = 'menunggu_section_head';
@@ -114,13 +118,15 @@ class DashboardController extends Controller
                     $status = 'menunggu_dept_head';
                 } elseif (!empty($k['nrp_div_head'])) {
                     $status = 'menunggu_div_head';
+                } else {
+                    $status = 'menunggu_section_head';
                 }
 
                 $newDoc = [
                     'id' => $maxDocId,
                     'periode_id' => $activePeriodRow->id ?? 1,
                     'nrp' => $k['nrp'],
-                    'kode_form' => PenilaianController::determineKodeForm($k),
+                    'kode_form' => $expectedKodeForm,
                     'status' => $status,
                     'total_nilai' => null,
                     'grade_original' => null,
@@ -232,10 +238,19 @@ class DashboardController extends Controller
                     $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
                     $foremanDoneCount++;
                 } elseif ($status === 'menunggu_section_head') {
-                    $actionType = 'sudah_dikirim';
-                    $actionLabel = 'Terkirim ke Section Head';
-                    $stageLabel = 'Section Head';
-                    $foremanDoneCount++;
+                    $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
+                    if ($isSelf) {
+                        $actionType = 'belum_dinilai';
+                        $actionLabel = 'Evaluasi Mandiri';
+                        $stageLabel = 'Evaluasi Mandiri';
+                        $foremanBelumCount++;
+                        $foremanNeedActionCount++;
+                    } else {
+                        $actionType = 'sudah_dikirim';
+                        $actionLabel = 'Terkirim ke Section Head';
+                        $stageLabel = 'Section Head';
+                        $foremanDoneCount++;
+                    }
                 } elseif ($status === 'draft' || ($isEvaluated && ($status === 'menunggu_foreman' || $status === 'belum_ada'))) {
                     $actionType = 'draft';
                     $actionLabel = 'Draft Tersimpan';
@@ -281,6 +296,7 @@ class DashboardController extends Controller
                     'nama_bagian' => $k['nama_bagian'] ?? ($k['seksi'] ?? '-'),
                     'tgl_masuk' => $k['tgl_masuk'] ?? '-',
                     'level_form' => $k['level_form'] ?? 'KJ13',
+                    'kode_form' => $doc['kode_form'] ?? PenilaianController::determineKodeForm($k),
                     'doc_id' => $docId,
                     'status' => $status,
                     'is_evaluated' => $isEvaluated,

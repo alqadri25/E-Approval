@@ -994,7 +994,7 @@ class PenilaianController extends Controller
         $golongan = strtoupper(trim((string)($karyawan['golongan'] ?? '')));
         $kjRaw = strtoupper(trim((string)($karyawan['kj'] ?? '')));
 
-        // 1. Structural Upper Roles (Manager = Dept Head)
+        // 1. Structural Upper Roles (Division Head & Department Head)
         if ($levelFormRaw === 'DIV_HEAD' || str_contains($jabatan, 'DIVISION HEAD') || str_contains($jabatan, 'DIV HEAD')) {
             return '07-006-DIV';
         }
@@ -1005,15 +1005,7 @@ class PenilaianController extends Controller
             return '07-006-SH';
         }
 
-        // 2. Structural Positions under Foreman or General
-        if (str_contains($jabatan, 'FOREMAN') || $levelFormRaw === 'FOREMAN') {
-            return '07-004';
-        }
-        if (str_contains($jabatan, 'LEADER') || $levelFormRaw === 'LEADER') {
-            return '07-003';
-        }
-
-        // 3. Parse KJ Number (1 to 12)
+        // 2. Parse KJ Number (1 to 12)
         $kjNum = 0;
         if (preg_match('/(?:KJ\s*|KATEGORI\s*)?(\d+)/i', $kjRaw, $matches)) {
             $kjNum = (int)$matches[1];
@@ -1033,14 +1025,30 @@ class PenilaianController extends Controller
             }
         }
 
-        // 4. Karyawan tanpa Line Category tapi KJ 5 ke atas -> FORM 07-006 (07-006-SH)
+        // 3. ATURAN UTAMA: Jika KJ > 5 (KJ 6 ke atas) -> MENGGUNAKAN FORM 07-006 (07-006-SH)
+        // Meskipun jabatannya FOREMAN atau posisi lainnya, jika KJ > 5 maka wajib menggunakan form 07-006!
+        if ($kjNum > 5) {
+            return '07-006-SH';
+        }
+
+        // 4. Jika KJ <= 5:
+        // - Foreman dengan KJ 4 atau 5 -> tetap Form Foreman (07-004)
+        if (str_contains($jabatan, 'FOREMAN') || $levelFormRaw === 'FOREMAN') {
+            return '07-004';
+        }
+        // - Leader -> Form Leader (07-003)
+        if (str_contains($jabatan, 'LEADER') || $levelFormRaw === 'LEADER') {
+            return '07-003';
+        }
+
+        // - Karyawan tanpa Line Category tapi KJ 5 -> FORM 07-006 (07-006-SH)
         $lineCat = trim((string)($karyawan['line_category'] ?? ''));
         $hasNoLineCategory = ($lineCat === '' || $lineCat === '-' || strtolower($lineCat) === 'null');
         if ($hasNoLineCategory && $kjNum >= 5) {
             return '07-006-SH';
         }
 
-        // Non-Jabatan: KJ 4-5 vs KJ 1-3
+        // - Non-Jabatan: KJ 4-5 vs KJ 1-3
         if ($kjNum >= 4 || $levelFormRaw === 'KJ45') {
             return '07-002';
         }
@@ -1223,12 +1231,6 @@ class PenilaianController extends Controller
         if ($levelFormRaw === 'SECTION_HEAD' || str_contains($jabatan, 'SECTION HEAD') || str_contains($jabatan, 'SECT HEAD')) {
             return 'SECTION_HEAD';
         }
-        if (str_contains($jabatan, 'FOREMAN') || $levelFormRaw === 'FOREMAN') {
-            return 'FOREMAN';
-        }
-        if (str_contains($jabatan, 'LEADER') || $levelFormRaw === 'LEADER') {
-            return 'LEADER';
-        }
 
         $kjNum = 0;
         if (preg_match('/(?:KJ\s*|KATEGORI\s*)?(\d+)/i', $kjRaw, $matches)) {
@@ -1247,6 +1249,19 @@ class PenilaianController extends Controller
             } else {
                 $kjNum = 2;
             }
+        }
+
+        // Jika KJ > 5 -> Level Form SECTION_HEAD (Form 07-006)
+        if ($kjNum > 5) {
+            return 'SECTION_HEAD';
+        }
+
+        // Jika KJ <= 5:
+        if (str_contains($jabatan, 'FOREMAN') || $levelFormRaw === 'FOREMAN') {
+            return 'FOREMAN';
+        }
+        if (str_contains($jabatan, 'LEADER') || $levelFormRaw === 'LEADER') {
+            return 'LEADER';
         }
 
         $lineCat = trim((string)($karyawan['line_category'] ?? ''));
@@ -2513,9 +2528,17 @@ class PenilaianController extends Controller
         } else {
             // Foreman rules
             if ($user->isForeman() && $isMyDept) {
-                if (in_array($status, ['menunggu_foreman', 'draft', 'revisi'])) {
-                    $canEditForeman = true;
-                    $canSignForeman = true;
+                if ($dokumen['nrp'] === $user->nrp) {
+                    // Evaluasi Mandiri Foreman (misal KJ > 5 dengan Form 07-006 atau Form Foreman)
+                    if (in_array($status, ['menunggu_foreman', 'menunggu_section_head', 'draft', 'revisi'])) {
+                        $canEditForeman = true;
+                        $canSignForeman = true;
+                    }
+                } else {
+                    if (in_array($status, ['menunggu_foreman', 'draft', 'revisi'])) {
+                        $canEditForeman = true;
+                        $canSignForeman = true;
+                    }
                 }
             }
 
@@ -2845,9 +2868,9 @@ class PenilaianController extends Controller
         } elseif ($isSelf && ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']))) {
             $expectedKodeForm = '07-006-DH';
             $initialStatus = 'menunggu_dept_head';
-        } elseif ($isSelf && ($user->isSectionHead() || in_array($user->role, ['section_head', 'section']))) {
-            $expectedKodeForm = '07-006-SH';
-            $initialStatus = 'menunggu_section_head';
+        } elseif ($isSelf) {
+            $expectedKodeForm = self::determineKodeForm($karyawan);
+            $initialStatus = self::isForm07006($expectedKodeForm) ? 'menunggu_section_head' : (empty($karyawan['nrp_foreman']) ? 'menunggu_section_head' : 'menunggu_foreman');
         } else {
             $expectedKodeForm = self::determineKodeForm($karyawan);
             $initialStatus = empty($karyawan['nrp_foreman']) ? 'menunggu_section_head' : 'menunggu_foreman';
@@ -3188,8 +3211,11 @@ class PenilaianController extends Controller
         $status = $dokumen['status'] ?? 'draft';
         $hasForeman = !empty($karyawan['nrp_foreman']);
 
-        // Check Foreman: can only evaluate if employee has a foreman AND status is menunggu_foreman/draft/revisi
+        // Check Foreman: can only evaluate if employee has a foreman AND status is menunggu_foreman/draft/revisi, OR if self evaluation
         if ($user->isForeman()) {
+            if ($dokumen['nrp'] === $user->nrp) {
+                return in_array($status, ['menunggu_foreman', 'menunggu_section_head', 'draft', 'revisi']);
+            }
             return $hasForeman && in_array($status, ['menunggu_foreman', 'draft', 'revisi']);
         }
 

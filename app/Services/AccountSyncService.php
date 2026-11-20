@@ -13,12 +13,12 @@ class AccountSyncService
      * Eligible leadership positions that automatically get accounts:
      * FOREMAN, SECTION HEAD, DEPT HEAD, DIV HEAD
      */
-    public static function resolveLeadershipRole(string $position, string $kj = ''): ?array
+    public static function resolveLeadershipRole(string $position, string $kj = '', string $subGol = '', string $golongan = ''): ?array
     {
         $pos = strtoupper(trim($position));
-        if ($pos === '' || $pos === '-') {
-            return null;
-        }
+        $subG = strtoupper(trim($subGol));
+        $gol = strtoupper(trim($golongan));
+        $kjRaw = strtoupper(trim($kj));
 
         // 1. Division Head
         if (str_contains($pos, 'DIV HEAD') || str_contains($pos, 'DIVISION HEAD') || str_contains($pos, 'DIV. HEAD')) {
@@ -48,12 +48,35 @@ class AccountSyncService
             ];
         }
 
-        // 4. Foreman
+        // 4. Foreman (tetap role foreman baik KJ <= 5 maupun KJ > 5 agar dapat menilai bawahannya)
         if (str_contains($pos, 'FOREMAN') || str_contains($pos, 'KETUA')) {
             return [
                 'role' => 'foreman',
                 'label' => 'FOREMAN',
                 'display' => 'Foreman',
+            ];
+        }
+
+        // 5. Parse KJ Number
+        $kjNum = 0;
+        if (preg_match('/(?:KJ\s*|KATEGORI\s*)?(\d+)/i', $kjRaw, $matches)) {
+            $kjNum = (int)$matches[1];
+        }
+        if ($kjNum === 0) {
+            if (str_contains($subG, 'VI') || str_contains($gol, 'VI')) {
+                $kjNum = 6;
+            } elseif (str_contains($subG, 'V') || str_contains($gol, 'V')) {
+                $kjNum = 5;
+            }
+        }
+
+        // 6. Karyawan dengan KJ > 5 (KJ 6 ke atas):
+        // Wajib otomatis dibuatkan akun, memiliki login, dan QR barcode TTD untuk evaluasi mandiri Form 07-006!
+        if ($kjNum > 5) {
+            return [
+                'role' => 'section_head',
+                'label' => 'SECTIONHEAD',
+                'display' => 'Section Head',
             ];
         }
 
@@ -173,7 +196,7 @@ class AccountSyncService
                 }
 
                 $jabatan = (string)($emp->jabatan ?? '');
-                $leadership = self::resolveLeadershipRole($jabatan, (string)($emp->kj ?? ''));
+                $leadership = self::resolveLeadershipRole($jabatan, (string)($emp->kj ?? ''), (string)($emp->sub_gol ?? ''), (string)($emp->golongan ?? ''));
                 if (!$leadership) {
                     continue;
                 }
