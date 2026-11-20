@@ -929,8 +929,8 @@
         $showColDiv = $isSuperOrAdmin || $isDivHeadLaporan;
         $showColFinal = true;
 
-        // 17 kolom identitas & bobot + 1 kolom aksi + jumlah kolom nilai PK yang aktif
-        $totalTableCols = 18 + ($showColForeman ? 1 : 0) + ($showColSect ? 1 : 0) + ($showColDept ? 1 : 0) + ($showColDiv ? 1 : 0) + ($showColFinal ? 1 : 0);
+        // 17 kolom identitas & bobot + 1 kolom aksi + jumlah kolom nilai PK yang aktif (termasuk Nilai PK Mandiri)
+        $totalTableCols = 19 + ($showColForeman ? 1 : 0) + ($showColSect ? 1 : 0) + ($showColDept ? 1 : 0) + ($showColDiv ? 1 : 0) + ($showColFinal ? 1 : 0);
     @endphp
     <div class="bg-white border border-slate-300 shadow-sm rounded-none overflow-hidden">
         <div class="overflow-x-auto">
@@ -957,6 +957,7 @@
                         @if($showColForeman)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK FOREMAN (JIKA ADA)</th>
                         @endif
+                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK MANDIRI</th>
                         @if($showColSect)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK SECT</th>
                         @endif
@@ -1091,6 +1092,21 @@
                             @endif
                         </td>
                         @endif
+
+                        <!-- NILAI PK MANDIRI -->
+                        <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
+                            @if(($row['pk_mandiri'] ?? '-') !== '-')
+                            <span class="inline-block px-2 py-0.5 border text-xs font-mono font-bold rounded-none
+                                {{ ($row['pk_mandiri'] ?? '') === 'S' ? 'bg-emerald-50 text-emerald-800 border-emerald-400' :
+                                  (($row['pk_mandiri'] ?? '') === 'A' ? 'bg-sky-50 text-sky-800 border-sky-400' :
+                                  (($row['pk_mandiri'] ?? '') === 'B' ? 'bg-amber-50 text-amber-800 border-amber-400' :
+                                  (($row['pk_mandiri'] ?? '') === 'C' ? 'bg-slate-100 text-slate-700 border-slate-400' : 'bg-rose-50 text-rose-800 border-rose-400'))) }}">
+                                {{ $row['pk_mandiri'] }}
+                            </span>
+                            @else
+                            <span class="text-slate-400 font-mono font-bold">-</span>
+                            @endif
+                        </td>
 
                         @if($showColSect)
                         <!-- NILAI PK SECT -->

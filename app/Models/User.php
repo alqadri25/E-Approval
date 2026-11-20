@@ -66,6 +66,7 @@ class User extends Authenticatable
         'div1@musashi.co.id' => 'div-11000divhead@musashi.id',
         'div.tech@musashi.co.id' => 'div-12000divhead@musashi.id',
         'div2@musashi.co.id' => 'div-12000divhead@musashi.id',
+        '1405sectionhead@musashi.id' => '1405gol4nonkasie@musashi.id',
     ];
 
     public function newEloquentBuilder($query)
@@ -292,6 +293,13 @@ class User extends Authenticatable
     public function isDivisionHead(): bool
     {
         return $this->role === 'division_head';
+    }
+
+    public function isGol4NonKasie(): bool
+    {
+        return strcasecmp($this->role, 'GOL 4 NON KASIE') === 0 
+            || strcasecmp($this->role, 'gol_4_non_kasie') === 0
+            || stripos($this->role, 'NON KASIE') !== false;
     }
 
     /**
@@ -620,15 +628,15 @@ class User extends Authenticatable
             return 'Department Head';
         }
 
-        return match ($this->role) {
-            'superadmin' => 'Super Admin',
-            'admin' => 'Admin Penilaian',
-            'hr' => 'HR / Personalia',
-            'foreman' => 'Foreman',
-            'ketua' => 'Ketua / Foreman',
-            'section_head' => 'Section Head',
-            'div_head', 'division_head' => 'Division Head',
-            default => ucfirst(str_replace('_', ' ', $this->role)),
+        return match (true) {
+            $this->role === 'superadmin' => 'Super Admin',
+            $this->role === 'admin' => 'Admin Penilaian',
+            $this->role === 'hr' => 'HR / Personalia',
+            in_array($this->role, ['foreman', 'ketua']) => 'Foreman',
+            $this->role === 'section_head' => 'Section Head',
+            in_array($this->role, ['div_head', 'division_head']) => 'Division Head',
+            $this->isGol4NonKasie() => 'GOL 4 NON KASIE',
+            default => strtoupper(str_replace('_', ' ', $this->role)),
         };
     }
 

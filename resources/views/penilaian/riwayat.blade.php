@@ -5,11 +5,12 @@
     $isDeptHeadRiwayat = !empty($isDeptHeadUser) || $user->isDepartmentHead();
     $isSectionHeadRiwayat = $user->isSectionHead() || in_array($user->role, ['section_head', 'section', 'sechead']);
     $isForemanRiwayat = $user->isForeman() || in_array($user->role, ['foreman', 'ketua']);
-    $hideSemuaLabel = $isForemanRiwayat || $isSectionHeadRiwayat || $isDeptHeadRiwayat;
     $isDivHeadRiwayat = !empty($isDivHeadUser) || $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']);
+    $isMandiriUser = $user->isGol4NonKasie() || (!$user->isAdmin() && !$user->isHr() && !$isForemanRiwayat && !$isSectionHeadRiwayat && !$isDeptHeadRiwayat && !$isDivHeadRiwayat);
+    $hideSemuaLabel = $isForemanRiwayat || $isSectionHeadRiwayat || $isDeptHeadRiwayat || $isMandiriUser;
     $isDeptOrDivRiwayat = !empty($isDeptOrDivHead) || $isDeptHeadRiwayat || $isDivHeadRiwayat;
-    $evaluatorRoleLabel = $user->isSectionHead() ? 'Section Head' : ($isDeptHeadRiwayat ? 'Dept Head' : ($isDivHeadRiwayat ? 'Division Head' : 'Foreman'));
-    $evaluatorPkColLabel = $user->isSectionHead() ? 'Sect Head' : ($isDeptHeadRiwayat ? 'Dept Head' : ($isDivHeadRiwayat ? 'Div Head' : 'Foreman'));
+    $evaluatorRoleLabel = $user->isSectionHead() ? 'Section Head' : ($isDeptHeadRiwayat ? 'Dept Head' : ($isDivHeadRiwayat ? 'Division Head' : ($isMandiriUser ? 'Mandiri' : 'Foreman')));
+    $evaluatorPkColLabel = $user->isSectionHead() ? 'Sect Head' : ($isDeptHeadRiwayat ? 'Dept Head' : ($isDivHeadRiwayat ? 'Div Head' : ($isMandiriUser ? 'Mandiri' : 'Foreman')));
 @endphp
 <div class="space-y-6">
 
@@ -339,8 +340,21 @@
                         <th class="py-3 px-3 border-r border-slate-300 text-center">Total Nilai</th>
                         @if($isDivHeadRiwayat)
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Dept Head</th>
-                        @endif
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Div Head</th>
+                        @elseif($isDeptHeadRiwayat)
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Sect Head</th>
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Dept Head</th>
+                        @elseif($isSectionHeadRiwayat)
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai Mandiri</th>
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Sect Head</th>
+                        @elseif($isForemanRiwayat)
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Foreman</th>
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Mandiri</th>
+                        @elseif($isMandiriUser)
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Mandiri</th>
+                        @else
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK {{ $evaluatorPkColLabel }}</th>
+                        @endif
                         <th class="py-3 px-3 border-r border-slate-300 text-center">Status Dokumen</th>
                         <th class="py-3 px-3 text-center w-28">Aksi</th>
                     </tr>
@@ -438,8 +452,7 @@
                                 <span class="text-slate-300 font-bold">-</span>
                             @endif
                         </td>
-                        @endif
-                        @php $pkGrade = ($isDivHeadRiwayat && empty($row['div_final_ready']) && ($row['status'] ?? '') !== 'selesai') ? '-' : ($row['grade'] ?? '-'); @endphp
+                        @php $pkGrade = (empty($row['div_final_ready']) && ($row['status'] ?? '') !== 'selesai') ? '-' : ($row['grade'] ?? '-'); @endphp
                         <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
                             @if(isset($gradeBadgeMap[$pkGrade]))
                                 <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$pkGrade] }}">{{ $pkGrade }}</span>
@@ -447,6 +460,76 @@
                                 <span class="text-slate-300 font-bold">-</span>
                             @endif
                         </td>
+                        @elseif($isDeptHeadRiwayat)
+                        @php $sGrade = $row['sect_grade'] ?? '-'; @endphp
+                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            @if(isset($gradeBadgeMap[$sGrade]))
+                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$sGrade] }}">{{ $sGrade }}</span>
+                            @else
+                                <span class="text-slate-300 font-bold">-</span>
+                            @endif
+                        </td>
+                        @php $dGrade = $row['dept_grade'] ?? $row['grade'] ?? '-'; @endphp
+                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            @if(isset($gradeBadgeMap[$dGrade]))
+                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$dGrade] }}">{{ $dGrade }}</span>
+                            @else
+                                <span class="text-slate-300 font-bold">-</span>
+                            @endif
+                        </td>
+                        @elseif($isSectionHeadRiwayat)
+                        @php $mGrade = $row['mandiri_grade'] ?? '-'; @endphp
+                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            @if(isset($gradeBadgeMap[$mGrade]))
+                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$mGrade] }}">{{ $mGrade }}</span>
+                            @else
+                                <span class="text-slate-300 font-bold">-</span>
+                            @endif
+                        </td>
+                        @php $sGrade = $row['sect_grade'] ?? $row['grade'] ?? '-'; @endphp
+                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            @if(isset($gradeBadgeMap[$sGrade]))
+                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$sGrade] }}">{{ $sGrade }}</span>
+                            @else
+                                <span class="text-slate-300 font-bold">-</span>
+                            @endif
+                        </td>
+                        @elseif($isForemanRiwayat)
+                        @php $fGrade = $row['foreman_grade'] ?? $row['grade'] ?? '-'; @endphp
+                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            @if(isset($gradeBadgeMap[$fGrade]))
+                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$fGrade] }}">{{ $fGrade }}</span>
+                            @else
+                                <span class="text-slate-300 font-bold">-</span>
+                            @endif
+                        </td>
+                        @php $mGrade = $row['mandiri_grade'] ?? '-'; @endphp
+                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            @if(isset($gradeBadgeMap[$mGrade]))
+                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$mGrade] }}">{{ $mGrade }}</span>
+                            @else
+                                <span class="text-slate-300 font-bold">-</span>
+                            @endif
+                        </td>
+                        @elseif($isMandiriUser)
+                        @php $mGrade = $row['mandiri_grade'] ?? $row['grade'] ?? '-'; @endphp
+                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            @if(isset($gradeBadgeMap[$mGrade]))
+                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$mGrade] }}">{{ $mGrade }}</span>
+                            @else
+                                <span class="text-slate-300 font-bold">-</span>
+                            @endif
+                        </td>
+                        @else
+                        @php $pkGrade = $row['grade'] ?? '-'; @endphp
+                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
+                            @if(isset($gradeBadgeMap[$pkGrade]))
+                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$pkGrade] }}">{{ $pkGrade }}</span>
+                            @else
+                                <span class="text-slate-300 font-bold">-</span>
+                            @endif
+                        </td>
+                        @endif
                         <td class="py-3 px-3 text-center border-r border-slate-200 whitespace-nowrap">
                             @if($row['status'] === 'selesai')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -479,7 +562,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $isDivHeadRiwayat ? 19 : 17 }}" class="py-12 text-center text-slate-400">
+                        <td colspan="{{ $isDivHeadRiwayat ? 19 : ($isMandiriUser ? 17 : 18) }}" class="py-12 text-center text-slate-400">
                             <div class="text-3xl mb-2">📜</div>
                             <p class="font-bold text-slate-600 text-sm">Belum ada karyawan yang selesai dinilai.</p>
                             <p class="text-xs text-slate-400 mt-1">Mulai penilaian bawahan melalui menu <a href="{{ route('penilaian.cari') }}" class="text-[#92302e] font-bold underline">Form Penilaian</a>.</p>

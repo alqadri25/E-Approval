@@ -57,6 +57,10 @@ class PenilaianController extends Controller
             $mySubordinates = array_filter($allKaryawan, fn ($k) => $user->matchesDeptHeadScope($k, [], true));
         } elseif ($isDivHeadUser) {
             $mySubordinates = array_filter($allKaryawan, fn ($k) => $user->matchesDivisionHeadScope($k));
+        } elseif ($user->isGol4NonKasie() || (!$user->isAdmin() && !$user->isHr())) {
+            $mySubordinates = array_filter($allKaryawan, function ($k) use ($user) {
+                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0;
+            });
         } else {
             $mySubordinates = array_filter($allKaryawan, function ($k) use ($user) {
                 return $user->canAccessDepartment($k['departemen'] ?? '');
@@ -267,6 +271,54 @@ class PenilaianController extends Controller
                     $namaBagian = ($seksiRaw !== '' && $seksiRaw !== '-') ? $seksiRaw : $namaSect;
                 }
 
+                // Mandiri Grade (Khusus Form 07-006 / KJ > 5 Mandiri)
+                $mandiriScores = $nilaiGrouped[$docId]['foreman'] ?? [];
+                $calcMandiri = !empty($mandiriScores) ? $this->calcService->calculate($kodeForm, $mandiriScores) : null;
+                $mandiriGrade = ($calcMandiri && ($calcMandiri['grand_total'] ?? 0) > 0)
+                    ? $this->calcService->scoreToGrade($calcMandiri['grand_total'])
+                    : ($isGol4UpForm && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']) ? ($doc['grade_original'] ?? '-') : '-');
+
+                if ($isSelf && $user->isSectionHead() && $mandiriGrade === '-') {
+                    $mandiriGrade = $grade;
+                }
+                if ($isSelf && $user->isForeman() && $isGol4UpForm) {
+                    $mandiriGrade = ($calcMandiri && ($calcMandiri['grand_total'] ?? 0) > 0)
+                        ? $this->calcService->scoreToGrade($calcMandiri['grand_total'])
+                        : ($grade !== '-' ? $grade : ($doc['grade_original'] ?? '-'));
+                }
+
+                // Foreman Grade
+                $foremanGrade = '-';
+                if (!$isGol4UpForm) {
+                    $fScores = $nilaiGrouped[$docId]['foreman'] ?? [];
+                    $calcFM = !empty($fScores) ? $this->calcService->calculate($kodeForm, $fScores) : null;
+                    $foremanGrade = ($calcFM && ($calcFM['grand_total'] ?? 0) > 0)
+                        ? $this->calcService->scoreToGrade($calcFM['grand_total'])
+                        : (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']) ? ($doc['grade_original'] ?? '-') : '-');
+                } elseif ($isSelf && $user->isForeman()) {
+                    $foremanGrade = $mandiriGrade;
+                }
+
+                // Section Head Grade
+                $sectGrade = '-';
+                if ($isGol4UpForm) {
+                    $shScores = $nilaiGrouped[$docId]['section_head'] ?? [];
+                    $calcSH = !empty($shScores) ? $this->calcService->calculate($kodeForm, $shScores) : null;
+                    if ($calcSH && ($calcSH['grand_total'] ?? 0) > 0) {
+                        $sectGrade = $this->calcService->scoreToGrade($calcSH['grand_total']);
+                    } elseif ($isSelf && $user->isSectionHead()) {
+                        $sectGrade = $mandiriGrade !== '-' ? $mandiriGrade : $grade;
+                    } elseif (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
+                        $sectGrade = $doc['grade_original'] ?? $mandiriGrade;
+                    }
+                } else {
+                    $shScores = $nilaiGrouped[$docId]['section_head'] ?? [];
+                    $calcSH = !empty($shScores) ? $this->calcService->calculate($kodeForm, $shScores) : null;
+                    $sectGrade = ($calcSH && ($calcSH['grand_total'] ?? 0) > 0)
+                        ? $this->calcService->scoreToGrade($calcSH['grand_total'])
+                        : (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head']) ? ($doc['grade_original'] ?? $grade) : '-');
+                }
+
                 $evaluatedList[] = [
                     'nrp' => $nrp,
                     'nama_lengkap' => $k['nama_lengkap'],
@@ -290,6 +342,9 @@ class PenilaianController extends Controller
                     'total_nilai' => number_format((float)$score, 2),
                     'score' => number_format((float)$score, 2),
                     'grade' => $grade,
+                    'mandiri_grade' => $mandiriGrade,
+                    'foreman_grade' => $foremanGrade,
+                    'sect_grade' => $sectGrade,
                     'dept_score' => $deptScoreRow ?? '-',
                     'dept_grade' => $deptGradeRow ?? '-',
                     'div_final_ready' => $hasDivFinalRow,
@@ -2388,38 +2443,35 @@ class PenilaianController extends Controller
 
         // STAGE ENFORCEMENT & DISPLAY SANITIZATION
         // Jika dokumen pada status belum mencapai Dept Head / Div Head, atau jika direvisi kembali ke level bawah,
-        // nilai dan tanda tangan tingkat di atasnya WAJIB KOSONG!
-
-        // 1. Jika dokumen masih tahap Foreman / Draft:
-        if (in_array($status, ['menunggu_foreman', 'draft'])) {
-            $scoresByLevel['section_head'] = [];
-            $scoresByLevel['dept_head'] = [];
-        }
-
-        // 2. Jika dokumen pada tahap Section Head (menunggu_section_head, draft, atau revisi ke section head),
-        // ATAU jika pengguna login sebagai Section Head yang sedang menilai (mandiri atau bawahan):
-        // - Form 07-006: Kolom 2 (Dept Head / slot 'section_head') & Kolom 3 (Div Head / slot 'dept_head') WAJIB KOSONG!
-        // - Form standar: Kolom 3 (Dept Head / slot 'dept_head') WAJIB KOSONG!
-        $isSecHeadStage = in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi'])
-            || ($user->isSectionHead() && ($dokumen['nrp'] === $user->nrp || $user->nrp === ($karyawan['nrp_section_head'] ?? '')));
-
-        if ($isSecHeadStage) {
-            if ($isGol4Up) {
+        // nilai dan tanda tangan tingkat di atasnya WAJIB KOSONG! (Hanya berlaku jika status belum selesai)
+        $isSecHeadStage = false;
+        $isDeptHeadStage = false;
+        if ($status !== 'selesai') {
+            // 1. Jika dokumen masih tahap Foreman / Draft:
+            if (in_array($status, ['menunggu_foreman', 'draft'])) {
                 $scoresByLevel['section_head'] = [];
                 $scoresByLevel['dept_head'] = [];
-            } else {
-                $scoresByLevel['dept_head'] = [];
             }
-        }
 
-        // 3. Jika dokumen pada tahap Dept Head (menunggu_dept_head atau revisi ke dept head):
-        // - Form 07-006: Kolom 3 (Div Head / slot 'dept_head') WAJIB KOSONG!
-        $isDeptHeadStage = in_array($status, ['menunggu_dept_head', 'revisi'])
-            || ($user->isDepartmentHead() && ($dokumen['nrp'] === $user->nrp || $user->nrp === ($karyawan['nrp_dept_head'] ?? '')));
+            // 2. Jika dokumen pada tahap Section Head / Mandiri:
+            $isSecHeadStage = in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi']);
 
-        if ($isDeptHeadStage) {
-            if ($isGol4Up) {
-                $scoresByLevel['dept_head'] = [];
+            if ($isSecHeadStage) {
+                if ($isGol4Up) {
+                    $scoresByLevel['section_head'] = [];
+                    $scoresByLevel['dept_head'] = [];
+                } else {
+                    $scoresByLevel['dept_head'] = [];
+                }
+            }
+
+            // 3. Jika dokumen pada tahap Dept Head:
+            $isDeptHeadStage = in_array($status, ['menunggu_dept_head', 'revisi']);
+
+            if ($isDeptHeadStage) {
+                if ($isGol4Up) {
+                    $scoresByLevel['dept_head'] = [];
+                }
             }
         }
 
@@ -2467,23 +2519,25 @@ class PenilaianController extends Controller
         $ttdByLevel = $this->buildCompleteTtdByLevel($id, $dokumen, $karyawan, $calcForeman, $calcSectionHead, $calcDeptHead);
 
         // Sanitize signatures by stage: Jangan tampilkan barcode Dept Head / Div Head jika belum saatnya atau sedang direvisi!
-        if ($isSecHeadStage) {
-            if ($isGol4Up) {
-                unset($ttdByLevel['section_head'], $ttdByLevel['dept_head'], $ttdByLevel['div_head']);
-            } else {
-                unset($ttdByLevel['dept_head'], $ttdByLevel['div_head']);
+        if ($status !== 'selesai') {
+            if ($isSecHeadStage) {
+                if ($isGol4Up) {
+                    unset($ttdByLevel['section_head'], $ttdByLevel['dept_head'], $ttdByLevel['div_head']);
+                } else {
+                    unset($ttdByLevel['dept_head'], $ttdByLevel['div_head']);
+                }
+                $dokumen['total_nilai'] = null;
+                $dokumen['grade_original'] = null;
+                $dokumen['docking_final'] = null;
             }
-            $dokumen['total_nilai'] = null;
-            $dokumen['grade_original'] = null;
-            $dokumen['docking_final'] = null;
-        }
-        if ($isDeptHeadStage) {
-            if ($isGol4Up) {
-                unset($ttdByLevel['dept_head'], $ttdByLevel['div_head']);
-            } else {
-                unset($ttdByLevel['div_head']);
+            if ($isDeptHeadStage) {
+                if ($isGol4Up) {
+                    unset($ttdByLevel['dept_head'], $ttdByLevel['div_head']);
+                } else {
+                    unset($ttdByLevel['div_head']);
+                }
+                $dokumen['docking_final'] = null;
             }
-            $dokumen['docking_final'] = null;
         }
 
         // 10. Determine Role Permissions for Editing
@@ -7872,6 +7926,18 @@ class PenilaianController extends Controller
                 }
             }
 
+            // 1B. NILAI PK MANDIRI (Khusus Form 07-006 / KJ > 5 yang mengisi evaluasi mandiri)
+            $pkMandiri = '-';
+            if ($isGol4UpForm) {
+                $mandiriScores = ($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : [];
+                if (!empty($mandiriScores)) {
+                    $calcMandiri = $this->calcService->calculate($kodeForm, $mandiriScores);
+                    $pkMandiri = ($calcMandiri['grand_total'] > 0) ? $this->calcService->scoreToGrade($calcMandiri['grand_total']) : '-';
+                } elseif (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman'])) {
+                    $pkMandiri = $doc['grade_original'] ?? '-';
+                }
+            }
+
             // 2. NILAI PK SECT (Section Head)
             $pkSection = '-';
             if ($isGol4UpForm) {
@@ -7950,6 +8016,7 @@ class PenilaianController extends Controller
                 'total_nilai' => $totalNilaiVal,
                 'grade' => $grade,
                 'pk_foreman' => $pkForeman,
+                'pk_mandiri' => $pkMandiri,
                 'pk_sect' => $pkSection,
                 'pk_original' => $pkOriginal,
                 'pk_dept' => $pkDept,
@@ -8707,6 +8774,7 @@ class PenilaianController extends Controller
         if ($showColForeman) {
             $headers[] = 'NILAI PK FOREMAN (JIKA ADA)';
         }
+        $headers[] = 'NILAI PK MANDIRI';
         if ($showColSect) {
             $headers[] = 'NILAI PK SECT';
         }
@@ -8746,6 +8814,7 @@ class PenilaianController extends Controller
             if ($showColForeman) {
                 $row[] = (string)($k['pk_foreman'] ?? '-');
             }
+            $row[] = (string)($k['pk_mandiri'] ?? '-');
             if ($showColSect) {
                 $row[] = (string)($k['pk_sect'] ?? '-');
             }

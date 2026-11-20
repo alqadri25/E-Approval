@@ -630,7 +630,7 @@ class GoogleSyncService
                 'id', 'departemen', 'grade_s_max', 'grade_a_max', 'grade_b_max', 'grade_c_max', 'grade_k_max'
             ],
             'Dokumen_Dinilai' => [
-                'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
+                'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK MANDIRI', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
             ],
             'Target_Pemantauan' => [
                 'No', 'Division', 'Department', 'Target_Kuota', 'Sudah_Dinilai', 'Belum_Dinilai', 'Realisasi_Persen', 'Target_S', 'Target_A', 'Target_B', 'Target_C', 'Target_K', 'Status', 'Terakhir_Update'
@@ -1228,29 +1228,51 @@ class GoogleSyncService
             $totalNilai = ($isDinilai && $grandTotal > 0) ? number_format($grandTotal, 2) : '-';
 
             // Predikat Nilai PK Berjenjang
+            $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+
             $pkForeman = '-';
-            if ($calcForeman && ($calcForeman['grand_total'] ?? 0) > 0) {
-                $pkForeman = $calcService->scoreToGrade($calcForeman['grand_total']);
-            } elseif (!empty($k->nrp_foreman) && $isDinilai) {
-                $pkForeman = $doc->grade_original ?? '-';
+            if (!$isGol4Up) {
+                if ($calcForeman && ($calcForeman['grand_total'] ?? 0) > 0) {
+                    $pkForeman = $calcService->scoreToGrade($calcForeman['grand_total']);
+                } elseif (!empty($k->nrp_foreman) && $isDinilai) {
+                    $pkForeman = $doc->grade_original ?? '-';
+                }
+            }
+
+            // NILAI PK MANDIRI (Khusus Form 07-006 / KJ > 5 yang melakukan evaluasi mandiri)
+            $pkMandiri = '-';
+            if ($isGol4Up) {
+                if ($calcForeman && ($calcForeman['grand_total'] ?? 0) > 0) {
+                    $pkMandiri = $calcService->scoreToGrade($calcForeman['grand_total']);
+                } elseif ($isDinilai) {
+                    $pkMandiri = $doc->grade_original ?? '-';
+                }
             }
 
             $pkSect = '-';
-            if ($calcSect && ($calcSect['grand_total'] ?? 0) > 0) {
-                $pkSect = $calcService->scoreToGrade($calcSect['grand_total']);
-            } elseif ($isDinilai) {
-                $pkSect = ($pkForeman !== '-') ? $pkForeman : ($doc->grade_original ?? '-');
+            if ($isGol4Up) {
+                if ($calcSect && ($calcSect['grand_total'] ?? 0) > 0) {
+                    $pkSect = $calcService->scoreToGrade($calcSect['grand_total']);
+                } elseif ($isDinilai) {
+                    $pkSect = ($pkMandiri !== '-') ? $pkMandiri : ($doc->grade_original ?? '-');
+                }
+            } else {
+                if ($calcSect && ($calcSect['grand_total'] ?? 0) > 0) {
+                    $pkSect = $calcService->scoreToGrade($calcSect['grand_total']);
+                } elseif ($isDinilai) {
+                    $pkSect = ($pkForeman !== '-') ? $pkForeman : ($doc->grade_original ?? '-');
+                }
             }
 
             $pkDept = in_array($status, ['menunggu_div_head', 'selesai'])
-                ? ($doc->docking_dept ?? $doc->docking_final ?? ($pkSect !== '-' ? $pkSect : $pkForeman))
+                ? ($doc->docking_dept ?? $doc->docking_final ?? ($pkSect !== '-' ? $pkSect : ($pkMandiri !== '-' ? $pkMandiri : $pkForeman)))
                 : '-';
 
             $pkDiv = ($status === 'selesai')
                 ? ($doc->docking_div ?? $doc->docking_final ?? $pkDept)
                 : '-';
 
-            $pkFinal = $doc->docking_final ?? ($status === 'selesai' ? ($pkDiv !== '-' ? $pkDiv : $pkDept) : ($pkDept !== '-' ? $pkDept : ($pkSect !== '-' ? $pkSect : ($pkForeman !== '-' ? $pkForeman : '-'))));
+            $pkFinal = $doc->docking_final ?? ($status === 'selesai' ? ($pkDiv !== '-' ? $pkDiv : $pkDept) : ($pkDept !== '-' ? $pkDept : ($pkSect !== '-' ? $pkSect : ($pkMandiri !== '-' ? $pkMandiri : ($pkForeman !== '-' ? $pkForeman : '-')))));
             if (empty($pkFinal)) {
                 $pkFinal = '-';
             }
@@ -1275,6 +1297,7 @@ class GoogleSyncService
                 'Man Management' => $manMgt,
                 'Total Nilai' => $totalNilai,
                 'NILAI PK Foreman (Jika Ada)' => $pkForeman,
+                'NILAI PK MANDIRI' => $pkMandiri,
                 'NILAI PK SECT' => $pkSect,
                 'NILAI PK DEPT' => $pkDept,
                 'NILAI PK DIV' => $pkDiv,
@@ -1967,7 +1990,7 @@ var CONFIG_TABLES = {
     'nrp_dept_head', 'nama_dept_head', 'nrp_div_head', 'nama_div_head'
   ],
   'Dokumen_Dinilai': [
-    'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
+    'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK MANDIRI', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
   ],
   'users': [
     'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
@@ -2013,8 +2036,8 @@ var COLUMN_FORMATS = {
     textFormatCols: [1, 3, 4, 5, 7, 10, 11, 12, 13, 14, 15] // Kolom 7 (tgl_masuk) diformat Plain Text (@)
   },
   'Dokumen_Dinilai': {
-    widths: { 1: 90, 2: 230, 3: 220, 4: 160, 5: 160, 6: 190, 7: 190, 8: 110, 9: 80, 10: 90, 11: 90, 12: 90, 13: 90, 14: 110, 15: 90, 16: 170, 17: 120, 18: 120, 19: 120, 20: 130 },
-    alignCenter: [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+    widths: { 1: 90, 2: 230, 3: 220, 4: 160, 5: 160, 6: 190, 7: 190, 8: 110, 9: 80, 10: 90, 11: 90, 12: 90, 13: 90, 14: 110, 15: 90, 16: 170, 17: 130, 18: 120, 19: 120, 20: 120, 21: 130 },
+    alignCenter: [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
     textFormatCols: [1, 8, 9, 10] // Kolom 8 (START WORK) diformat Plain Text (@)
   },
   'kuota_departemen': {

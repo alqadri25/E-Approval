@@ -72,11 +72,18 @@ class AccountSyncService
 
         // 6. Karyawan dengan KJ > 5 (KJ 6 ke atas):
         // Wajib otomatis dibuatkan akun, memiliki login, dan QR barcode TTD untuk evaluasi mandiri Form 07-006!
+        // Sesuai permintaan user: Untuk jabatan yang bukan Section Head diganti jadi 'GOL 4 NON KASIE' (atau nama posisinya)
         if ($kjNum > 5) {
+            $rawPos = strtoupper(trim($position));
+            $label = self::cleanPositionLabel($rawPos);
+            if (empty($label)) {
+                $label = 'GOL4NONKASIE';
+            }
+            $roleVal = (str_contains($rawPos, 'NON KASIE') || empty($rawPos) || $rawPos === '-') ? 'GOL 4 NON KASIE' : $rawPos;
             return [
-                'role' => 'section_head',
-                'label' => 'SECTIONHEAD',
-                'display' => 'Section Head',
+                'role' => $roleVal,
+                'label' => $label,
+                'display' => $roleVal,
             ];
         }
 
@@ -134,8 +141,10 @@ class AccountSyncService
             $karyawanByNrp[trim((string)$emp->nrp)] = $emp;
         }
 
-        // Target leadership roles that should strictly map to active leadership employees
-        $leadershipUsers = User::whereIn('role', ['foreman', 'ketua', 'section_head', 'department_head', 'division_head'])->get();
+        // Target leadership & KJ > 5 roles that should strictly map to active leadership employees
+        $leadershipUsers = User::whereIn('role', ['foreman', 'ketua', 'section_head', 'department_head', 'division_head', 'GOL 4 NON KASIE', 'gol_4_non_kasie'])
+            ->orWhere('role', 'LIKE', '%NON KASIE%')
+            ->get();
 
         $deletedCount = 0;
         $deletedDetails = [];
