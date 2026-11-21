@@ -2,10 +2,13 @@
 
 @section('content')
 @php
-    $exportCount = count($employeeRows);
+    $evaluatedRows = array_values(array_filter($employeeRows, function ($r) {
+        return !empty($r['has_score']);
+    }));
+    $exportCount = count($evaluatedRows);
     $pdfFormCounts = [];
     $rowsByDocId = [];
-    foreach ($employeeRows as $rowItem) {
+    foreach ($evaluatedRows as $rowItem) {
         $kode = trim((string)($rowItem['kode_form'] ?? ''));
         $label = $kode !== '' ? \App\Http\Controllers\PenilaianController::getFormName($kode) : 'Form Penilaian Karya';
         $pdfFormCounts[$label] = ($pdfFormCounts[$label] ?? 0) + 1;
@@ -1226,7 +1229,7 @@
         <!-- Footer Bar flush inside card -->
         <div class="px-4 py-3 bg-white border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             <div>
-                Menampilkan <span class="font-bold text-slate-700">{{ count($employeeRows) }}</span> data karyawan pada laporan penilaian
+                Menampilkan <span class="font-bold text-slate-700">{{ count($employeeRows) }}</span> data karyawan pada laporan penilaian (<span class="font-bold text-emerald-700">{{ count($evaluatedRows) }}</span> sudah dinilai)
             </div>
             <div class="inline-flex items-center gap-1.5">
                 <span class="text-[11px] text-slate-400 font-semibold">Tabel Sinkron Sesuai Kriteria Filter</span>
@@ -1319,7 +1322,7 @@
                 <!-- Peringatan Data Kosong -->
                 <template x-if="!confirmModal.canDownload">
                     <div class="bg-rose-50 border border-rose-200 p-3 text-[11px] text-rose-800 font-semibold leading-relaxed">
-                        Tidak ada data karyawan yang sesuai filter saat ini. Silakan ubah filter terlebih dahulu sebelum melakukan download.
+                        Tidak ada data penilaian yang sudah dinilai pada filter saat ini. Hanya data yang telah dinilai yang dapat diexport.
                     </div>
                 </template>
 
@@ -1504,7 +1507,7 @@ window.laporanExportModal = function () {
                     url: cfg.excelUrl,
                     headline: 'Apakah Anda yakin ingin mendownload laporan dalam format Excel (.xlsx)?',
                     formatLabel: 'Excel (.xlsx)',
-                    totalLabel: count + ' karyawan (18 kolom)',
+                    totalLabel: count + ' karyawan (yang sudah dinilai, 18 kolom)',
                     singleDetail: '',
                     forms: [],
                     isBulkZip: false,
@@ -1527,7 +1530,7 @@ window.laporanExportModal = function () {
                     ? 'Apakah Anda yakin ingin mendownload seluruh formulir PDF sesuai filter saat ini?'
                     : 'Apakah Anda yakin ingin mendownload formulir PDF karyawan yang dipilih?',
                 formatLabel: isBulkZip ? 'Paket Arsip ZIP (.zip berisi PDF)' : 'Dokumen PDF (.pdf)',
-                totalLabel: count + ' karyawan',
+                totalLabel: count + ' karyawan (yang sudah dinilai)',
                 singleDetail: !isBulkZip && singleFormLabel ? singleFormLabel : '',
                 forms: Array.isArray(cfg.formBreakdown) ? cfg.formBreakdown : [],
                 isBulkZip: isBulkZip,

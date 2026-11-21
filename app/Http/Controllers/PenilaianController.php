@@ -8094,8 +8094,8 @@ class PenilaianController extends Controller
 
                 $hasCalcScore = ($calc['grand_total'] ?? 0) > 0;
                 $hasStoredScore = !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0;
-                $hasDocGrade = !empty($doc['docking_final']) || !empty($doc['grade_original']);
-                $hasAnyScores = !empty($scores) || $hasCalcScore || $hasStoredScore || $hasDocGrade;
+                $hasDocGrade = (!empty($doc['docking_final']) && $doc['docking_final'] !== '-') || (!empty($doc['grade_original']) && $doc['grade_original'] !== '-');
+                $hasAnyScores = $hasCalcScore || $hasStoredScore || $hasDocGrade;
 
                 // Seseorang HANYA dianggap "Sudah Dinilai" jika benar-benar telah memiliki nilai/skor riil dari penilai
                 if (!$hasAnyScores) {
@@ -8343,10 +8343,36 @@ class PenilaianController extends Controller
                 'kode_form' => $kodeForm,
                 'status' => $status,
                 'is_dinilai' => $isDinilai,
+                'has_score' => ($totalNilaiVal !== null && (float)$totalNilaiVal > 0)
+                    || ($grade !== '-' && !empty($grade))
+                    || ($pkFinal !== '-' && !empty($pkFinal))
+                    || ($pkSection !== '-' && !empty($pkSection))
+                    || ($pkMandiri !== '-' && !empty($pkMandiri))
+                    || ($pkForeman !== '-' && !empty($pkForeman))
+                    || ($pkDept !== '-' && !empty($pkDept))
+                    || ($pkDiv !== '-' && !empty($pkDiv))
+                    || ($hasilKerjaVal !== null && (float)$hasilKerjaVal > 0),
                 'seksi' => $namaBagian, // backward compatibility
                 'golongan' => $k['sub_gol'] ?? ($k['golongan'] ?? '-'), // backward compatibility
             ];
         }
+
+        // Urutkan baris karyawan agar yang sudah memiliki isi nilai penilaian tampil di paling atas
+        usort($employeeRows, function ($a, $b) {
+            $aHas = !empty($a['has_score']);
+            $bHas = !empty($b['has_score']);
+            if ($aHas !== $bHas) {
+                return $aHas ? -1 : 1;
+            }
+            if ($aHas && $bHas) {
+                $aScore = (float)($a['total_nilai'] ?? 0);
+                $bScore = (float)($b['total_nilai'] ?? 0);
+                if ($aScore != $bScore) {
+                    return ($bScore <=> $aScore);
+                }
+            }
+            return 0;
+        });
 
         $totalKaryawan = count($employeeRows);
         $belumDinilai = max(0, $totalKaryawan - $sudahDinilai);
@@ -9052,7 +9078,15 @@ class PenilaianController extends Controller
         $user = Auth::user();
 
         $data = $this->getFilteredLaporanData($request, $user);
-        $employeeRows = $data['employeeRows'];
+        // Hanya export data yang telah dinilai (yang memiliki isi nilai)
+        $employeeRows = array_values(array_filter($data['employeeRows'], function ($k) {
+            return !empty($k['has_score']);
+        }));
+
+        if (empty($employeeRows)) {
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Tidak ada data penilaian yang sudah dinilai untuk diekspor ke Excel pada filter saat ini.');
+        }
 
         $userRole = strtolower($user->role ?? '');
         $isSuperOrAdmin = $user->isAdmin() || $user->isSuperadmin();
@@ -9287,7 +9321,17 @@ class PenilaianController extends Controller
         $user = Auth::user();
 
         $data = $this->getFilteredLaporanData($request, $user);
-        $evaluatedWithDoc = $this->ensureDocsForPdfExport($data['employeeRows']);
+        // Hanya export formulir PDF yang telah dinilai (yang memiliki isi nilai)
+        $evaluatedRows = array_values(array_filter($data['employeeRows'], function ($r) {
+            return !empty($r['has_score']);
+        }));
+
+        if (empty($evaluatedRows)) {
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Tidak ada formulir penilaian yang sudah dinilai untuk diunduh sebagai PDF pada filter saat ini.');
+        }
+
+        $evaluatedWithDoc = $this->ensureDocsForPdfExport($evaluatedRows);
 
         if (empty($evaluatedWithDoc)) {
             return redirect()->route('laporan.index', $request->query())
