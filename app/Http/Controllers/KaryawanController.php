@@ -255,8 +255,17 @@ class KaryawanController extends Controller
             'golongan' => $filterGol,
         ]);
 
-        // Sort by NRP ascending
-        usort($filtered, fn($a, $b) => strcmp($a['nrp'] ?? '', $b['nrp'] ?? ''));
+        // Sort: Prioritaskan yang sudah memiliki nilai/selesai tampil paling atas, lalu urutkan NRP
+        usort($filtered, function ($a, $b) use ($docsByNrp) {
+            $aDoc = $docsByNrp[$a['nrp'] ?? ''] ?? null;
+            $bDoc = $docsByNrp[$b['nrp'] ?? ''] ?? null;
+            $aDinilai = !empty($aDoc['total_nilai']) || in_array($aDoc['status'] ?? '', ['selesai', 'menunggu_div_head', 'menunggu_dept_head']);
+            $bDinilai = !empty($bDoc['total_nilai']) || in_array($bDoc['status'] ?? '', ['selesai', 'menunggu_div_head', 'menunggu_dept_head']);
+            if ($aDinilai !== $bDinilai) {
+                return $aDinilai ? -1 : 1;
+            }
+            return strnatcasecmp((string)($a['nrp'] ?? ''), (string)($b['nrp'] ?? ''));
+        });
 
         // Enrich rows exactly matching Master Karyawan format
         $karyawanRows = [];

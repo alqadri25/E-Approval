@@ -5322,6 +5322,27 @@ class PenilaianController extends Controller
             }
         }
 
+        // Urutkan baris: yang sudah dinilai paling atas
+        usort($rows, function ($a, $b) {
+            $aDinilai = ($a['status'] ?? '') === 'Dinilai' || !empty($a['nilai_section']) || !empty($a['has_section_sign']) || in_array($a['status_raw'] ?? '', ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+            $bDinilai = ($b['status'] ?? '') === 'Dinilai' || !empty($b['nilai_section']) || !empty($b['has_section_sign']) || in_array($b['status_raw'] ?? '', ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+            if ($aDinilai !== $bDinilai) {
+                return $aDinilai ? -1 : 1;
+            }
+
+            $aReady = (($a['status_raw'] ?? '') === 'menunggu_section_head' || ($a['nilai_foreman'] ?? '-') !== '-') ? 0 : 1;
+            $bReady = (($b['status_raw'] ?? '') === 'menunggu_section_head' || ($b['nilai_foreman'] ?? '-') !== '-') ? 0 : 1;
+            if ($aReady !== $bReady) {
+                return $aReady <=> $bReady;
+            }
+
+            if (!empty($a['is_self']) !== !empty($b['is_self'])) {
+                return !empty($a['is_self']) ? -1 : 1;
+            }
+
+            return strnatcasecmp((string)$a['nrp'], (string)$b['nrp']);
+        });
+
         // Default notification if no pending in seeded data
         if (!$latestPending && count($rows) > 0) {
             foreach ($rows as $r) {
@@ -5712,6 +5733,7 @@ class PenilaianController extends Controller
                 'status' => $statusLabel,
                 'is_waiting_foreman' => $isWaitingForeman,
                 'is_waiting_section' => $isWaitingSection,
+                'is_done' => $isDone,
                 'can_evaluate_dept' => $canEvaluateDept,
             ];
             $rows[] = $rowItem;
@@ -5721,16 +5743,24 @@ class PenilaianController extends Controller
             }
         }
 
-        // Pin self-evaluation (Dept Head 07-006-DH) first, then ready-to-review rows
+        // Urutkan baris: yang sudah dinilai (is_done / Sudah dinilai / nilai_akhir terisi) paling atas
         usort($rows, function ($a, $b) {
-            if (!empty($a['is_self']) !== !empty($b['is_self'])) {
-                return !empty($a['is_self']) ? -1 : 1;
+            $aDinilai = !empty($a['is_done']) || ($a['status'] ?? '') === 'Sudah dinilai' || !empty($a['nilai_akhir']) || !empty($a['has_dept_sign']);
+            $bDinilai = !empty($b['is_done']) || ($b['status'] ?? '') === 'Sudah dinilai' || !empty($b['nilai_akhir']) || !empty($b['has_dept_sign']);
+            if ($aDinilai !== $bDinilai) {
+                return $aDinilai ? -1 : 1;
             }
+
             $aReady = ($a['status_raw'] ?? '') === 'menunggu_dept_head' ? 0 : 1;
             $bReady = ($b['status_raw'] ?? '') === 'menunggu_dept_head' ? 0 : 1;
             if ($aReady !== $bReady) {
                 return $aReady <=> $bReady;
             }
+
+            if (!empty($a['is_self']) !== !empty($b['is_self'])) {
+                return !empty($a['is_self']) ? -1 : 1;
+            }
+
             return strnatcasecmp((string)$a['nrp'], (string)$b['nrp']);
         });
 
@@ -6108,20 +6138,35 @@ class PenilaianController extends Controller
             $latestPending = $rows[0];
         }
 
-        // Pin self row first, then waiting Div Head, then 07-006 priority
+        // Urutkan baris: yang sudah dinilai (is_done / Disahkan Final / memiliki nilai) paling atas
         usort($rows, function ($a, $b) {
-            if (!empty($a['is_self']) !== !empty($b['is_self'])) {
-                return !empty($a['is_self']) ? -1 : 1;
+            $aDone = !empty($a['is_done']) || ($a['status'] ?? '') === 'Disahkan Final';
+            $bDone = !empty($b['is_done']) || ($b['status'] ?? '') === 'Disahkan Final';
+            if ($aDone !== $bDone) {
+                return $aDone ? -1 : 1;
             }
+
+            $aHasScore = ($a['nilai_section'] ?? '-') !== '-' || ($a['nilai_dept'] ?? '-') !== '-' || !empty($a['nilai_div']);
+            $bHasScore = ($b['nilai_section'] ?? '-') !== '-' || ($b['nilai_dept'] ?? '-') !== '-' || !empty($b['nilai_div']);
+            if ($aHasScore !== $bHasScore) {
+                return $aHasScore ? -1 : 1;
+            }
+
             if (!empty($a['is_waiting_div']) !== !empty($b['is_waiting_div'])) {
                 return !empty($a['is_waiting_div']) ? -1 : 1;
             }
+
+            if (!empty($a['is_self']) !== !empty($b['is_self'])) {
+                return !empty($a['is_self']) ? -1 : 1;
+            }
+
             $a07 = str_starts_with(strtoupper((string)($a['kode_form'] ?? '')), '07-006');
             $b07 = str_starts_with(strtoupper((string)($b['kode_form'] ?? '')), '07-006');
             if ($a07 !== $b07) {
                 return $a07 ? -1 : 1;
             }
-            return strcmp((string)$a['nrp'], (string)$b['nrp']);
+
+            return strnatcasecmp((string)$a['nrp'], (string)$b['nrp']);
         });
 
         $countAll = count($rows);
