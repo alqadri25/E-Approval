@@ -44,11 +44,7 @@
                 Data Penilaian
             </h1>
             <p class="text-xs text-red-100 font-medium mt-1">
-                @if($isDeptWithoutForeman ?? false)
-                    Meninjau hasil penilaian langsung dari Section Head, menetapkan nilai akhir, dan menandatangani digital untuk diteruskan ke Division Head
-                @else
-                    Meninjau hasil penilaian dari Foreman dan Section Head, serta menetapkan nilai akhir &amp; tanda tangan digital Department Head
-                @endif
+                Meninjau hasil penilaian dari Foreman, Penilaian Mandiri, dan Section Head, serta menetapkan nilai akhir &amp; tanda tangan digital Department Head
             </p>
         </div>
 
@@ -103,27 +99,25 @@
             </div>
         </div>
 
-        @if(!($isDeptWithoutForeman ?? false))
-        <!-- Card 3: Proses Foreman -->
+        <!-- Card 3: Proses Foreman / Mandiri -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Foreman</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countProsesForeman ?? 0 }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Foreman</span>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Foreman / Mandiri</span>
+                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ ($countProsesForeman ?? 0) + ($countProsesMandiri ?? 0) }}</div>
+                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Awal</span>
                 </div>
                 <div class="w-9 h-9 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-xs border border-blue-200 shrink-0">
                     ⏳
                 </div>
             </div>
             <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countForemanSudah ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ $countProsesForeman ?? 0 }}</span>
+                <span class="font-bold text-emerald-700">Sudah: {{ ($countForemanSudah ?? 0) + ($countMandiriSudah ?? 0) }}</span>
+                <span class="font-bold text-slate-500">Belum: {{ ($countProsesForeman ?? 0) + ($countProsesMandiri ?? 0) }}</span>
             </div>
         </div>
-        @endif
 
-        <!-- Card 4 (atau 3 jika tanpa Foreman): Proses Section Head -->
+        <!-- Card 4: Proses Section Head -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
@@ -141,7 +135,7 @@
             </div>
         </div>
 
-        <!-- Card 5 (atau 4): Diteruskan / Selesai -->
+        <!-- Card 5: Diteruskan / Selesai -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
@@ -271,9 +265,8 @@
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-24">NRP</th>
                         <th class="py-3 px-4 border-t border-b border-r border-slate-300">NAMA LENGKAP &amp; POSITION</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">FORM</th>
-                        @if(!($isDeptWithoutForeman ?? false))
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL FOREMAN</th>
-                        @endif
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL PENILAIAN MANDIRI</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL SECTION HEAD</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">NILAI AKHIR DEPT</th>
                         <th class="py-3 px-3.5 border-t border-b border-r border-slate-300 min-w-[180px]">CATATAN DEPT HEAD</th>
@@ -326,21 +319,16 @@
                             {{ str_starts_with($row['kode_form'] ?? '', '07-006') ? '07-006' : ($row['kode_form'] ?? '07-001') }}
                         </td>
 
-                        @if(!($isDeptWithoutForeman ?? false))
-                        <!-- 5. Hasil Foreman (Jika ada foreman di dept) -->
+                        <!-- 5. HASIL FOREMAN -->
                         @php
-                            $foremanNamaTrim = trim((string)($row['foreman_nama'] ?? ''));
-                            $isForemanBlank = !empty($row['is_self'])
-                                || str_starts_with($row['kode_form'] ?? '', '07-006')
-                                || empty($row['foreman_nrp'])
-                                || ($row['nilai_foreman'] === '-' && in_array($foremanNamaTrim, ['', '-'], true));
+                            $showForeman = !empty($row['has_foreman_col']);
                         @endphp
-                        <td class="py-2.5 px-3 border-b border-r border-slate-200 {{ $isForemanBlank ? 'text-center' : '' }}">
-                            @if($isForemanBlank)
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 {{ !$showForeman ? 'text-center' : '' }}">
+                            @if(!$showForeman)
                                 <span class="text-slate-400 font-semibold">-</span>
                             @else
                             <div class="flex items-center gap-2">
-                                @if($row['nilai_foreman'] !== '-')
+                                @if(($row['nilai_foreman'] ?? '-') !== '-')
                                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
                                         {{ $row['nilai_foreman'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
                                            ($row['nilai_foreman'] === 'A' ? 'bg-blue-100 text-blue-800' :
@@ -353,7 +341,7 @@
                                 @endif
                                 <div>
                                     <span class="text-[11px] font-bold text-slate-800 block truncate max-w-[120px]">{{ $row['foreman_nama'] }}</span>
-                                    @if($row['has_foreman_sign'])
+                                    @if(!empty($row['has_foreman_sign']))
                                         <span class="text-[9.5px] font-semibold text-emerald-700 block">✓ TTD Lengkap</span>
                                     @else
                                         <span class="text-[9.5px] text-slate-400 italic block">Belum TTD</span>
@@ -362,23 +350,49 @@
                             </div>
                             @endif
                         </td>
-                        @endif
 
-                        <!-- 6. Hasil Section Head -->
+                        <!-- 6. HASIL PENILAIAN MANDIRI -->
                         @php
-                            $sectionNamaTrim = trim((string)($row['section_nama'] ?? ''));
-                            $isSectionBlank = !empty($row['is_self'])
-                                || ($row['nilai_section'] === '-' && empty($row['has_section_sign']) && (
-                                    in_array($sectionNamaTrim, ['', '-', 'Mandiri', 'Section Head'], true)
-                                    || str_starts_with($row['kode_form'] ?? '', '07-006')
-                                ));
+                            $showMandiri = !empty($row['has_mandiri_col']);
                         @endphp
-                        <td class="py-2.5 px-3 border-b border-r border-slate-200 {{ $isSectionBlank ? 'text-center' : '' }}">
-                            @if($isSectionBlank)
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 {{ !$showMandiri ? 'text-center' : '' }}">
+                            @if(!$showMandiri)
                                 <span class="text-slate-400 font-semibold">-</span>
                             @else
                             <div class="flex items-center gap-2">
-                                @if($row['nilai_section'] !== '-')
+                                @if(($row['nilai_mandiri'] ?? '-') !== '-')
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
+                                        {{ $row['nilai_mandiri'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
+                                           ($row['nilai_mandiri'] === 'A' ? 'bg-blue-100 text-blue-800' :
+                                           ($row['nilai_mandiri'] === 'B' ? 'bg-amber-100 text-amber-800' :
+                                           ($row['nilai_mandiri'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
+                                        {{ $row['nilai_mandiri'] }}
+                                    </span>
+                                @else
+                                    <span class="text-slate-400 font-semibold text-center w-7">-</span>
+                                @endif
+                                <div>
+                                    <span class="text-[11px] font-bold text-slate-800 block truncate max-w-[130px]">{{ $row['mandiri_nama'] ?? 'Mandiri' }}</span>
+                                    @if(!empty($row['has_mandiri_sign']))
+                                        <span class="text-[9.5px] font-semibold text-emerald-700 block">✓ TTD Lengkap</span>
+                                    @else
+                                        <span class="text-[9.5px] text-slate-400 italic block">Belum TTD</span>
+                                    @endif
+                                </div>
+                            </div>
+                            @endif
+                        </td>
+
+                        <!-- 7. HASIL SECTION HEAD -->
+                        @php
+                            $showSection = !empty($row['has_section_col']);
+                        @endphp
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 {{ !$showSection ? 'text-center' : '' }}">
+                            @if(!$showSection)
+                                <span class="text-slate-400 font-semibold">-</span>
+                            @else
+                            <div class="flex items-center gap-2">
+                                @if(($row['nilai_section'] ?? '-') !== '-')
                                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
                                         {{ $row['nilai_section'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
                                            ($row['nilai_section'] === 'A' ? 'bg-blue-100 text-blue-800' :
@@ -391,7 +405,7 @@
                                 @endif
                                 <div>
                                     <span class="text-[11px] font-bold text-slate-800 block truncate max-w-[130px]">{{ $row['section_nama'] }}</span>
-                                    @if($row['has_section_sign'])
+                                    @if(!empty($row['has_section_sign']))
                                         <span class="text-[9.5px] font-semibold text-emerald-700 block">✓ TTD Lengkap</span>
                                     @else
                                         <span class="text-[9.5px] text-slate-400 italic block">Belum TTD</span>
@@ -401,7 +415,7 @@
                             @endif
                         </td>
 
-                        <!-- 7. Nilai Akhir Dept Head (Dropdown Docking) -->
+                        <!-- 8. Nilai Akhir Dept Head (Dropdown Docking) -->
                         <td class="py-2 px-3 border-b border-r border-slate-200 text-center">
                             @if(!empty($row['doc_id']))
                                 @php
@@ -423,7 +437,7 @@
                             @endif
                         </td>
 
-                        <!-- 8. Catatan -->
+                        <!-- 9. Catatan -->
                         <td class="py-2 px-3.5 border-b border-r border-slate-200">
                             @if(!empty($row['doc_id']) && !empty($row['can_evaluate_dept']))
                             <input type="text"
@@ -438,7 +452,7 @@
                             @endif
                         </td>
 
-                        <!-- 9. Status Alur -->
+                        <!-- 10. Status Alur -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
                             @if($row['status_raw'] === 'selesai')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -451,6 +465,10 @@
                             @elseif($row['status_raw'] === 'menunggu_dept_head')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Perlu tindakan Anda">
                                     🔔 Siap Dinilai
+                                </span>
+                            @elseif(!empty($row['has_mandiri_col']) && empty($row['has_mandiri_sign']))
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                                    Proses Penilaian Mandiri
                                 </span>
                             @elseif($row['status_raw'] === 'menunggu_section_head')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
@@ -467,7 +485,7 @@
                             @endif
                         </td>
 
-                        <!-- 10. Aksi (Tombol Buka Form Penilaian) -->
+                        <!-- 11. Aksi (Tombol Buka Form Penilaian) -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
                             @if(!empty($row['doc_id']))
                                 @if(!empty($row['can_evaluate_dept']))
@@ -492,7 +510,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ ($isDeptWithoutForeman ?? false) ? 9 : 10 }}" class="py-8 text-center text-slate-400 italic">
+                        <td colspan="11" class="py-8 text-center text-slate-400 italic">
                             Tidak ada data penilaian untuk ditampilkan di departemen ini.
                         </td>
                     </tr>
