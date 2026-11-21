@@ -27,7 +27,7 @@ class DeptHeadPagesTest extends TestCase
 
         // Header & Role
         $response->assertSee('Dashboard');
-        $response->assertSee('E-Approval');
+        $response->assertSee('PerformanceAppraisal');
         $response->assertSee('SUPARDI');
 
         // 3 Stat Cards (Dynamic according to PROD 2 subordinates)

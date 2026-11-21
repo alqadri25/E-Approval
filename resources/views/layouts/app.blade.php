@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'Dashboard' }} - E-Approval - {{ config('app.name', 'TTD Digital Penilaian Karyawan') }}</title>
+    <title>{{ $title ?? 'Dashboard' }} - PerformanceAppraisal - {{ config('app.name', 'TTD Digital Penilaian Karyawan') }}</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('musashi.png') }}?v={{ file_exists(public_path('musashi.png')) ? filemtime(public_path('musashi.png')) : '1' }}">
@@ -142,8 +142,8 @@
     <div class="flex-1 flex flex-col min-h-0 relative z-10">
       <!-- Brand Header: logomusashi.png (Pure White) -->
       <div class="pt-6 pb-4 px-5 text-center flex-shrink-0">
-        <img src="{{ asset('logomusashi.png') }}" alt="MUSASHI E-Approval" class="h-9 max-w-[175px] object-contain brightness-0 invert mx-auto filter drop-shadow-sm">
-        <span class="sr-only">E-Approval</span>
+        <img src="{{ asset('logomusashi.png') }}" alt="MUSASHI PerformanceAppraisal" class="h-9 max-w-[175px] object-contain brightness-0 invert mx-auto filter drop-shadow-sm">
+        <span class="sr-only">PerformanceAppraisal</span>
       </div>
 
       <!-- Navigation Links Scroll Area -->
@@ -750,9 +750,9 @@
                 </button>
                 <div class="flex items-center gap-2">
                     <div class="w-6 h-6 bg-white text-[#92302e] flex items-center justify-center font-black text-xs shadow-xs">
-                        E
+                        P
                     </div>
-                    <span class="font-bold text-sm tracking-wide text-white">E-Approval</span>
+                    <span class="font-bold text-sm tracking-wide text-white">PerformanceAppraisal</span>
                 </div>
             </div>
             @auth

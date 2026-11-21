@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Hasil Penilaian - E-Approval Penilaian Karyawan')
+@section('title', 'Hasil Penilaian - PerformanceAppraisal Penilaian Karyawan')
 
 @section('content')
 <div class="space-y-6">
@@ -240,7 +240,7 @@
         <!-- Footer Info -->
         <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
             <span>Total <strong>{{ count($rows) }}</strong> baris penilaian ditampilkan</span>
-            <span class="text-[11px] text-slate-400">Data terintegrasi otomatis dengan sistem formulir PK & e-approval</span>
+            <span class="text-[11px] text-slate-400">Data terintegrasi otomatis dengan sistem formulir PK & PerformanceAppraisal</span>
         </div>
     </div>
 

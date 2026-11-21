@@ -1,7 +1,7 @@
 /**
  * =========================================================================
  * GOOGLE APPS SCRIPT: PT MUSASHI AUTO PARTS INDONESIA
- * SISTEM E-APPROVAL & DIGITAL SIGNATURE PENILAIAN KARYAWAN
+ * SISTEM PERFORMANCEAPPRAISAL & DIGITAL SIGNATURE PENILAIAN KARYAWAN
  * =========================================================================
  * Tautan Spreadsheet ID : 14-xI_m24eXSj1L2aiX_gytMWrrS9HnjH5HzcRgWV_9g
  * Tautan Drive Folder ID : 1zB2loWV14fCpLWMCnNiEa4dVKAvhLZYE
@@ -30,7 +30,7 @@ function showAlertSafely(message) {
  */
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('🚀 Musashi E-Approval')
+    .createMenu('🚀 Musashi PerformanceAppraisal')
     .addItem('⚡ Inisialisasi & Rapikan Seluruh Sheet Database', 'setupDatabaseSheets')
     .addItem('📁 Buat Subfolder Drive Otomatis (Dari Data Karyawan)', 'setupDriveFolders')
     .addItem('📱 Sinkron Barcode TTD Users ke Drive & Tampil di Sheet', 'syncUserBarcodesToDriveAndSheet')
@@ -485,7 +485,7 @@ function syncUserBarcodesToDriveAndSheet() {
       var filename = nrp + '_' + cleanNama + '_' + role + '.png';
       var roleFolder = getOrCreateSubfolder(mainTtdFolder, role);
 
-      var payload = "PT MUSASHI AUTO PARTS INDONESIA\nE-APPROVAL DIGITAL SIGNATURE\nNRP: " + nrp + "\nNAMA: " + nama + "\nROLE: " + role + "\nSTATUS: VERIFIED";
+      var payload = "PT MUSASHI AUTO PARTS INDONESIA\nPERFORMANCEAPPRAISAL DIGITAL SIGNATURE\nNRP: " + nrp + "\nNAMA: " + nama + "\nROLE: " + role + "\nSTATUS: VERIFIED";
       var qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=" + encodeURIComponent(payload);
 
       try {
@@ -918,7 +918,7 @@ function showDatabaseStats() {
   var totalTarget = targetSheet ? Math.max(0, targetSheet.getLastRow() - 1) : 0;
 
   showAlertSafely(
-    '📊 STATISTIK BASIS DATA MUSASHI E-APPROVAL:\n\n' +
+    '📊 STATISTIK BASIS DATA MUSASHI PERFORMANCEAPPRAISAL:\n\n' +
     '• Data Karyawan: ' + totalKaryawan + ' Orang\n' +
     '• Dokumen Penilaian: ' + totalDokumen + ' Dokumen\n' +
     '• Akun Pengguna: ' + totalUsers + ' Akun\n' +
@@ -946,7 +946,7 @@ function doGet(e) {
     if (action === 'ping') {
       return jsonResponse({
         status: 'ok',
-        app: 'Musashi E-Approval Apps Script',
+        app: 'Musashi PerformanceAppraisal Apps Script',
         spreadsheet_id: ss.getId(),
         spreadsheet_name: ss.getName(),
         time: new Date().toISOString()
@@ -976,7 +976,7 @@ function doGet(e) {
       return jsonResponse({ status: 'success', table: tableName, data: sheetToObjects(sh) });
     }
 
-    return jsonResponse({ status: 'ok', message: 'Musashi E-Approval Endpoint Aktif' });
+    return jsonResponse({ status: 'ok', message: 'Musashi PerformanceAppraisal Endpoint Aktif' });
   } catch (err) {
     return jsonResponse({ status: 'error', error: err.toString() }, 500);
   }
@@ -1377,7 +1377,7 @@ function doPost(e) {
             var uNama = String(rowData['nama'] || rowData['nama_lengkap'] || '').trim();
             var uRole = String(rowData['role'] || '').trim();
             if (uNrp && uNama) {
-              var qText = "PT MUSASHI AUTO PARTS INDONESIA\nE-APPROVAL DIGITAL SIGNATURE\nNRP: " + uNrp + "\nNAMA: " + uNama + "\nROLE: " + uRole;
+              var qText = "PT MUSASHI AUTO PARTS INDONESIA\nPERFORMANCEAPPRAISAL DIGITAL SIGNATURE\nNRP: " + uNrp + "\nNAMA: " + uNama + "\nROLE: " + uRole;
               val = '=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=' + encodeURIComponent(qText) + '")';
             }
           }
@@ -1495,7 +1495,7 @@ function writeObjectsToSheet(ss, sheetName, items) {
         var uNama = String(items[i]['nama'] || items[i]['nama_lengkap'] || '').trim();
         var uRole = String(items[i]['role'] || '').trim();
         if (uNrp && uNama) {
-          var qText = "PT MUSASHI AUTO PARTS INDONESIA\nE-APPROVAL DIGITAL SIGNATURE\nNRP: " + uNrp + "\nNAMA: " + uNama + "\nROLE: " + uRole;
+          var qText = "PT MUSASHI AUTO PARTS INDONESIA\nPERFORMANCEAPPRAISAL DIGITAL SIGNATURE\nNRP: " + uNrp + "\nNAMA: " + uNama + "\nROLE: " + uRole;
           val = '=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=' + encodeURIComponent(qText) + '")';
         }
       }

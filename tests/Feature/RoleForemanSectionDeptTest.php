@@ -28,7 +28,7 @@ class RoleForemanSectionDeptTest extends TestCase
 
         // Verify foreman dashboard indicators
         $response->assertSee('Dashboard Foreman');
-        $response->assertSee('E-Approval');
+        $response->assertSee('PerformanceAppraisal');
         $response->assertSee('SARYANTA');
         $response->assertSee('Total Karyawan');
         $response->assertSee('Total Target');

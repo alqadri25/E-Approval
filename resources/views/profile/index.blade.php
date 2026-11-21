@@ -256,7 +256,7 @@
                                 </span>
                             </div>
                             <p class="text-[10.5px] text-blue-800 leading-tight">
-                                Saat akun kepemimpinan dibuat atau disinkronkan dari Master Karyawan, barcode identitas ini otomatis tersimpan di sheet <code>users</code> dan langsung aktif untuk proses e-approval.
+                                Saat akun kepemimpinan dibuat atau disinkronkan dari Master Karyawan, barcode identitas ini otomatis tersimpan di sheet <code>users</code> dan langsung aktif untuk proses PerformanceAppraisal.
                             </p>
                         </div>
 

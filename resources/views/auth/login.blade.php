@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Masuk - E-Approval | PT Musashi Auto Parts Indonesia</title>
+    <title>Masuk - PerformanceAppraisal | PT Musashi Auto Parts Indonesia</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ asset('musashi.png') }}?v={{ file_exists(public_path('musashi.png')) ? filemtime(public_path('musashi.png')) : '1' }}">
@@ -106,7 +106,7 @@
                 </div>
                 <div>
                     <h2 class="text-white font-extrabold text-xl sm:text-2xl tracking-tight leading-none">
-                        E-Approval
+                        PerformanceAppraisal
                     </h2>
                     <p class="text-red-200/80 text-[11px] font-medium tracking-wide mt-1">
                         PT Musashi Auto Parts Indonesia

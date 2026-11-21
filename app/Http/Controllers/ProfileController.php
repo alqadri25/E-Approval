@@ -237,7 +237,7 @@ class ProfileController extends Controller
             . '<circle cx="14" cy="14" r="14" fill="#92302e" fill-opacity="0.12"/>'
             . '<path d="M9 14 l3.5 3.5 l7 -7" fill="none" stroke="#92302e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>'
             . '<text x="36" y="10" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="bold" fill="#92302e">PT MUSASHI AUTO PARTS INDONESIA</text>'
-            . '<text x="36" y="22" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#64748b">E-APPROVAL DIGITAL SIGNATURE</text>'
+            . '<text x="36" y="22" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#64748b">PERFORMANCEAPPRAISAL DIGITAL SIGNATURE</text>'
             . '</g>'
             . '<text x="190" y="66" text-anchor="middle" font-family="Georgia, serif" font-size="24" font-weight="bold" fill="#0f172a">' . $nama . '</text>'
             . '<line x1="24" y1="76" x2="356" y2="76" stroke="#e2e8f0" stroke-width="1"/>'

@@ -1922,7 +1922,7 @@ class GoogleSyncService
 /**
  * =========================================================================
  * GOOGLE APPS SCRIPT: PT MUSASHI AUTO PARTS INDONESIA
- * SISTEM E-APPROVAL & DIGITAL SIGNATURE PENILAIAN KARYAWAN
+ * SISTEM PERFORMANCEAPPRAISAL & DIGITAL SIGNATURE PENILAIAN KARYAWAN
  * =========================================================================
  * Tautan Spreadsheet ID : __SS_ID__
  * Tautan Drive Folder ID : __DR_ID__
@@ -1955,7 +1955,7 @@ function showAlertSafely(message) {
  */
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('🚀 Musashi E-Approval')
+    .createMenu('🚀 Musashi PerformanceAppraisal')
     .addItem('⚡ Inisialisasi & Rapikan Seluruh Sheet Database', 'setupDatabaseSheets')
     .addItem('📁 Buat Subfolder Drive Otomatis (Dari Data Karyawan)', 'setupDriveFolders')
     .addItem('📱 Sinkron Barcode TTD Users ke Drive & Tampil di Sheet', 'syncUserBarcodesToDriveAndSheet')
@@ -2582,7 +2582,7 @@ function syncUserBarcodesToDriveAndSheet() {
 
       var roleFolder = getOrCreateSubfolder(mainTtdFolder, role);
 
-      var payload = "PT MUSASHI AUTO PARTS INDONESIA\nE-APPROVAL DIGITAL SIGNATURE\nNRP: " + nrp + "\nNAMA: " + nama + "\nROLE: " + role + "\nSTATUS: VERIFIED";
+      var payload = "PT MUSASHI AUTO PARTS INDONESIA\nPERFORMANCEAPPRAISAL DIGITAL SIGNATURE\nNRP: " + nrp + "\nNAMA: " + nama + "\nROLE: " + role + "\nSTATUS: VERIFIED";
       var qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=" + encodeURIComponent(payload);
 
       try {
@@ -2852,7 +2852,7 @@ function showDatabaseStats() {
   var totalDinilai = dinilaiSheet ? Math.max(0, dinilaiSheet.getLastRow() - 1) : 0;
   var totalTtd = ttdSheet ? Math.max(0, ttdSheet.getLastRow() - 1) : 0;
 
-  var msg = '📊 STATISTIK BASIS DATA MUSASHI E-APPROVAL:\n\n' +
+  var msg = '📊 STATISTIK BASIS DATA MUSASHI PERFORMANCEAPPRAISAL:\n\n' +
             '• Data Karyawan: ' + totalKaryawan + ' Orang\n' +
             '• Dokumen Penilaian: ' + totalDokumen + ' Dokumen\n' +
             '• Akun Pengguna: ' + totalUsers + ' Akun\n' +
@@ -2876,7 +2876,7 @@ function doGet(e) {
     if (action === 'ping') {
       return jsonResponse({
         status: 'ok',
-        app: 'Musashi E-Approval Apps Script',
+        app: 'Musashi PerformanceAppraisal Apps Script',
         spreadsheet_id: ss.getId(),
         spreadsheet_name: ss.getName(),
         drive_folder_id: CONFIG.DRIVE_FOLDER_ID,
@@ -2954,7 +2954,7 @@ function doGet(e) {
       return jsonResponse({ status: 'success', table: tableName, data: sheetToObjects(sheet) });
     }
 
-    return jsonResponse({ status: 'ok', message: 'Musashi E-Approval Endpoint Aktif' });
+    return jsonResponse({ status: 'ok', message: 'Musashi PerformanceAppraisal Endpoint Aktif' });
   } catch (err) {
     return jsonResponse({ status: 'error', error: err.toString() }, 500);
   }
@@ -3346,7 +3346,7 @@ function doPost(e) {
             var uNama = String(rowData['nama'] || rowData['nama_lengkap'] || '').trim();
             var uRole = String(rowData['role'] || '').trim();
             if (uNrp && uNama) {
-              var qText = "PT MUSASHI AUTO PARTS INDONESIA\nE-APPROVAL DIGITAL SIGNATURE\nNRP: " + uNrp + "\nNAMA: " + uNama + "\nROLE: " + uRole;
+              var qText = "PT MUSASHI AUTO PARTS INDONESIA\nPERFORMANCEAPPRAISAL DIGITAL SIGNATURE\nNRP: " + uNrp + "\nNAMA: " + uNama + "\nROLE: " + uRole;
               val = '=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=' + encodeURIComponent(qText) + '")';
             }
           }
@@ -3475,7 +3475,7 @@ function writeObjectsToSheet(ss, sheetName, items) {
         var uNama = String(items[i]['nama'] || items[i]['nama_lengkap'] || '').trim();
         var uRole = String(items[i]['role'] || '').trim();
         if (uNrp && uNama) {
-          var qText = "PT MUSASHI AUTO PARTS INDONESIA\nE-APPROVAL DIGITAL SIGNATURE\nNRP: " + uNrp + "\nNAMA: " + uNama + "\nROLE: " + uRole;
+          var qText = "PT MUSASHI AUTO PARTS INDONESIA\nPERFORMANCEAPPRAISAL DIGITAL SIGNATURE\nNRP: " + uNrp + "\nNAMA: " + uNama + "\nROLE: " + uRole;
           val = '=IMAGE("https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=8&data=' + encodeURIComponent(qText) + '")';
         }
       }

@@ -107,7 +107,7 @@ class User extends Authenticatable
         $cleanRole = strtoupper(trim($role ?: 'PENILAI'));
 
         $payload = "PT MUSASHI AUTO PARTS INDONESIA\n"
-            . "E-APPROVAL DIGITAL SIGNATURE\n"
+            . "PERFORMANCEAPPRAISAL DIGITAL SIGNATURE\n"
             . "NRP: {$cleanNrp}\n"
             . "NAMA: {$cleanNama}\n"
             . "ROLE: {$cleanRole}\n"

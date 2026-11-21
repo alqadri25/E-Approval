@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Revisi Form Penilaian - Musashi E-Approval')
+@section('title', 'Revisi Form Penilaian - Musashi PerformanceAppraisal')
 
 @section('content')
 <div class="space-y-6" x-data="revisiManager()">
