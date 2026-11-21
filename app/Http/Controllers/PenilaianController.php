@@ -145,16 +145,18 @@ class PenilaianController extends Controller
                 $scores = $nilaiGrouped[$docId]['foreman'] ?? [];
                 $calc = !empty($scores) ? $this->calcService->calculate($kodeForm, $scores) : ['grand_total' => 0.00];
                 $score = ($calc['grand_total'] > 0) ? $calc['grand_total'] : (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']) ? ($doc['total_nilai'] ?? 0) : 0);
-                $isEvaluated = in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
-                    || (!empty($scores) && ($score > 0) && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']));
+                $hasFmScore = ($score > 0) || (!empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0) || (!empty($doc['grade_original']) && $doc['grade_original'] !== '-');
+                $isEvaluated = (in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
+                    || (!empty($scores) && ($score > 0) && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']))) && $hasFmScore;
             } elseif ($user->isSectionHead()) {
                 // Section Head: Subordinates evaluated in 'section_head' (or 'foreman' for self 07-006-SH)
                 $scores = $nilaiGrouped[$docId]['section_head']
                     ?? (($isSelf && $isGol4UpForm) ? ($nilaiGrouped[$docId]['foreman'] ?? []) : []);
                 $calc = !empty($scores) ? $this->calcService->calculate($kodeForm, $scores) : ['grand_total' => 0.00];
                 $score = ($calc['grand_total'] > 0) ? $calc['grand_total'] : (!in_array($status, ['draft', 'belum_ada', 'menunggu_section_head', 'menunggu_foreman']) ? ($doc['total_nilai'] ?? 0) : 0);
-                $isEvaluated = in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
-                    || (!empty($scores) && ($score > 0) && !in_array($status, ['draft', 'belum_ada', 'menunggu_section_head', 'menunggu_foreman']));
+                $hasShScore = ($score > 0) || (!empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0) || (!empty($doc['grade_original']) && $doc['grade_original'] !== '-');
+                $isEvaluated = (in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])
+                    || (!empty($scores) && ($score > 0) && !in_array($status, ['draft', 'belum_ada', 'menunggu_section_head', 'menunggu_foreman']))) && $hasShScore;
             } elseif ($isDeptOrDivHead) {
                 $deptScores = $nilaiGrouped[$docId]['dept_head']
                     ?? (($isSelf && $isGol4UpForm) ? ($nilaiGrouped[$docId]['foreman'] ?? []) : ($nilaiGrouped[$docId]['section_head'] ?? []));
@@ -167,17 +169,30 @@ class PenilaianController extends Controller
                 $calc = !empty($scores) ? $this->calcService->calculate($kodeForm, $scores) : $calcDept;
                 $score = ($calc['grand_total'] > 0) ? $calc['grand_total'] : ($doc['total_nilai'] ?? 0);
 
-                if ($isDivHeadUser && $isSelf) {
-                    $scores = !empty($divScores)
-                        ? $divScores
-                        : ($nilaiGrouped[$docId]['foreman'] ?? ($nilaiGrouped[$docId]['dept_head'] ?? []));
-                    $calc = !empty($scores) ? $this->calcService->calculate($kodeForm, $scores) : ['grand_total' => 0.00];
-                    $score = ($calc['grand_total'] > 0) ? $calc['grand_total'] : (float)($doc['total_nilai'] ?? 0);
+                if ($isDivHeadUser) {
+                    // Division Head: Hanya bawahan yang telah disahkan final (selesai) dan memiliki nilai riil yang masuk ke Riwayat
+                    $hasDivScore = ($score > 0)
+                        || (!empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0)
+                        || (!empty($doc['docking_final']) && $doc['docking_final'] !== '-')
+                        || (!empty($doc['grade_original']) && $doc['grade_original'] !== '-');
+                    $isEvaluated = ($status === 'selesai') && $hasDivScore;
                     $hasDivFinalRow = ($status === 'selesai');
-                    $isEvaluatedByDept = false;
-                    $isEvaluated = ($status === 'selesai');
+                    $isEvaluatedByDept = $isEvaluated;
+
+                    if ($isEvaluated) {
+                        $docking = trim((string)($doc['docking_final'] ?? ''));
+                        $deptGradeRow = $docking !== ''
+                            ? $docking
+                            : (($deptScoreVal > 0) ? $this->calcService->scoreToGrade($deptScoreVal) : ($doc['grade_original'] ?? 'K'));
+                        $deptScoreRow = number_format((float)$deptScoreVal, 2);
+                    }
                 } else {
-                    $isEvaluatedByDept = in_array($status, ['menunggu_div_head', 'selesai'])
+                    // Department Head: Bawahan yang telah dinilai oleh Dept Head (status menunggu_div_head atau selesai) dan memiliki nilai riil
+                    $hasDeptScore = ($deptScoreVal > 0)
+                        || (!empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0)
+                        || (!empty($doc['docking_final']) && $doc['docking_final'] !== '-')
+                        || (!empty($doc['grade_original']) && $doc['grade_original'] !== '-');
+                    $isEvaluatedByDept = (in_array($status, ['menunggu_div_head', 'selesai']) && $hasDeptScore)
                         || (!empty($deptScores) && ($deptScoreVal > 0) && !in_array($status, ['draft', 'belum_ada', 'menunggu_dept_head', 'menunggu_section_head', 'menunggu_foreman']));
                     $hasDivFinalRow = ($status === 'selesai');
                     $isEvaluated = $isEvaluatedByDept;
@@ -194,7 +209,8 @@ class PenilaianController extends Controller
                 $scores = $nilaiGrouped[$docId]['foreman'] ?? [];
                 $calc = !empty($scores) ? $this->calcService->calculate($kodeForm, $scores) : ['grand_total' => 0.00];
                 $score = ($calc['grand_total'] > 0) ? $calc['grand_total'] : ($doc['total_nilai'] ?? 0);
-                $isEvaluated = in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'selesai']) || ($score > 0 && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']));
+                $hasScore = ($score > 0) || (!empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0) || (!empty($doc['grade_original']) && $doc['grade_original'] !== '-');
+                $isEvaluated = (in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'selesai']) || ($score > 0 && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']))) && $hasScore;
             }
 
             if ($isEvaluated) {
