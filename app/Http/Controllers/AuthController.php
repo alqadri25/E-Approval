@@ -191,6 +191,27 @@ class AuthController extends Controller
             ];
         }
 
+        // 6. KJ > 5 / Gol 4 Non Kasie / Senior Staff (Form 07-006 Mandiri)
+        $kj5Users = $allUsers->filter(fn($u) => $u->isKj5Up() && !$u->isDepartmentHead() && !$u->isDivisionHead() && !$u->isAdmin() && !$u->isForeman());
+        foreach ($kj5Users->take(10) as $u) {
+            $curatedList[] = [
+                'id' => $u->id,
+                'nrp' => $u->nrp,
+                'nama' => $u->nama,
+                'role' => $u->role,
+                'role_label' => $u->roleLabel(),
+                'departemen' => $u->departemen ?? 'ALL',
+                'seksi' => $u->roleLabel(),
+                'email' => $u->email,
+                'alt_email' => $u->email,
+                'kasus' => 'kasus1',
+                'kasus_badge' => $u->roleLabel(),
+                'kasus_title' => "{$u->roleLabel()} ({$u->nrp} {$u->nama})",
+                'deskripsi' => 'Penilaian Mandiri & Pengisian Form 07-006 (KJ > 5)',
+                'db_user' => $u,
+            ];
+        }
+
         $defaultUser = $allUsers->firstWhere('role', 'admin') ?? $allUsers->firstWhere('role', 'superadmin');
         $defaultEmail = $defaultUser ? $defaultUser->email : 'admin@musashi.co.id';
 
@@ -204,12 +225,11 @@ class AuthController extends Controller
     /**
      * Handle authentication attempt with role verification & alias support
      */
-        public function login(Request $request)
+    public function login(Request $request)
     {
         $credentials = $request->validate([
             'email' => 'required|string',
             'password' => 'required|string',
-            'role' => 'nullable|string',
         ]);
 
         $rawInput = trim($credentials['email']);
@@ -293,36 +313,6 @@ class AuthController extends Controller
             ]);
         }
 
-        // Validate Role if explicitly chosen in selector (skip if 'all' or empty)
-        $selectedRole = strtolower(trim((string)$request->input('role', 'all')));
-        if (!empty($selectedRole) && $selectedRole !== 'all') {
-            $userRole = strtolower(str_replace([' ', '-'], '_', trim($user->role)));
-            $roleValid = match ($selectedRole) {
-                'foreman' => in_array($userRole, ['foreman', 'ketua', 'leader']),
-                'section_head' => in_array($userRole, ['section_head', 'sect_head']),
-                'department_head' => in_array($userRole, ['department_head', 'dept_head', 'manager', 'manajer']),
-                'division_head' => in_array($userRole, ['division_head', 'div_head']),
-                'admin' => in_array($userRole, ['admin', 'superadmin']),
-                'superadmin' => in_array($userRole, ['superadmin', 'admin']),
-                default => true,
-            };
-
-            if (!$roleValid) {
-                $roleLabels = [
-                    'foreman' => 'Foreman',
-                    'section_head' => 'Section Head',
-                    'department_head' => 'Department Head / Manager',
-                    'division_head' => 'Division Head',
-                    'admin' => 'Admin / Superadmin',
-                    'superadmin' => 'Superadmin',
-                ];
-                $expectedLabel = $roleLabels[$selectedRole] ?? $selectedRole;
-                throw ValidationException::withMessages([
-                    'role' => "Akun ini terdaftar sebagai {$user->roleLabel()}, tidak sesuai dengan pilihan role '{$expectedLabel}'. Silakan pilih role yang cocok atau pilih 'Pilih peran'.",
-                ]);
-            }
-        }
-
         try {
             $remember = $request->has('remember') ? $request->boolean('remember') : true;
             Auth::login($user, $remember);
@@ -330,8 +320,9 @@ class AuthController extends Controller
             Auth::login($user, true);
         }
         $request->session()->regenerate();
+        $request->session()->forget('url.intended');
 
-        return redirect()->intended(route('dashboard'))->with('success', "Selamat datang, {$user->nama}! Masuk sebagai {$user->roleLabel()}.");
+        return redirect()->route('dashboard')->with('success', "Selamat datang, {$user->nama}! Masuk sebagai {$user->roleLabel()}.");
     }
 
     /**
@@ -376,6 +367,7 @@ class AuthController extends Controller
         } catch (\Throwable $e) {}
 
         try {
+            $request->session()->forget('url.intended');
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         } catch (\Throwable $e) {}

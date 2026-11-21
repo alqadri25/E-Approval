@@ -145,7 +145,7 @@
 
             <!-- Bottom Left Footer / Copyright -->
             <div class="relative z-10 text-xs text-red-200/70 font-medium">
-                &copy; {{ date('Y') }} PT Musashi Auto Parts Indonesia
+                &copy; <span class="current-year">{{ date('Y') }}</span> PT Musashi Auto Parts Indonesia
             </div>
         </section>
 
@@ -162,7 +162,7 @@
                         Masuk
                     </h2>
                     <p class="text-sm text-neutral-500 mt-2">
-                        Silakan masukkan akun dan pilih peran Anda.
+                        Silakan masukkan akun Anda untuk melanjutkan.
                     </p>
                 </div>
 
@@ -212,38 +212,7 @@
                 <form method="POST" action="{{ route('login.post') }}" class="space-y-4" id="mainLoginForm">
                     @csrf
 
-                    <!-- FIELD 1: PILIH PERAN (ROLE FIRST AS REQUESTED) -->
-                    <div>
-                        <label for="roleSelector" class="block text-xs sm:text-sm font-semibold text-neutral-800 mb-1.5">
-                            Pilih Peran
-                        </label>
-                        <div class="relative">
-                            <!-- Left Icon: Briefcase -->
-                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-400">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                </svg>
-                            </div>
-
-                            <select name="role" id="roleSelector" class="w-full pl-11 pr-10 py-3 rounded-xl border border-neutral-300 text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7b181b]/25 focus:border-[#7b181b] transition bg-white appearance-none cursor-pointer">
-                                <option value="all" {{ old('role') == 'all' || !old('role') ? 'selected' : '' }}>Pilih peran</option>
-                                <option value="foreman" {{ old('role') == 'foreman' ? 'selected' : '' }}>Foreman</option>
-                                <option value="section_head" {{ old('role') == 'section_head' ? 'selected' : '' }}>Section Head</option>
-                                <option value="department_head" {{ old('role') == 'department_head' ? 'selected' : '' }}>Department Head</option>
-                                <option value="division_head" {{ old('role') == 'division_head' ? 'selected' : '' }}>Division Head</option>
-                                <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Superadmin / Admin</option>
-                            </select>
-
-                            <!-- Right Chevron Icon -->
-                            <div class="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-neutral-400">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- FIELD 2: USERNAME ATAU EMAIL -->
+                    <!-- FIELD: USERNAME ATAU EMAIL -->
                     <div>
                         <label for="emailInput" class="block text-xs sm:text-sm font-semibold text-neutral-800 mb-1.5">
                             Username atau Email
@@ -309,7 +278,7 @@
 
             <!-- Footer Small Screen Copyright -->
             <div class="mt-10 lg:hidden text-center text-xs text-neutral-400">
-                &copy; {{ date('Y') }} PT Musashi Auto Parts Indonesia
+                &copy; <span class="current-year">{{ date('Y') }}</span> PT Musashi Auto Parts Indonesia
             </div>
 
         </section>
@@ -358,6 +327,7 @@
                     <button type="button" onclick="filterDrawerRole('all', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-[#7b181b] text-white">Semua</button>
                     <button type="button" onclick="filterDrawerRole('foreman', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Foreman</button>
                     <button type="button" onclick="filterDrawerRole('section_head', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Section Head</button>
+                    <button type="button" onclick="filterDrawerRole('kj5', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">KJ &gt; 5 / Gol 4</button>
                     <button type="button" onclick="filterDrawerRole('department_head', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Dept Head</button>
                     <button type="button" onclick="filterDrawerRole('division_head', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Div Head</button>
                     <button type="button" onclick="filterDrawerRole('admin', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Superadmin</button>
@@ -382,6 +352,7 @@
                                 <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full 
                                     @if($acc['role'] == 'foreman') bg-emerald-950 text-emerald-300 border border-emerald-800
                                     @elseif($acc['role'] == 'section_head') bg-blue-950 text-blue-300 border border-blue-800
+                                    @elseif(in_array($acc['role'], ['GOL 4 NON KASIE', 'SENIOR STAFF', 'STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)']) || str_contains($acc['role'], 'STAFF') || str_contains($acc['role'], 'NON KASIE')) bg-indigo-950 text-indigo-300 border border-indigo-800
                                     @elseif($acc['role'] == 'department_head') bg-purple-950 text-purple-300 border border-purple-800
                                     @elseif($acc['role'] == 'division_head') bg-amber-950 text-amber-300 border border-amber-800
                                     @else bg-rose-950 text-rose-300 border border-rose-800 @endif">
@@ -541,28 +512,13 @@
         function fillFormFromDrawer(email, password, role) {
             const emailInput = document.getElementById('emailInput');
             const passwordInput = document.getElementById('passwordInput');
-            const roleSelect = document.getElementById('roleSelector');
 
-            emailInput.value = email;
-            passwordInput.value = password;
-
-            // Map and select role
-            if (role === 'foreman' || role === 'ketua') {
-                roleSelect.value = 'foreman';
-            } else if (role === 'section_head') {
-                roleSelect.value = 'section_head';
-            } else if (role === 'department_head') {
-                roleSelect.value = 'department_head';
-            } else if (role === 'division_head') {
-                roleSelect.value = 'division_head';
-            } else if (role === 'admin' || role === 'superadmin') {
-                roleSelect.value = 'admin';
-            } else {
-                roleSelect.value = 'all';
-            }
+            if (emailInput) emailInput.value = email;
+            if (passwordInput) passwordInput.value = password;
 
             // Trigger visual pulse effect on input elements
-            [roleSelect, emailInput, passwordInput].forEach(el => {
+            [emailInput, passwordInput].forEach(el => {
+                if (!el) return;
                 el.classList.remove('highlight-pulse');
                 void el.offsetWidth; // re-flow
                 el.classList.add('highlight-pulse');
@@ -571,8 +527,8 @@
             // Close drawer
             closeDemoDrawer();
 
-            // Focus on submit button or email
-            emailInput.focus();
+            // Focus on email input
+            if (emailInput) emailInput.focus();
         }
 
         // 4. Filter Drawer Accounts
@@ -587,15 +543,26 @@
             btn.className = 'drawer-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-[#7b181b] text-white transition';
 
             // Filter items
+            const kj5Roles = ['GOL 4 NON KASIE', 'SENIOR STAFF', 'STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)'];
             const items = document.querySelectorAll('.drawer-account-item');
             items.forEach(item => {
-                const itemRole = item.getAttribute('data-role');
+                const itemRole = item.getAttribute('data-role') || '';
+                const isKj5 = kj5Roles.includes(itemRole) || itemRole.includes('NON KASIE') || itemRole.includes('STAFF');
                 const match = (role === 'all') ||
                               (role === 'admin' && (itemRole === 'admin' || itemRole === 'superadmin')) ||
+                              (role === 'kj5' && isKj5) ||
                               (itemRole === role);
                 item.style.display = match ? '' : 'none';
             });
         }
+
+        // 5. Dynamic Real-time Copyright Year
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentYear = new Date().getFullYear();
+            document.querySelectorAll('.current-year').forEach(el => {
+                el.textContent = currentYear;
+            });
+        });
 
         // 5. Forgot Password Modal
         function openForgotModal() {

@@ -286,7 +286,7 @@ class User extends Authenticatable
         if ($k) {
             $kjRaw = strtoupper(trim((string)($k->kj ?? '')));
             if (preg_match('/(?:KJ\s*|KATEGORI\s*)?(\d+)/i', $kjRaw, $m)) {
-                if ((int)$m[1] > 5) return true;
+                if ((int)$m[1] >= 5) return true;
             }
             $subG = strtoupper(trim((string)($k->sub_gol ?? '')));
             $gol = strtoupper(trim((string)($k->golongan ?? '')));
@@ -299,14 +299,24 @@ class User extends Authenticatable
             'SECTION_HEAD', 'SECTION HEAD', 'SECHEAD', 
             'GOL 4 NON KASIE', 'GOL_4_NON_KASIE',
             'SENIOR STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)', 'STAFF'
-        ], true) || stripos($roleUpper, 'NON KASIE') !== false) {
+        ], true) 
+            || stripos($roleUpper, 'NON KASIE') !== false
+            || stripos($roleUpper, 'STAFF') !== false
+            || stripos($roleUpper, 'GOL 4') !== false
+            || stripos($roleUpper, 'GOL4') !== false
+            || stripos($roleUpper, 'KJ5') !== false
+            || stripos($roleUpper, 'KJ 5') !== false) {
             return true;
         }
 
         $jabUpper = strtoupper(trim((string)($this->jabatan ?: ($this->karyawan?->jabatan ?? ''))));
         if (in_array($jabUpper, [
             'SECTION HEAD', 'GOL 4 NON KASIE', 'SENIOR STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)', 'STAFF'
-        ], true) || stripos($jabUpper, 'NON KASIE') !== false) {
+        ], true) 
+            || stripos($jabUpper, 'NON KASIE') !== false
+            || stripos($jabUpper, 'STAFF') !== false
+            || stripos($jabUpper, 'GOL 4') !== false
+            || stripos($jabUpper, 'GOL4') !== false) {
             return true;
         }
 
