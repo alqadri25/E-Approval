@@ -47,28 +47,6 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
-        .highlight-pulse {
-            animation: inputPulse 1.2s ease-in-out;
-        }
-        @keyframes inputPulse {
-            0% { border-color: #7b181b; box-shadow: 0 0 0 3px rgba(123, 24, 27, 0.35); }
-            50% { border-color: #b83437; box-shadow: 0 0 0 5px rgba(184, 52, 55, 0.45); }
-            100% { border-color: #d1d5db; box-shadow: none; }
-        }
-        /* Custom scrollbar for demo drawer */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 9999px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
     </style>
 </head>
 <body class="min-h-screen bg-neutral-100 flex flex-col justify-center text-neutral-800 antialiased selection:bg-[#7b181b] selection:text-white">
@@ -167,7 +145,7 @@
                 </div>
 
                 <!-- Alert Messages -->
-                @if ($errors->any())
+                @if (isset($errors) && $errors->any())
                     <div class="rounded-xl bg-red-50 border border-red-200 p-4 text-xs sm:text-sm text-red-800 space-y-1">
                         <div class="font-bold flex items-center gap-2 text-red-900">
                             <svg class="w-4 h-4 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -224,7 +202,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                 </svg>
                             </div>
-                            <input type="text" name="email" id="emailInput" value="{{ old('email', $defaultEmail ?? '') }}" required placeholder="nama@perusahaan.com" class="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-300 text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7b181b]/25 focus:border-[#7b181b] transition placeholder-neutral-400 bg-white">
+                            <input type="text" name="email" id="emailInput" value="{{ old('email') }}" required placeholder="nama@perusahaan.com" class="w-full pl-11 pr-4 py-3 rounded-xl border border-neutral-300 text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7b181b]/25 focus:border-[#7b181b] transition placeholder-neutral-400 bg-white">
                         </div>
                     </div>
 
@@ -240,7 +218,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                                 </svg>
                             </div>
-                            <input type="password" name="password" id="passwordInput" value="{{ $defaultPassword ?? '' }}" required placeholder="Masukkan kata sandi" class="w-full pl-11 pr-11 py-3 rounded-xl border border-neutral-300 text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7b181b]/25 focus:border-[#7b181b] transition placeholder-neutral-400 bg-white">
+                            <input type="password" name="password" id="passwordInput" value="" required placeholder="Masukkan kata sandi" class="w-full pl-11 pr-11 py-3 rounded-xl border border-neutral-300 text-neutral-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#7b181b]/25 focus:border-[#7b181b] transition placeholder-neutral-400 bg-white">
                             
                             <!-- Toggle Visibility Eye Button -->
                             <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-neutral-400 hover:text-neutral-700 focus:outline-none transition-colors" title="Lihat / Sembunyikan Kata Sandi">
@@ -283,119 +261,6 @@
 
         </section>
 
-    </div>
-
-    <!-- ============================================================== -->
-    <!-- FLOATING BUTTON: Akun Uji Coba Demo (Non-intrusive)           -->
-    <!-- ============================================================== -->
-    <button type="button" onclick="openDemoDrawer()" class="fixed bottom-4 right-4 z-40 bg-neutral-900/90 hover:bg-neutral-900 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xl border border-neutral-700 hover:border-neutral-500 backdrop-blur-md flex items-center gap-2.5 transition duration-200 group">
-        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span class="tracking-wide">⚡ Akun Demo / Uji Coba</span>
-        <span class="text-[10px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded-full border border-neutral-700 group-hover:bg-[#7b181b] group-hover:text-white transition">Buka</span>
-    </button>
-
-    <!-- ============================================================== -->
-    <!-- SLIDE-OVER DRAWER: Quick Test Accounts Center                  -->
-    <!-- ============================================================== -->
-    <div id="demoDrawer" class="fixed inset-0 z-50 overflow-hidden hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
-        <!-- Backdrop -->
-        <div id="demoBackdrop" onclick="closeDemoDrawer()" class="fixed inset-0 bg-neutral-950/60 backdrop-blur-xs transition-opacity duration-300 opacity-0"></div>
-
-        <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <div id="demoDrawerPanel" class="w-screen max-w-lg bg-neutral-900 text-neutral-100 shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-in-out border-l border-neutral-800">
-                
-                <!-- Drawer Header -->
-                <div class="p-5 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/95">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-xl bg-[#7b181b] flex items-center justify-center text-white font-bold text-sm shadow">
-                            ⚡
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-base text-white leading-tight">Pusat Akun Uji Coba</h3>
-                            <p class="text-xs text-neutral-400 mt-0.5">Pilih akun untuk mengisi form atau login instan</p>
-                        </div>
-                    </div>
-                    <button type="button" onclick="closeDemoDrawer()" class="w-8 h-8 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 hover:text-white flex items-center justify-center transition">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Filter Role Pills -->
-                <div class="p-3 bg-neutral-950 border-b border-neutral-800 flex items-center gap-1.5 overflow-x-auto custom-scrollbar">
-                    <button type="button" onclick="filterDrawerRole('all', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-[#7b181b] text-white">Semua</button>
-                    <button type="button" onclick="filterDrawerRole('foreman', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Foreman</button>
-                    <button type="button" onclick="filterDrawerRole('section_head', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Section Head</button>
-                    <button type="button" onclick="filterDrawerRole('kj5', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">KJ &gt; 5 / Gol 4</button>
-                    <button type="button" onclick="filterDrawerRole('department_head', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Dept Head</button>
-                    <button type="button" onclick="filterDrawerRole('division_head', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Div Head</button>
-                    <button type="button" onclick="filterDrawerRole('admin', this)" class="drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800">Superadmin</button>
-                </div>
-
-                <!-- Accounts List -->
-                <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar" id="drawerAccountList">
-                    @forelse($testAccounts ?? [] as $acc)
-                        <div class="drawer-account-item p-3.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 border border-neutral-700/70 transition space-y-2.5"
-                             data-role="{{ $acc['role'] }}"
-                             data-email="{{ $acc['email'] }}"
-                             data-nrp="{{ $acc['nrp'] }}">
-                            
-                            <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <h4 class="font-bold text-sm text-white">{{ $acc['nama'] }}</h4>
-                                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-700 text-neutral-300">NRP {{ $acc['nrp'] }}</span>
-                                    </div>
-                                    <p class="text-xs text-neutral-400 mt-0.5">{{ $acc['email'] }}</p>
-                                </div>
-                                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full 
-                                    @if($acc['role'] == 'foreman') bg-emerald-950 text-emerald-300 border border-emerald-800
-                                    @elseif($acc['role'] == 'section_head') bg-blue-950 text-blue-300 border border-blue-800
-                                    @elseif(in_array($acc['role'], ['GOL 4 NON KASIE', 'SENIOR STAFF', 'STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)']) || str_contains($acc['role'], 'STAFF') || str_contains($acc['role'], 'NON KASIE')) bg-indigo-950 text-indigo-300 border border-indigo-800
-                                    @elseif($acc['role'] == 'department_head') bg-purple-950 text-purple-300 border border-purple-800
-                                    @elseif($acc['role'] == 'division_head') bg-amber-950 text-amber-300 border border-amber-800
-                                    @else bg-rose-950 text-rose-300 border border-rose-800 @endif">
-                                    {{ $acc['role_label'] }}
-                                </span>
-                            </div>
-
-                            <div class="text-[11px] text-neutral-400 flex items-center justify-between pt-1 border-t border-neutral-700/40">
-                                <span>Dept: <strong class="text-neutral-200">{{ $acc['departemen'] }}</strong> ({{ $acc['seksi'] }})</span>
-                                @if(!empty($acc['kasus_badge']))
-                                    <span class="text-[10px] bg-neutral-900 text-neutral-300 px-2 py-0.5 rounded">{{ $acc['kasus_badge'] }}</span>
-                                @endif
-                            </div>
-
-                            <!-- Action Buttons -->
-                            <div class="flex items-center gap-2 pt-1">
-                                <button type="button" 
-                                        onclick="fillFormFromDrawer('{{ $acc['email'] }}', 'password123', '{{ $acc['role'] }}')"
-                                        class="flex-1 py-1.5 px-3 rounded-lg bg-neutral-700 hover:bg-[#7b181b] text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 border border-neutral-600">
-                                    <span>Pilih & Isi Form</span>
-                                </button>
-                                <a href="{{ route('quick.login', $acc['nrp']) }}"
-                                   class="py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center justify-center gap-1">
-                                    <span>Masuk Cepat</span>
-                                    &rarr;
-                                </a>
-                            </div>
-
-                        </div>
-                    @empty
-                        <div class="text-center py-10 text-neutral-400 text-xs">
-                            Tidak ada data akun pengujian.
-                        </div>
-                    @endforelse
-                </div>
-
-                <!-- Drawer Footer -->
-                <div class="p-4 bg-neutral-950 border-t border-neutral-800 text-xs text-neutral-400 text-center">
-                    Semua akun demo menggunakan password default: <code class="text-amber-400 font-mono font-bold">password123</code>
-                </div>
-
-            </div>
-        </div>
     </div>
 
     <!-- ============================================================== -->
@@ -450,7 +315,7 @@
     </div>
 
     <!-- ============================================================== -->
-    <!-- JAVASCRIPT: Interactivity, Role Sync, and Drawer Management    -->
+    <!-- JAVASCRIPT: Interactivity & Utilities                          -->
     <!-- ============================================================== -->
     <script>
         // 1. Password Visibility Toggle
@@ -470,93 +335,14 @@
             }
         }
 
-        // 2. Slide-over Demo Drawer Controls
-        function openDemoDrawer() {
-            const drawer = document.getElementById('demoDrawer');
-            const backdrop = document.getElementById('demoBackdrop');
-            const panel = document.getElementById('demoDrawerPanel');
-
-            drawer.classList.remove('hidden');
-            setTimeout(() => {
-                backdrop.classList.remove('opacity-0');
-                backdrop.classList.add('opacity-100');
-                panel.classList.remove('translate-x-full');
-                panel.classList.add('translate-x-0');
-            }, 10);
-        }
-
-        function closeDemoDrawer() {
-            const drawer = document.getElementById('demoDrawer');
-            const backdrop = document.getElementById('demoBackdrop');
-            const panel = document.getElementById('demoDrawerPanel');
-
-            backdrop.classList.remove('opacity-100');
-            backdrop.classList.add('opacity-0');
-            panel.classList.remove('translate-x-0');
-            panel.classList.add('translate-x-full');
-
-            setTimeout(() => {
-                drawer.classList.add('hidden');
-            }, 300);
-        }
-
-        // Close drawer on Escape key
+        // Close modal on Escape key
         document.addEventListener('keydown', function(event) {
             if (event.key === 'Escape') {
-                closeDemoDrawer();
                 closeForgotModal();
             }
         });
 
-        // 3. Fill Form Automatically from Drawer
-        function fillFormFromDrawer(email, password, role) {
-            const emailInput = document.getElementById('emailInput');
-            const passwordInput = document.getElementById('passwordInput');
-
-            if (emailInput) emailInput.value = email;
-            if (passwordInput) passwordInput.value = password;
-
-            // Trigger visual pulse effect on input elements
-            [emailInput, passwordInput].forEach(el => {
-                if (!el) return;
-                el.classList.remove('highlight-pulse');
-                void el.offsetWidth; // re-flow
-                el.classList.add('highlight-pulse');
-            });
-
-            // Close drawer
-            closeDemoDrawer();
-
-            // Focus on email input
-            if (emailInput) emailInput.focus();
-        }
-
-        // 4. Filter Drawer Accounts
-        let activeDrawerRole = 'all';
-        function filterDrawerRole(role, btn) {
-            activeDrawerRole = role;
-
-            // Update button styles
-            document.querySelectorAll('.drawer-filter-btn').forEach(b => {
-                b.className = 'drawer-filter-btn px-3 py-1 rounded-lg text-xs font-medium text-neutral-400 hover:bg-neutral-800 transition';
-            });
-            btn.className = 'drawer-filter-btn px-3 py-1 rounded-lg text-xs font-semibold bg-[#7b181b] text-white transition';
-
-            // Filter items
-            const kj5Roles = ['GOL 4 NON KASIE', 'SENIOR STAFF', 'STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)'];
-            const items = document.querySelectorAll('.drawer-account-item');
-            items.forEach(item => {
-                const itemRole = item.getAttribute('data-role') || '';
-                const isKj5 = kj5Roles.includes(itemRole) || itemRole.includes('NON KASIE') || itemRole.includes('STAFF');
-                const match = (role === 'all') ||
-                              (role === 'admin' && (itemRole === 'admin' || itemRole === 'superadmin')) ||
-                              (role === 'kj5' && isKj5) ||
-                              (itemRole === role);
-                item.style.display = match ? '' : 'none';
-            });
-        }
-
-        // 5. Dynamic Real-time Copyright Year
+        // Dynamic Real-time Copyright Year
         document.addEventListener('DOMContentLoaded', function() {
             const currentYear = new Date().getFullYear();
             document.querySelectorAll('.current-year').forEach(el => {
@@ -564,7 +350,7 @@
             });
         });
 
-        // 5. Forgot Password Modal
+        // Forgot Password Modal
         function openForgotModal() {
             document.getElementById('forgotModal').classList.remove('hidden');
         }
