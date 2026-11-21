@@ -5929,7 +5929,9 @@ class PenilaianController extends Controller
             $docId = $doc['id'] ?? null;
             $statusRaw = $doc['status'] ?? 'belum_ada';
             $kodeForm = $doc['kode_form'] ?? self::determineKodeForm($k);
-            $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $isGol4UpDoc = self::isForm07006($kodeForm);
+            $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
+            $isMandiriWorkflow = $isGol4UpDoc || $isSelf || ($empKjNum > 5);
 
             // 1. Foreman Details
             $fNrp = $isSelf ? '' : ($k['nrp_foreman'] ?? '');
@@ -5949,22 +5951,41 @@ class PenilaianController extends Controller
                 }
             }
 
-            // 2. Section Head Details
+            // 2. Section Head / Penilaian Mandiri Details (Tabel Division Head menampilkan HASIL PENILAIAN MANDIRI)
             $sNrp = $isSelf ? '' : ($k['nrp_section_head'] ?? '');
             $sUser = $userByNrp[$sNrp] ?? ($allSectionHeads[$sNrp] ?? null);
-            $sName = $isSelf ? 'Mandiri' : ($shNames[$sNrp] ?? ($sUser['nama'] ?? ($sUser->nama ?? (!empty($sNrp) ? "Section Head ($sNrp)" : "Section Head"))));
+            $sName = $isSelf ? 'Mandiri (Anda)' : ($isMandiriWorkflow ? 'Mandiri' : ($shNames[$sNrp] ?? ($sUser['nama'] ?? ($sUser->nama ?? (!empty($sNrp) ? "Section Head ($sNrp)" : "Section Head")))));
             $sNameClean = trim(preg_replace('/\s*\(.*?\)/', '', $sName));
-            $hasSectionSign = !$isSelf && $docId && (isset($ttdByDocAndLevel[$docId]['section_head']) || ($isGol4UpDoc && empty($fNrp) && isset($ttdByDocAndLevel[$docId]['foreman'])));
+            $hasSectionSign = false;
             $nilaiSection = '-';
             $sectionScore = null;
-            if (!$isSelf) {
+
+            if ($isMandiriWorkflow) {
+                // Di alur Form 07-006 / Mandiri, skor mandiri dapat tersimpan di level 'foreman' atau 'section_head' (atau 'dept_head' untuk div head mandiri)
+                $mandiriScores = $docId ? ($allScoresByDocAndLevel[$docId]['foreman'] ?? ($allScoresByDocAndLevel[$docId]['section_head'] ?? ($isSelf ? ($allScoresByDocAndLevel[$docId]['dept_head'] ?? null) : null))) : null;
+                if ($mandiriScores && count($mandiriScores) > 0) {
+                    $mScoresArr = $mandiriScores->pluck('skor', 'aspek_kode')->toArray();
+                    $mCalc = $this->calcService->calculate($kodeForm, $mScoresArr);
+                    if (($mCalc['grand_total'] ?? 0) > 0) {
+                        $sectionScore = number_format($mCalc['grand_total'], 2);
+                        $nilaiSection = $this->calcService->scoreToGrade($mCalc['grand_total']);
+                    }
+                } elseif ($docId && !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0 && in_array($statusRaw, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
+                    $scoreVal = (float)$doc['total_nilai'];
+                    $sectionScore = number_format($scoreVal, 2);
+                    $nilaiSection = $doc['grade_original'] ?? $this->calcService->scoreToGrade($scoreVal);
+                }
+
+                $hasSectionSign = $docId && (
+                    isset($ttdByDocAndLevel[$docId]['foreman']) || 
+                    isset($ttdByDocAndLevel[$docId]['section_head']) ||
+                    ($isSelf && isset($ttdByDocAndLevel[$docId]['dept_head']))
+                );
+            } else {
+                // Dokumen non-07-006 standar (misal form 07-001 dinilai section head)
+                $hasSectionSign = $docId && isset($ttdByDocAndLevel[$docId]['section_head']);
                 if ($docId && isset($allScoresByDocAndLevel[$docId]['section_head']) && count($allScoresByDocAndLevel[$docId]['section_head']) > 0) {
                     $sScoresArr = $allScoresByDocAndLevel[$docId]['section_head']->pluck('skor', 'aspek_kode')->toArray();
-                    $sCalc = $this->calcService->calculate($kodeForm, $sScoresArr);
-                    $sectionScore = number_format($sCalc['grand_total'], 2);
-                    $nilaiSection = $this->calcService->scoreToGrade($sCalc['grand_total']);
-                } elseif ($isGol4UpDoc && empty($fNrp) && $docId && isset($allScoresByDocAndLevel[$docId]['foreman']) && count($allScoresByDocAndLevel[$docId]['foreman']) > 0) {
-                    $sScoresArr = $allScoresByDocAndLevel[$docId]['foreman']->pluck('skor', 'aspek_kode')->toArray();
                     $sCalc = $this->calcService->calculate($kodeForm, $sScoresArr);
                     $sectionScore = number_format($sCalc['grand_total'], 2);
                     $nilaiSection = $this->calcService->scoreToGrade($sCalc['grand_total']);
@@ -5989,7 +6010,17 @@ class PenilaianController extends Controller
             $dName = $isSelf ? '-' : ($dhNames[$dNrp] ?? ($dUser['nama'] ?? ($dUser->nama ?? (!empty($dNrp) ? "Department Head ($dNrp)" : "Department Head"))));
             $dNameClean = trim(preg_replace('/\s*\(.*?\)/', '', $dName));
             $hasDeptSign = $docId && isset($ttdByDocAndLevel[$docId]['dept_head']);
-            $nilaiDept = $doc['docking_final'] ?? ($nilaiSection !== '-' ? $nilaiSection : ($foremanGrade !== '-' ? $foremanGrade : '-'));
+
+            $nilaiDept = '-';
+            if ($docId && isset($allScoresByDocAndLevel[$docId]['dept_head']) && count($allScoresByDocAndLevel[$docId]['dept_head']) > 0) {
+                $dScoresArr = $allScoresByDocAndLevel[$docId]['dept_head']->pluck('skor', 'aspek_kode')->toArray();
+                $dCalc = $this->calcService->calculate($kodeForm, $dScoresArr);
+                $nilaiDept = $this->calcService->scoreToGrade($dCalc['grand_total']);
+            } elseif (!empty($doc['docking_final']) && $statusRaw === 'selesai') {
+                $nilaiDept = $doc['docking_final'];
+            } elseif (in_array($statusRaw, ['menunggu_div_head', 'selesai']) && $nilaiSection !== '-') {
+                $nilaiDept = $doc['docking_final'] ?? $nilaiSection;
+            }
             if ($nilaiDept === '') $nilaiDept = '-';
 
             // 4. Division Head Details & Final Status
@@ -5998,18 +6029,40 @@ class PenilaianController extends Controller
             if ($nilaiDiv === '-') $nilaiDiv = '';
 
             $isDone = ($statusRaw === 'selesai' || $hasDivSign);
-            $isWaitingDiv = ($statusRaw === 'menunggu_div_head' || ($isSelf && $statusRaw !== 'selesai'));
-            $canEvaluateDiv = $isSelf ? ($statusRaw !== 'selesai') : ($statusRaw === 'menunggu_div_head' || $user->isSuperadmin());
 
-            $statusLabel = $isDone ? 'Disahkan Final' : (
-                $isWaitingDiv ? ($isSelf ? 'Penilaian Mandiri' : 'Menunggu Pengesahan Anda') : (
-                    $statusRaw === 'menunggu_dept_head' ? 'Proses Dept Head' : (
-                        $statusRaw === 'menunggu_section_head' ? 'Proses Section Head' : (
-                            $statusRaw === 'menunggu_foreman' ? 'Proses Foreman' : 'Draft'
-                        )
-                    )
-                )
-            );
+            if ($isDone) {
+                $statusLabel = 'Disahkan Final';
+                $isWaitingDiv = false;
+                $canEvaluateDiv = false;
+            } elseif ($isSelf) {
+                $statusLabel = 'Proses Penilaian Mandiri';
+                $isWaitingDiv = false;
+                $canEvaluateDiv = true;
+            } elseif ($isMandiriWorkflow && $nilaiSection === '-') {
+                $statusLabel = 'Proses Penilaian Mandiri';
+                $isWaitingDiv = false;
+                $canEvaluateDiv = false;
+            } elseif ($statusRaw === 'menunggu_div_head' && $nilaiSection !== '-') {
+                $statusLabel = 'Menunggu Pengesahan Anda';
+                $isWaitingDiv = true;
+                $canEvaluateDiv = true;
+            } elseif ($statusRaw === 'menunggu_dept_head' && $nilaiSection !== '-') {
+                $statusLabel = 'Proses Dept Head';
+                $isWaitingDiv = false;
+                $canEvaluateDiv = false;
+            } elseif ($statusRaw === 'menunggu_section_head') {
+                $statusLabel = $isMandiriWorkflow ? 'Proses Penilaian Mandiri' : 'Proses Section Head';
+                $isWaitingDiv = false;
+                $canEvaluateDiv = false;
+            } elseif ($statusRaw === 'menunggu_foreman') {
+                $statusLabel = 'Proses Foreman';
+                $isWaitingDiv = false;
+                $canEvaluateDiv = false;
+            } else {
+                $statusLabel = $isMandiriWorkflow ? 'Proses Penilaian Mandiri' : 'Draft';
+                $isWaitingDiv = false;
+                $canEvaluateDiv = false;
+            }
 
             $rowItem = [
                 'nrp' => $nrp,
@@ -6072,34 +6125,20 @@ class PenilaianController extends Controller
         });
 
         $countAll = count($rows);
-        $countSiap = count(array_filter($rows, fn($r) => $r['is_waiting_div']));
-        $countProses = count(array_filter($rows, fn($r) => in_array($r['status_raw'], ['menunggu_foreman', 'menunggu_section_head', 'menunggu_dept_head', 'draft', 'belum_ada', 'revisi']) && !$r['is_self']));
-        $countSelesai = count(array_filter($rows, fn($r) => $r['is_done']));
+        $countSiap = count(array_filter($rows, fn($r) => !empty($r['is_waiting_div'])));
+        $countProses = count(array_filter($rows, fn($r) => !$r['is_done'] && empty($r['is_waiting_div'])));
+        $countSelesai = count(array_filter($rows, fn($r) => !empty($r['is_done'])));
         $countMenunggu = $countSiap;
         $countDinilai = $countSelesai;
 
-        $countProsesSection = 0;
-        $countSectionSudah = 0;
-        $countProsesDept = 0;
-        $countDeptSudah = 0;
+        $countProsesMandiri = count(array_filter($rows, fn($r) => $r['status'] === 'Proses Penilaian Mandiri'));
+        $countMandiriSudah = count(array_filter($rows, fn($r) => $r['nilai_section'] !== '-' && !$r['is_self']));
+        $countProsesDept = count(array_filter($rows, fn($r) => $r['status'] === 'Proses Dept Head'));
+        $countDeptSudah = count(array_filter($rows, fn($r) => in_array($r['status'], ['Menunggu Pengesahan Anda', 'Disahkan Final'])));
 
-        foreach ($rows as $rItem) {
-            if (!empty($rItem['is_self'])) {
-                continue;
-            }
-            $stRow = $rItem['status_raw'] ?? 'belum_ada';
-            if (in_array($stRow, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'], true)) {
-                $countSectionSudah++;
-            } elseif (in_array($stRow, ['belum_ada', '', null, 'draft', 'revisi', 'menunggu_foreman', 'menunggu_section_head'], true)) {
-                $countProsesSection++;
-            }
-
-            if (in_array($stRow, ['menunggu_div_head', 'selesai'], true)) {
-                $countDeptSudah++;
-            } elseif ($stRow === 'menunggu_dept_head') {
-                $countProsesDept++;
-            }
-        }
+        // Tetap set countProsesSection untuk backward-compatibility view
+        $countProsesSection = $countProsesMandiri;
+        $countSectionSudah = $countMandiriSudah;
 
         $hasAnyForeman = false;
         foreach ($subordinates as $subK) {
@@ -6119,6 +6158,8 @@ class PenilaianController extends Controller
             'countDinilai',
             'countSiap',
             'countProses',
+            'countProsesMandiri',
+            'countMandiriSudah',
             'countProsesSection',
             'countSectionSudah',
             'countProsesDept',

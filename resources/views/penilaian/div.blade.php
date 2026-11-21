@@ -7,16 +7,16 @@
     filterDept: '',
     filterSection: '',
     filterPosition: '',
-    matchesFilter(statusRaw, nrp, nama, jabatan, isSelf, departemen = '', seksi = '') {
+    matchesFilter(statusRaw, nrp, nama, jabatan, isSelf, departemen = '', seksi = '', isWaitingDiv = false, status = '') {
         // Tab check
         if (this.activeTab === 'siap') {
-            if (statusRaw !== 'menunggu_div_head' && !(isSelf && statusRaw !== 'selesai')) return false;
+            if (!isWaitingDiv) return false;
         }
         if (this.activeTab === 'proses') {
-            if (!['menunggu_foreman', 'menunggu_section_head', 'menunggu_dept_head', 'draft', 'belum_ada', 'revisi'].includes(statusRaw) || isSelf) return false;
+            if (isWaitingDiv || statusRaw === 'selesai' || status === 'Disahkan Final') return false;
         }
         if (this.activeTab === 'selesai') {
-            if (statusRaw !== 'selesai') return false;
+            if (statusRaw !== 'selesai' && status !== 'Disahkan Final') return false;
         }
 
         // Department filter
@@ -110,21 +110,21 @@
             </div>
         </div>
 
-        <!-- Card 3: Proses Section Head -->
+        <!-- Card 3: Proses Penilaian Mandiri -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Section Head</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countProsesSection ?? 0 }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Section Head</span>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Penilaian Mandiri</span>
+                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countProsesMandiri ?? ($countProsesSection ?? 0) }}</div>
+                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Penilaian Mandiri</span>
                 </div>
-                <div class="w-9 h-9 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-xs border border-blue-200 shrink-0">
+                <div class="w-9 h-9 rounded-none bg-purple-50 text-purple-700 font-bold flex items-center justify-center text-xs border border-purple-200 shrink-0">
                     ⏳
                 </div>
             </div>
             <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countSectionSudah ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ $countProsesSection ?? 0 }}</span>
+                <span class="font-bold text-emerald-700">Sudah: {{ $countMandiriSudah ?? ($countSectionSudah ?? 0) }}</span>
+                <span class="font-bold text-slate-500">Belum: {{ $countProsesMandiri ?? ($countProsesSection ?? 0) }}</span>
             </div>
         </div>
 
@@ -289,7 +289,7 @@
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-24">NRP</th>
                         <th class="py-3 px-4 border-t border-b border-r border-slate-300">NAMA LENGKAP &amp; POSITION</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">FORM</th>
-                        <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL SECTION HEAD</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL PENILAIAN MANDIRI</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL DEPT HEAD</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">PENGESAHAN DIV. HEAD</th>
                         <th class="py-3 px-3.5 border-t border-b border-r border-slate-300 min-w-[180px]">CATATAN DIV. HEAD</th>
@@ -300,7 +300,7 @@
                 <tbody class="divide-y divide-slate-200">
                     @forelse($rows as $idx => $row)
                     <tr class="hover:bg-slate-50 transition-colors"
-                        x-show="matchesFilter('{{ $row['status_raw'] }}', '{{ $row['nrp'] }}', '{{ addslashes($row['nama_lengkap']) }}', '{{ addslashes($row['jabatan']) }}', {{ $row['is_self'] ? 'true' : 'false' }}, '{{ addslashes($row['departemen'] ?? '') }}', '{{ addslashes($row['seksi'] ?? '') }}')">
+                        x-show="matchesFilter('{{ $row['status_raw'] }}', '{{ $row['nrp'] }}', '{{ addslashes($row['nama_lengkap']) }}', '{{ addslashes($row['jabatan']) }}', {{ $row['is_self'] ? 'true' : 'false' }}, '{{ addslashes($row['departemen'] ?? '') }}', '{{ addslashes($row['seksi'] ?? '') }}', {{ !empty($row['is_waiting_div']) ? 'true' : 'false' }}, '{{ addslashes($row['status']) }}')">
                         
                         <!-- 1. NO -->
                         <td class="py-2.5 px-3 border-b border-l border-r border-slate-200 text-center font-bold text-slate-700">
@@ -342,23 +342,17 @@
                             {{ $row['kode_form'] ?? '07-006' }}
                         </td>
 
-                        <!-- 5. Hasil Section Head -->
+                        <!-- 5. Hasil Penilaian Mandiri -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200">
-                            @if($row['is_self'] || ($row['section_nama'] === 'Mandiri'))
-                                <span class="text-slate-400 font-semibold text-center block w-full">-</span>
-                            @else
+                            @if($row['nilai_section'] !== '-')
                             <div class="flex items-center gap-2">
-                                @if($row['nilai_section'] !== '-')
-                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
-                                        {{ $row['nilai_section'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
-                                           ($row['nilai_section'] === 'A' ? 'bg-blue-100 text-blue-800' :
-                                           ($row['nilai_section'] === 'B' ? 'bg-amber-100 text-amber-800' :
-                                           ($row['nilai_section'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
-                                        {{ $row['nilai_section'] }}
-                                    </span>
-                                @else
-                                    <span class="text-slate-400 font-semibold text-center w-7">-</span>
-                                @endif
+                                <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
+                                    {{ $row['nilai_section'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
+                                       ($row['nilai_section'] === 'A' ? 'bg-blue-100 text-blue-800' :
+                                       ($row['nilai_section'] === 'B' ? 'bg-amber-100 text-amber-800' :
+                                       ($row['nilai_section'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
+                                    {{ $row['nilai_section'] }}
+                                </span>
                                 <div>
                                     <span class="text-[11px] font-bold text-slate-800 block truncate max-w-[130px]">{{ $row['section_nama'] }}</span>
                                     @if($row['has_section_sign'])
@@ -368,6 +362,14 @@
                                     @endif
                                 </div>
                             </div>
+                            @else
+                                <div class="flex items-center gap-2">
+                                    <span class="text-slate-400 font-semibold text-center w-7">-</span>
+                                    <div>
+                                        <span class="text-[11px] font-medium text-slate-400 block truncate max-w-[130px]">{{ $row['section_nama'] }}</span>
+                                        <span class="text-[9.5px] text-slate-400 italic block">Belum Dinilai</span>
+                                    </div>
+                                </div>
                             @endif
                         </td>
 
@@ -439,29 +441,33 @@
 
                         <!-- 9. Status Alur -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
-                            @if($row['status_raw'] === 'selesai' || $row['has_div_sign'])
+                            @if($row['status_raw'] === 'selesai' || $row['has_div_sign'] || $row['status'] === 'Disahkan Final')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                                     ✓ Disahkan Final
                                 </span>
-                            @elseif($row['is_waiting_div'])
+                            @elseif($row['status'] === 'Proses Penilaian Mandiri')
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                                    Proses Penilaian Mandiri
+                                </span>
+                            @elseif($row['is_waiting_div'] || $row['status'] === 'Menunggu Pengesahan Anda')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Perlu tindakan Anda">
                                     {{ $row['is_self'] ? 'Siap Dinilai' : 'Siap Disahkan' }}
                                 </span>
-                            @elseif($row['status_raw'] === 'menunggu_dept_head')
+                            @elseif($row['status_raw'] === 'menunggu_dept_head' || $row['status'] === 'Proses Dept Head')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
                                     Proses Dept Head
                                 </span>
-                            @elseif($row['status_raw'] === 'menunggu_section_head')
+                            @elseif($row['status_raw'] === 'menunggu_section_head' || $row['status'] === 'Proses Section Head')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
                                     Proses Sect Head
                                 </span>
-                            @elseif($row['status_raw'] === 'menunggu_foreman')
+                            @elseif($row['status_raw'] === 'menunggu_foreman' || $row['status'] === 'Proses Foreman')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
                                     Proses Foreman
                                 </span>
                             @else
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                                    Draft
+                                    {{ $row['status'] ?: 'Draft' }}
                                 </span>
                             @endif
                         </td>
