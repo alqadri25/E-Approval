@@ -142,8 +142,12 @@ class AccountSyncService
         }
 
         // Target leadership & KJ > 5 roles that should strictly map to active leadership employees
-        $leadershipUsers = User::whereIn('role', ['foreman', 'ketua', 'section_head', 'department_head', 'division_head', 'GOL 4 NON KASIE', 'gol_4_non_kasie'])
+        $leadershipUsers = User::whereIn('role', [
+            'foreman', 'ketua', 'section_head', 'department_head', 'division_head', 
+            'GOL 4 NON KASIE', 'gol_4_non_kasie', 'SENIOR STAFF', 'STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)'
+        ])
             ->orWhere('role', 'LIKE', '%NON KASIE%')
+            ->orWhere('role', 'LIKE', '%STAFF%')
             ->get();
 
         $deletedCount = 0;

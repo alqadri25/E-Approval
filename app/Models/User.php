@@ -280,9 +280,65 @@ class User extends Authenticatable
         return in_array($this->role, ['foreman', 'ketua']);
     }
 
+    public function isKj5Up(): bool
+    {
+        $k = $this->karyawan;
+        if ($k) {
+            $kjRaw = strtoupper(trim((string)($k->kj ?? '')));
+            if (preg_match('/(?:KJ\s*|KATEGORI\s*)?(\d+)/i', $kjRaw, $m)) {
+                if ((int)$m[1] > 5) return true;
+            }
+            $subG = strtoupper(trim((string)($k->sub_gol ?? '')));
+            $gol = strtoupper(trim((string)($k->golongan ?? '')));
+            if (str_contains($subG, 'VI') || str_contains($gol, 'VI') || str_contains($subG, 'VII') || str_contains($gol, 'VII') || str_contains($subG, 'VIII') || str_contains($gol, 'VIII')) return true;
+            if ((str_contains($subG, 'V') || str_contains($gol, 'V')) && !str_contains($subG, 'IV') && !str_contains($gol, 'IV')) return true;
+        }
+
+        $roleUpper = strtoupper(trim((string)$this->role));
+        if (in_array($roleUpper, [
+            'SECTION_HEAD', 'SECTION HEAD', 'SECHEAD', 
+            'GOL 4 NON KASIE', 'GOL_4_NON_KASIE',
+            'SENIOR STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)', 'STAFF'
+        ], true) || stripos($roleUpper, 'NON KASIE') !== false) {
+            return true;
+        }
+
+        $jabUpper = strtoupper(trim((string)($this->jabatan ?: ($this->karyawan?->jabatan ?? ''))));
+        if (in_array($jabUpper, [
+            'SECTION HEAD', 'GOL 4 NON KASIE', 'SENIOR STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)', 'STAFF'
+        ], true) || stripos($jabUpper, 'NON KASIE') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isStructuralSectionHead(): bool
+    {
+        if ($this->role === 'section_head' || strcasecmp($this->role, 'section_head') === 0 || strcasecmp($this->role, 'sechead') === 0) {
+            return true;
+        }
+        $jab = strtoupper(trim((string)($this->jabatan ?: ($this->karyawan?->jabatan ?? ''))));
+        if ((str_contains($jab, 'SECTION HEAD') || str_contains($jab, 'SECT HEAD') || str_contains($jab, 'KASIE')) && !str_contains($jab, 'NON KASIE')) {
+            return true;
+        }
+        return false;
+    }
+
     public function isSectionHead(): bool
     {
-        return $this->role === 'section_head';
+        if ($this->role === 'section_head' || strcasecmp($this->role, 'section_head') === 0 || strcasecmp($this->role, 'sechead') === 0) {
+            return true;
+        }
+
+        // Non-foreman, non-dept, non-div, non-admin users with KJ > 5 get the Section Head layout and experience
+        if (!$this->isForeman() && !$this->isDepartmentHead() && !$this->isDivisionHead() && !$this->isAdmin() && !$this->isHr()) {
+            if ($this->isKj5Up()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function isDepartmentHead(): bool
@@ -308,6 +364,11 @@ class User extends Authenticatable
     public function hasForemanSubordinates(): bool
     {
         if (!$this->isSectionHead()) {
+            return false;
+        }
+
+        // Non-structural KJ > 5 users evaluate themselves only, have no foreman subordinates
+        if (!$this->isStructuralSectionHead()) {
             return false;
         }
 
@@ -471,6 +532,14 @@ class User extends Authenticatable
     {
         if (strcasecmp($karyawan['nrp'] ?? '', $this->nrp ?? '') === 0) {
             return true;
+        }
+
+        // Non-structural KJ > 5 users scope strictly to themselves and any explicit subordinates
+        if (!$this->isStructuralSectionHead()) {
+            if (!empty($karyawan['nrp_section_head'])) {
+                return strcasecmp($karyawan['nrp_section_head'], $this->nrp ?? '') === 0;
+            }
+            return false;
         }
 
         $isShNoForemanF3 = strcasecmp((string)($this->nrp ?? ''), '99999') === 0

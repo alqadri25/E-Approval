@@ -2,15 +2,16 @@
 
 @section('content')
 @php
+    $isStructuralSh = $user->isStructuralSectionHead();
     $isDeptHeadRiwayat = !empty($isDeptHeadUser) || $user->isDepartmentHead();
     $isSectionHeadRiwayat = $user->isSectionHead() || in_array($user->role, ['section_head', 'section', 'sechead']);
     $isForemanRiwayat = $user->isForeman() || in_array($user->role, ['foreman', 'ketua']);
     $isDivHeadRiwayat = !empty($isDivHeadUser) || $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']);
-    $isMandiriUser = $user->isGol4NonKasie() || (!$user->isAdmin() && !$user->isHr() && !$isForemanRiwayat && !$isSectionHeadRiwayat && !$isDeptHeadRiwayat && !$isDivHeadRiwayat);
+    $isMandiriUser = (!$isStructuralSh && ($user->isKj5Up() || $user->isGol4NonKasie())) || (!$user->isAdmin() && !$user->isHr() && !$isForemanRiwayat && !$isSectionHeadRiwayat && !$isDeptHeadRiwayat && !$isDivHeadRiwayat);
     $hideSemuaLabel = $isForemanRiwayat || $isSectionHeadRiwayat || $isDeptHeadRiwayat || $isMandiriUser;
     $isDeptOrDivRiwayat = !empty($isDeptOrDivHead) || $isDeptHeadRiwayat || $isDivHeadRiwayat;
-    $evaluatorRoleLabel = $user->isSectionHead() ? 'Section Head' : ($isDeptHeadRiwayat ? 'Dept Head' : ($isDivHeadRiwayat ? 'Division Head' : ($isMandiriUser ? 'Mandiri' : 'Foreman')));
-    $evaluatorPkColLabel = $user->isSectionHead() ? 'Sect Head' : ($isDeptHeadRiwayat ? 'Dept Head' : ($isDivHeadRiwayat ? 'Div Head' : ($isMandiriUser ? 'Mandiri' : 'Foreman')));
+    $evaluatorRoleLabel = $isStructuralSh ? 'Section Head' : ($isDeptHeadRiwayat ? 'Dept Head' : ($isDivHeadRiwayat ? 'Division Head' : ($isMandiriUser ? 'Mandiri' : 'Foreman')));
+    $evaluatorPkColLabel = $isStructuralSh ? 'Sect Head' : ($isDeptHeadRiwayat ? 'Dept Head' : ($isDivHeadRiwayat ? 'Div Head' : ($isMandiriUser ? 'Mandiri' : 'Foreman')));
 @endphp
 <div class="space-y-6">
 
@@ -344,7 +345,7 @@
                         @elseif($isDeptHeadRiwayat)
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Sect Head</th>
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Dept Head</th>
-                        @elseif($isSectionHeadRiwayat)
+                        @elseif($isStructuralSh)
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai Mandiri</th>
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Sect Head</th>
                         @elseif($isForemanRiwayat)
@@ -477,7 +478,7 @@
                                 <span class="text-slate-300 font-bold">-</span>
                             @endif
                         </td>
-                        @elseif($isSectionHeadRiwayat)
+                        @elseif($isStructuralSh)
                         @php $mGrade = $row['mandiri_grade'] ?? '-'; @endphp
                         <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
                             @if(isset($gradeBadgeMap[$mGrade]))
@@ -562,7 +563,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $isDivHeadRiwayat ? 19 : ($isMandiriUser ? 17 : 18) }}" class="py-12 text-center text-slate-400">
+                        <td colspan="{{ $isDivHeadRiwayat ? 19 : ($isStructuralSh ? 18 : ($isMandiriUser ? 17 : 18)) }}" class="py-12 text-center text-slate-400">
                             <div class="text-3xl mb-2">📜</div>
                             <p class="font-bold text-slate-600 text-sm">Belum ada karyawan yang selesai dinilai.</p>
                             <p class="text-xs text-slate-400 mt-1">Mulai penilaian bawahan melalui menu <a href="{{ route('penilaian.cari') }}" class="text-[#92302e] font-bold underline">Form Penilaian</a>.</p>

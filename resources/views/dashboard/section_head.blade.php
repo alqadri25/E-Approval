@@ -46,7 +46,7 @@
             </h1>
             <span class="sr-only">Dashboard Section Head</span>
             <p class="text-xs text-red-100 font-medium mt-1">
-                Selamat Datang {{ $user->nama }}
+                Selamat Datang {{ $user->nama }} &bull; <span class="text-red-200 font-normal">{{ $user->resolved_jabatan }}</span>
             </p>
         </div>
 
@@ -177,10 +177,10 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-none">
-                            Tugas Section Head Selesai 100%
+                            {{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? 'Penilaian Mandiri Selesai' : 'Tugas Section Head Selesai 100%' }}
                         </span>
                         <span class="text-xs font-bold text-emerald-950">
-                            Seluruh {{ count($sectionSubordinates) }} Karyawan Bawahan Telah Selesai Dinilai & Dikirim ke Dept. Head
+                            {{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? 'Dokumen Penilaian Mandiri Anda Telah Selesai Dinilai & Dikirim ke Dept. Head' : 'Seluruh ' . count($sectionSubordinates) . ' Karyawan Bawahan Telah Selesai Dinilai & Dikirim ke Dept. Head' }}
                         </span>
                     </div>
                     <p class="text-xs text-emerald-800 mt-1">
@@ -212,11 +212,11 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Karyawan</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ count($sectionSubordinates) }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota Section Head</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">{{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? 'Evaluasi Diri Mandiri' : 'Anggota Section Head' }}</p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-none border border-slate-200">
-                100% Tim
+                {{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? 'Mandiri' : '100% Tim' }}
             </span>
         </div>
 
@@ -231,7 +231,7 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Target</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $totalTargetSection ?? 0 }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Karyawan yang dinilai</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">{{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? '1 Mandiri' : 'Karyawan yang dinilai' }}</p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-none border border-blue-200">
