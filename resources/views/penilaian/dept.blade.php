@@ -462,13 +462,13 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
                                     Review Div Head
                                 </span>
-                            @elseif($row['status_raw'] === 'menunggu_dept_head')
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Perlu tindakan Anda">
-                                    🔔 Siap Dinilai
-                                </span>
                             @elseif(!empty($row['has_mandiri_col']) && empty($row['has_mandiri_sign']))
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
                                     Proses Penilaian Mandiri
+                                </span>
+                            @elseif($row['status_raw'] === 'menunggu_dept_head')
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Perlu tindakan Anda">
+                                    🔔 Siap Dinilai
                                 </span>
                             @elseif($row['status_raw'] === 'menunggu_section_head')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">

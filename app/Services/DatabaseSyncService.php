@@ -183,11 +183,12 @@ class DatabaseSyncService
                         $docUpdate['nama_section_head'] = $resolvedShNama;
                     }
                 }
-                // If subordinate with 07-006 has no scores yet and status was incorrectly set to menunggu_dept_head, reset to menunggu_section_head
+                // If subordinate with 07-006 has no scores yet and status was incorrectly set to menunggu_dept_head or menunggu_div_head, reset to menunggu_section_head
                 $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->first();
-                if ($existingDoc && $isSubordinate07006 && empty($existingDoc->total_nilai) && empty($existingDoc->grade_original) && $existingDoc->status === 'menunggu_dept_head') {
+                if ($existingDoc && str_starts_with($existingDoc->kode_form ?? '', '07-006') && empty($existingDoc->total_nilai) && empty($existingDoc->grade_original) && in_array($existingDoc->status, ['menunggu_dept_head', 'menunggu_div_head'])) {
                     $hasScores = DB::table('nilai')->where('dokumen_id', $existingDoc->id)->exists();
-                    if (!$hasScores) {
+                    $hasSign = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'foreman')->exists();
+                    if (!$hasScores && !$hasSign) {
                         $docUpdate['status'] = 'menunggu_section_head';
                     }
                 }

@@ -2426,6 +2426,25 @@ class PenilaianController extends Controller
             abort(404, 'Dokumen penilaian tidak ditemukan.');
         }
 
+        // Auto-heal / State Integrity check for Form 07-006 (Section Head / Gol 4 Non Kasie / KJ 5 ke atas):
+        // Jika dokumen Form 07-006 belum pernah diisi/ditandatangani penilaian mandiri (Kolom 1 / foreman),
+        // status TIDAK BOLEH langsung melompati tahap mandiri ke 'menunggu_dept_head' atau 'menunggu_div_head'!
+        // Harus berada pada tahap 'menunggu_section_head' agar karyawan dapat menilai diri sendiri terlebih dahulu.
+        $kodeFormCheck = $dokumen['kode_form'] ?? '';
+        $is07006FormCheck = self::isForm07006($kodeFormCheck);
+        if ($is07006FormCheck && in_array($dokumen['status'] ?? '', ['menunggu_dept_head', 'menunggu_div_head'])) {
+            $hasMandiriSignCheck = DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', 'foreman')->exists();
+            $hasMandiriScoresCheck = DB::table('nilai')->where('dokumen_id', $id)->where('level', 'foreman')->exists();
+            if (!$hasMandiriSignCheck && !$hasMandiriScoresCheck && empty($dokumen['total_nilai'])) {
+                DB::table('dokumen')->where('id', $id)->update([
+                    'status' => 'menunggu_section_head',
+                    'updated_at' => now()->toDateTimeString()
+                ]);
+                $dokumen['status'] = 'menunggu_section_head';
+                $dokumenRow->status = 'menunggu_section_head';
+            }
+        }
+
         // Fast local fetch: document already loaded from local SQLite (< 1ms)
 
         // 2. Fetch employee details (fresh from DB)
@@ -2757,15 +2776,24 @@ class PenilaianController extends Controller
             // 2. Section Head / Gol 4 Non Kasie rules
             if ($user->isSectionHead() && $isMyDept) {
                 $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
-                if ($dokumen['nrp'] === $user->nrp || $isGol4UpDoc) {
+                if ($dokumen['nrp'] === $user->nrp) {
                     // Evaluasi Mandiri Section Head / Gol 4 Non Kasie pada Form 07-006 (Slot Kolom 1 / foreman)
-                    // HANYA dapat diedit & ditandatangani jika masih menunggu giliran mandiri dan BELUM menandatangani!
-                    if (in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi']) && empty($ttdByLevel['foreman'])) {
+                    // Selama belum ada tanda tangan mandiri (foreman), form SELALU terbuka untuk menilai diri sendiri!
+                    if (empty($ttdByLevel['foreman'])) {
                         $canEditForeman = true;
                         $canSignForeman = true;
                     }
                     $canEditSectionHead = false;
                     $canSignSectionHead = false;
+                    $canRevisi = false;
+                } elseif ($isGol4UpDoc) {
+                    // Kasus Atasan Langsung (Section Head) yang menilai bawahan Gol 4 Non Kasie pada Form 07-006 (Slot Kolom 2 / section_head):
+                    if (in_array($status, ['menunggu_section_head', 'revisi']) && empty($ttdByLevel['section_head'])) {
+                        $canEditSectionHead = true;
+                        $canSignSectionHead = true;
+                    }
+                    $canEditForeman = false;
+                    $canSignForeman = false;
                     $canRevisi = false;
                 } elseif (empty($karyawan['nrp_foreman']) || !$user->hasForemanSubordinates()) {
                     // Kasus Section Head menilai bawahan KJ 1-5 tanpa Foreman (langsung Penilai 1):
@@ -3540,15 +3568,23 @@ class PenilaianController extends Controller
         // Check Foreman: can only evaluate if employee has a foreman AND status is menunggu_foreman/draft/revisi, OR if self evaluation
         if ($user->isForeman()) {
             if ($dokumen['nrp'] === $user->nrp) {
+                $hasSignedMandiri = !empty($signedLevels) && in_array('foreman', $signedLevels);
+                if (!$hasSignedMandiri) {
+                    return true;
+                }
                 return in_array($status, ['menunggu_foreman', 'menunggu_section_head', 'draft', 'revisi']);
             }
             return $hasForeman && in_array($status, ['menunggu_foreman', 'draft', 'revisi']);
         }
 
-        // Check Section Head
+        // Check Section Head / Gol 4 Non Kasie
         if ($user->isSectionHead()) {
-            // Evaluasi diri sendiri Section Head
+            // Evaluasi diri sendiri Section Head / Gol 4 Non Kasie
             if ($dokumen['nrp'] === $user->nrp) {
+                $hasSignedMandiri = !empty($signedLevels) && in_array('foreman', $signedLevels);
+                if (!$hasSignedMandiri) {
+                    return true;
+                }
                 return in_array($status, ['menunggu_section_head', 'draft', 'revisi']);
             }
             // Langsung Section Head tanpa Foreman (misal KJ 1-5 langsung SH -> DH)
@@ -5770,13 +5806,15 @@ class PenilaianController extends Controller
             $isDone = ($statusRaw === 'selesai' || ($isSelf && $statusRaw === 'menunggu_div_head') || !empty($doc['docking_final']) || $hasDeptSign);
             $isWaitingForeman = !empty($fNrp) && ($statusRaw === 'menunggu_foreman' || !$hasForemanSign);
             $isWaitingSection = ($statusRaw === 'menunggu_section_head' || (!$hasSectionSign && !$isWaitingForeman && !$isSelf && !$isSectionHeadEmp));
-            $canEvaluateDept = $isSelf ? ($statusRaw !== 'menunggu_div_head' && $statusRaw !== 'selesai') : (($statusRaw === 'menunggu_dept_head') || $user->isSuperadmin());
+            $canEvaluateDept = $isSelf 
+                ? ($statusRaw !== 'menunggu_div_head' && $statusRaw !== 'selesai') 
+                : ((($statusRaw === 'menunggu_dept_head') && (!$hasMandiriWorkflow || !empty($hasMandiriSign))) || $user->isSuperadmin());
 
             if ($isDone) {
                 $statusLabel = ($isSelf && $statusRaw === 'menunggu_div_head') ? 'Menunggu Div. Head' : 'Sudah dinilai';
             } elseif ($isSelf) {
                 $statusLabel = 'Penilaian Mandiri';
-            } elseif ($hasMandiriWorkflow && empty($hasMandiriSign) && in_array($statusRaw, ['belum_ada', 'draft', 'menunggu_foreman', 'menunggu_section_head'])) {
+            } elseif ($hasMandiriWorkflow && empty($hasMandiriSign)) {
                 $statusLabel = 'Proses Penilaian Mandiri';
             } elseif ($isWaitingForeman) {
                 $statusLabel = 'Menunggu Foreman';
