@@ -594,17 +594,16 @@
         $isDeptHeadLaporan = $user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']);
         $isDivHeadLaporan = $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']);
     @endphp
-    @if($isForemanLaporan || $user->isSectionHead() || in_array($user->role, ['section_head', 'sechead']) || $isDeptHeadLaporan || $isDivHeadLaporan)
+    @if(!$isDivHeadLaporan)
+    @if($isForemanLaporan || $user->isSectionHead() || in_array($user->role, ['section_head', 'sechead']) || $isDeptHeadLaporan)
     @include('penilaian.partials.target_actual_matrix_table', [
-        'evaluatorRoleLabel' => $isDivHeadLaporan ? 'Division Head' : ($isDeptHeadLaporan ? 'Department Head' : ($isForemanLaporan ? 'Foreman' : 'Section Head')),
-        'includeDeptComparison' => $isDivHeadLaporan,
-        'subtitleText' => $isDivHeadLaporan
-            ? 'Ringkasan target kuota, nilai Department Head, & actual Division Head per KJ dalam satu tabel.'
-            : ($isDeptHeadLaporan
-                ? 'Berdasarkan penilaian department head per KJ (Target vs Actual).'
-                : ($isForemanLaporan
-                    ? 'Berdasarkan penilaian foreman per KJ (Target vs Actual).'
-                    : 'Berdasarkan penilaian section head per KJ (Target vs Actual).')),
+        'evaluatorRoleLabel' => $isDeptHeadLaporan ? 'Department Head' : ($isForemanLaporan ? 'Foreman' : 'Section Head'),
+        'includeDeptComparison' => false,
+        'subtitleText' => $isDeptHeadLaporan
+            ? 'Berdasarkan penilaian department head per KJ (Target vs Actual).'
+            : ($isForemanLaporan
+                ? 'Berdasarkan penilaian foreman per KJ (Target vs Actual).'
+                : 'Berdasarkan penilaian section head per KJ (Target vs Actual).'),
         'matrixKjList' => $matrixKjList ?? [],
         'subCountByKj' => $subCountByKj ?? [],
         'targetKjMatrix' => $targetKjMatrix ?? [],
@@ -753,6 +752,7 @@
             </table>
         </div>
     </div>
+    @endif
     @endif
 
     @php

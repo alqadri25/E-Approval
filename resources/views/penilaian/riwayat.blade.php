@@ -100,10 +100,11 @@
     <!-- ============================================================== -->
     <!-- PERBANDINGAN: TARGET VS REALISASI PENILAIAN                    -->
     <!-- ============================================================== -->
-    @if($user->isForeman() || $user->isSectionHead() || in_array($user->role, ['section_head', 'sechead']) || $isDeptOrDivRiwayat)
+    @if(!$isDivHeadRiwayat)
+    @if($user->isForeman() || $user->isSectionHead() || in_array($user->role, ['section_head', 'sechead']) || $isDeptHeadRiwayat)
     @include('penilaian.partials.target_actual_matrix_table', [
         'evaluatorRoleLabel' => $evaluatorRoleLabel,
-        'includeDeptComparison' => $isDivHeadRiwayat,
+        'includeDeptComparison' => false,
         'matrixKjList' => $matrixKjList ?? [],
         'subCountByKj' => $subCountByKj ?? [],
         'targetKjMatrix' => $targetKjMatrix ?? [],
@@ -142,6 +143,7 @@
             <canvas id="comparisonBarChart"></canvas>
         </div>
     </div>
+    @endif
     @endif
 
     <!-- ============================================================== -->
