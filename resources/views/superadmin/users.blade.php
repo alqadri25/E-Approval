@@ -111,6 +111,11 @@
             'staff' => ['label' => 'Staf / Posisi', 'count' => $counts['staff'] ?? 0, 'sub' => 'Posisi Staf', 'code' => 'STF'],
         ];
         $currentRoute = request()->routeIs('admin.*') ? 'admin.users' : 'superadmin.users';
+        $isAdminRoute = request()->routeIs('admin.*') || str_starts_with(request()->path(), 'admin');
+        $storeRoute = $isAdminRoute ? route('admin.users.store') : route('superadmin.users.store');
+        $resetPwRouteName = $isAdminRoute ? 'admin.users.resetPassword' : 'superadmin.users.resetPassword';
+        $toggleStatusRouteName = $isAdminRoute ? 'admin.users.toggleStatus' : 'superadmin.users.toggleStatus';
+        $deleteRouteName = $isAdminRoute ? 'admin.users.delete' : 'superadmin.users.delete';
         $gridCols = $isSuperadmin ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9' : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-8';
     @endphp
 
@@ -318,7 +323,7 @@
                                 </button>
 
                                 <!-- 2. Reset Password (Key Icon) -->
-                                <form method="POST" action="{{ route('superadmin.users.resetPassword', $u->id) }}" onsubmit="return confirm('Reset password user {{ $u->nama }} ke password default (password123)?');" class="inline-block m-0">
+                                <form method="POST" action="{{ route($resetPwRouteName, $u->id) }}" onsubmit="return confirm('Reset password user {{ $u->nama }} ke password default (password123)?');" class="inline-block m-0">
                                     @csrf
                                     <button type="submit" 
                                             class="p-1.5 border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 transition shadow-2xs cursor-pointer"
@@ -332,7 +337,7 @@
 
                                 <!-- 3. Toggle Status (Power/Ban Icon) -->
                                 @if(!$u->isSuperadmin() || $u->id !== auth()->id())
-                                <form method="POST" action="{{ route('superadmin.users.toggleStatus', $u->id) }}" class="inline-block m-0">
+                                <form method="POST" action="{{ route($toggleStatusRouteName, $u->id) }}" class="inline-block m-0">
                                     @csrf
                                     @if($u->aktif)
                                     <button type="submit" 
@@ -358,7 +363,7 @@
 
                                 <!-- 4. Hapus User (Trash Icon) -->
                                 @if((!$u->isSuperadmin() || auth()->user()->isSuperadmin()) && $u->id !== auth()->id())
-                                <form method="POST" action="{{ route('superadmin.users.delete', $u->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus akun {{ $u->nama }} ({{ $u->nrp }}) secara permanen?');" class="inline-block m-0">
+                                <form method="POST" action="{{ route($deleteRouteName, $u->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus akun {{ $u->nama }} ({{ $u->nrp }}) secara permanen?');" class="inline-block m-0">
                                     @csrf
                                     <button type="submit" 
                                             class="p-1.5 border border-slate-300 bg-slate-50 hover:bg-rose-50 hover:border-rose-400 hover:text-rose-600 text-slate-500 transition shadow-2xs cursor-pointer"
@@ -404,7 +409,7 @@
                     <button @click="showAddModal = false" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
                 </div>
 
-                <form method="POST" action="{{ route('superadmin.users.store') }}" class="space-y-4 mt-4">
+                <form method="POST" action="{{ $storeRoute }}" class="space-y-4 mt-4">
                     @csrf
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
