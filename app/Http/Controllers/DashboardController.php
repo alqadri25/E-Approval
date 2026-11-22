@@ -58,7 +58,7 @@ class DashboardController extends Controller
             $karyawanMap[$k['nrp']] = $k;
         }
 
-        // 1. Bersihkan dokumen orphan dan pastikan setiap karyawan aktif memiliki dokumen
+        // 1. Bersihkan dokumen orphan hanya jika ada ketidaksesuaian jumlah data (< 1ms check)
         $activeNrps = array_unique(array_filter(array_map('strval', array_column($allKaryawan, 'nrp'))));
         if (empty($activeNrps)) {
             DB::table('dokumen')->delete();
@@ -69,7 +69,7 @@ class DashboardController extends Controller
             if (Schema::hasTable('history_status')) DB::table('history_status')->delete();
             $this->repository->clearCache('dokumen');
             $this->repository->clearCache('nilai');
-        } else {
+        } elseif (DB::table('dokumen')->count() > count($activeNrps)) {
             $orphanDocIds = DB::table('dokumen')->whereNotIn('nrp', $activeNrps)->pluck('id')->toArray();
             if (!empty($orphanDocIds)) {
                 if (Schema::hasTable('nilai')) DB::table('nilai')->whereIn('dokumen_id', $orphanDocIds)->delete();

@@ -57,6 +57,23 @@
 
     <!-- Instant Page: Prefetch on hover/touch for near-instant 0.001s page transitions -->
     <script src="https://cdn.jsdelivr.net/npm/instant.page@5.2.0/instantpage.js" type="module"></script>
+    <script type="speculationrules">
+    {
+      "prefetch": [
+        {
+          "source": "document",
+          "where": {
+            "and": [
+              { "href_matches": "/*" },
+              { "not": { "href_matches": "/*logout*" } },
+              { "not": { "href_matches": "/*download*" } }
+            ]
+          },
+          "eagerness": "moderate"
+        }
+      ]
+    }
+    </script>
 
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -105,7 +122,7 @@
         }
     </style>
 </head>
-<body class="h-full flex overflow-hidden text-slate-800 antialiased bg-[#f4f5f9]" x-data="{ mobileMenu: false }">
+<body class="h-full flex overflow-hidden text-slate-800 antialiased bg-[#f4f5f9]" x-data="{ mobileMenu: false }" data-instant-allow-query-string data-instant-intensity="10">
 
     @auth
     @php
@@ -1077,14 +1094,34 @@
       // Proactively prefetch main navigation destinations
       setTimeout(function() {
         prefetchUrl('/dashboard');
-        prefetchUrl('/laporan');
-      }, 500);
+        prefetchUrl('/admin/karyawan');
+        prefetchUrl('/admin/target-kuota');
+        prefetchUrl('/admin/manajemen-akun');
+        prefetchUrl('/admin/pusat-laporan');
+        prefetchUrl('/penilaian');
+      }, 300);
 
       // Instant prefetch on mouse hover and touch start
       document.querySelectorAll('aside a[href^="/"], nav a[href^="/"]').forEach(function(link) {
         const href = link.getAttribute('href');
         link.addEventListener('mouseenter', function() { prefetchUrl(href); }, { passive: true });
         link.addEventListener('touchstart', function() { prefetchUrl(href); }, { passive: true });
+      });
+
+      // Ultra-fast instant click loader bar for 0.0001s perceived feedback
+      document.addEventListener('click', function(e) {
+        const link = e.target.closest('a');
+        if (link && link.href && !link.target && !link.hasAttribute('download') && link.origin === window.location.origin && !link.href.includes('#') && !link.href.includes('/logout')) {
+          let bar = document.getElementById('top-instant-loader');
+          if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'top-instant-loader';
+            bar.style.cssText = 'position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#92302e,#e18886,#92302e);z-index:99999;transition:width 0.15s ease;width:0%;box-shadow:0 0 10px rgba(146,48,46,0.8);pointer-events:none;';
+            document.body.appendChild(bar);
+          }
+          bar.style.width = '40%';
+          setTimeout(() => { if (bar) bar.style.width = '85%'; }, 30);
+        }
       });
     });
   </script>

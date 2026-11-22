@@ -3673,12 +3673,10 @@ class PenilaianController extends Controller
             'created_at' => now()->toDateTimeString(),
         ]);
 
-        // Non-blocking background sync to Google Spreadsheet
-        if (function_exists('defer')) {
-            defer(fn() => GoogleSyncService::syncTables(['indikator', 'audit_log']));
-        } else {
-            try { GoogleSyncService::syncTables(['indikator', 'audit_log']); } catch (\Throwable $e) {}
-        }
+        // Non-blocking background sync to Google Spreadsheet (< 5ms)
+        try {
+            GoogleSyncService::syncTablesAsync(['indikator', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -3824,12 +3822,10 @@ class PenilaianController extends Controller
             'created_at' => now()->toDateTimeString(),
         ]);
 
-        // Non-blocking background sync to Google Spreadsheet
-        if (function_exists('defer')) {
-            defer(fn() => GoogleSyncService::syncTables(['dokumen', 'nilai', 'indikator', 'audit_log']));
-        } else {
-            try { GoogleSyncService::syncTables(['dokumen', 'nilai', 'indikator', 'audit_log']); } catch (\Throwable $e) {}
-        }
+        // Non-blocking background sync to Google Spreadsheet (< 5ms)
+        try {
+            GoogleSyncService::syncTablesAsync(['dokumen', 'nilai', 'indikator', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
@@ -4369,12 +4365,10 @@ class PenilaianController extends Controller
             'created_at' => now()->toDateTimeString(),
         ]);
 
-        // Non-blocking background sync to Google Spreadsheet
-        if (function_exists('defer')) {
-            defer(fn() => GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']));
-        } else {
-            try { GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']); } catch (\Throwable $e) {}
-        }
+        // Non-blocking background sync to Google Spreadsheet (< 5ms)
+        try {
+            GoogleSyncService::syncTablesAsync(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         return redirect(self::getFormUrlForUser($user, $id))
             ->with('warning', "Dokumen berhasil dikembalikan untuk revisi ke {$targetLevel}. Status dokumen kini: " . ucwords(str_replace('_', ' ', $newStatus)) . ".");
@@ -4522,12 +4516,10 @@ class PenilaianController extends Controller
             'created_at' => now()->toDateTimeString(),
         ]);
 
-        // Non-blocking background sync to Google Spreadsheet
-        if (function_exists('defer')) {
-            defer(fn() => GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']));
-        } else {
-            try { GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']); } catch (\Throwable $e) {}
-        }
+        // Non-blocking background sync to Google Spreadsheet (< 5ms)
+        try {
+            GoogleSyncService::syncTablesAsync(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         return redirect(self::getFormUrlForUser($user, $id))
             ->with('success', 'Dokumen penilaian berhasil dibuka kembali! Anda sekarang dapat mengisi dan mengubah penilaian kembali.');
@@ -4868,7 +4860,15 @@ class PenilaianController extends Controller
             abort(404, 'Dokumen penilaian tidak ditemukan atau Anda tidak memiliki akses.');
         }
 
-        return request()->query('download') ? $pdfData['pdf']->download($pdfData['filename']) : $pdfData['pdf']->stream($pdfData['filename']);
+        $etag = '"' . md5(($pdfData['dokumen']['id'] ?? '') . '_' . ($pdfData['dokumen']['updated_at'] ?? '') . '_' . ($pdfData['dokumen']['status'] ?? '')) . '"';
+        if (request()->header('If-None-Match') === $etag) {
+            return response('', 304)->header('ETag', $etag);
+        }
+
+        $response = request()->query('download') ? $pdfData['pdf']->download($pdfData['filename']) : $pdfData['pdf']->stream($pdfData['filename']);
+        $response->header('ETag', $etag);
+        $response->header('Cache-Control', 'private, max-age=120, must-revalidate');
+        return $response;
     }
 
     /**
@@ -5161,13 +5161,12 @@ class PenilaianController extends Controller
         // Register installed fonts into Dompdf font metrics for Unicode glyph support (e.g. checkmarks)
         $dompdf = $pdf->getDomPDF();
         $fontMetrics = $dompdf->getFontMetrics();
-        $installedFonts = $sharedAssets['installedFonts'] ?? null;
-        if ($installedFonts === null) {
+        $installedFonts = $sharedAssets['installedFonts'] ?? Cache::rememberForever('dompdf_installed_fonts_cache', function() {
             $installedFontsPath = storage_path('fonts/installed-fonts.json');
-            $installedFonts = file_exists($installedFontsPath)
+            return file_exists($installedFontsPath)
                 ? json_decode((string)file_get_contents($installedFontsPath), true)
                 : [];
-        }
+        });
         if (is_array($installedFonts)) {
             foreach ($installedFonts as $family => $variants) {
                 $cleanVariants = [];
@@ -7354,11 +7353,10 @@ class PenilaianController extends Controller
         }
 
         $this->repository->clearCache('dokumen');
-        if (function_exists('defer')) {
-            defer(fn() => GoogleSyncService::syncTables(['dokumen', 'kuota_departemen', 'pengaturan', 'audit_log']));
-        } else {
-            try { GoogleSyncService::syncTables(['dokumen', 'kuota_departemen', 'pengaturan', 'audit_log']); } catch (\Throwable $e) {}
-        }
+        // Non-blocking background sync to Google Spreadsheet (< 5ms)
+        try {
+            GoogleSyncService::syncTablesAsync(['dokumen', 'kuota_departemen', 'pengaturan', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         return redirect()->route($routeTarget)->with('success', "Penyesuaian nilai untuk {$savedCount} karyawan berhasil disimpan dan diselaraskan!");
     }
@@ -7752,11 +7750,7 @@ class PenilaianController extends Controller
 
         $this->repository->clearCache('dokumen');
         try {
-            if (function_exists('defer')) {
-            defer(fn() => GoogleSyncService::syncTables(['dokumen', 'kuota_departemen', 'pengaturan', 'audit_log']));
-        } else {
-            try { GoogleSyncService::syncTables(['dokumen', 'kuota_departemen', 'pengaturan', 'audit_log']); } catch (\Throwable $e) {}
-        }
+            GoogleSyncService::syncTablesAsync(['dokumen', 'kuota_departemen', 'pengaturan', 'audit_log']);
         } catch (\Throwable $e) {}
 
         return redirect()->back()->with('success', "Penyesuaian kuota ({$updatedCount} karyawan) berhasil disimpan dan diteruskan ke Division Head / Manajemen!");

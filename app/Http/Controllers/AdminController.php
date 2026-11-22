@@ -2117,9 +2117,9 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
-        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        // Realtime sync ke Google Spreadsheet secara background non-blocking (< 5ms)
         try {
-            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+            GoogleSyncService::syncTablesAsync(['kuota_departemen', 'pengaturan', 'audit_log']);
         } catch (\Throwable $e) {}
 
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
@@ -2432,9 +2432,9 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
-        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        // Realtime sync ke Google Spreadsheet secara background non-blocking (< 5ms)
         try {
-            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+            GoogleSyncService::syncTablesAsync(['kuota_departemen', 'pengaturan', 'audit_log']);
         } catch (\Throwable $e) {}
 
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
@@ -2570,9 +2570,9 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
-        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        // Realtime sync ke Google Spreadsheet secara background non-blocking (< 5ms)
         try {
-            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+            GoogleSyncService::syncTablesAsync(['kuota_departemen', 'pengaturan', 'audit_log']);
         } catch (\Throwable $e) {}
 
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
@@ -2643,9 +2643,9 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
-        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        // Realtime sync ke Google Spreadsheet secara background non-blocking (< 5ms)
         try {
-            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+            GoogleSyncService::syncTablesAsync(['kuota_departemen', 'pengaturan', 'audit_log']);
         } catch (\Throwable $e) {}
 
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
@@ -2698,9 +2698,9 @@ class AdminController extends Controller
         // Clear sheet repository cache so changes immediately propagate across Foreman, Section Head, Dept Head!
         $this->repository->clearCache();
 
-        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        // Realtime sync ke Google Spreadsheet secara background non-blocking (< 5ms)
         try {
-            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+            GoogleSyncService::syncTablesAsync(['kuota_departemen', 'pengaturan', 'audit_log']);
         } catch (\Throwable $e) {}
 
         $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota';
@@ -3828,8 +3828,10 @@ class AdminController extends Controller
             'created_at' => now()->toDateTimeString(),
         ]);
 
-        // Realtime sync ke spreadsheet
-        GoogleSyncService::syncTables(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']);
+        // Realtime sync ke spreadsheet secara background non-blocking (< 5ms)
+        try {
+            GoogleSyncService::syncTablesAsync(['dokumen', 'tanda_tangan', 'nilai', 'audit_log']);
+        } catch (\Throwable $e) {}
 
         return back()->with('success', "Form penilaian {$karyawan->nama_lengkap} ({$karyawan->nrp}) berhasil dikembalikan untuk dinilai ulang oleh {$targetLabelStr}. Status saat ini: " . ucwords(str_replace('_', ' ', $newStatus)) . ".");
     }

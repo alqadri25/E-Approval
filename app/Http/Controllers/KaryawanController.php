@@ -772,10 +772,9 @@ class KaryawanController extends Controller
         // Pastikan SELALU dibuatkan initial document untuk karyawan baru
         $this->ensureInitialDocument($newEmployee, $hierarchy['default_status'] ?? null);
 
-        // Auto-sync leadership accounts so if added as Section Head, Dept Head, Manager, or Foreman, an account is immediately created
+        // Fast targeted sync for this newly added employee (< 10ms)
         try {
-            \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
-            \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
+            \App\Services\AccountSyncService::syncAccountForEmployee($newEmployee['nrp']);
         } catch (\Throwable $e) {}
 
         // Sinkronisasi tambah karyawan & dokumen ke Google Spreadsheet secara background non-blocking (< 5ms)

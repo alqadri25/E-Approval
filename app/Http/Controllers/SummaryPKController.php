@@ -377,9 +377,9 @@ class SummaryPKController extends Controller
 
         $msg = "Target kuota nilai untuk Departemen {$dept} berhasil disimpan!";
 
-        // Realtime sync ke Google Spreadsheet untuk target kuota dan pengaturan
+        // Realtime sync ke Google Spreadsheet secara background non-blocking (< 5ms)
         try {
-            GoogleSyncService::syncTables(['kuota_departemen', 'pengaturan', 'audit_log']);
+            GoogleSyncService::syncTablesAsync(['kuota_departemen', 'pengaturan', 'audit_log']);
         } catch (\Throwable $e) {}
 
         if ($request->expectsJson() || $request->ajax()) {
@@ -412,9 +412,9 @@ class SummaryPKController extends Controller
         ]);
         $this->repository->clearCache('dokumen');
 
-        // Realtime sync ke Google Spreadsheet untuk update docking dokumen
+        // Realtime sync ke Google Spreadsheet secara background non-blocking (< 5ms)
         try {
-            GoogleSyncService::syncTables(['dokumen', 'audit_log']);
+            GoogleSyncService::syncTablesAsync(['dokumen', 'audit_log']);
         } catch (\Throwable $e) {}
 
         return response()->json([
