@@ -555,8 +555,16 @@ class SuperAdminController extends Controller
             return redirect()->back()->with('error', 'Admin tidak memiliki wewenang mereset password akun Super Admin.');
         }
 
-        $targetUser->password = 'password123';
-        $targetUser->password_hash = Hash::make('password123');
+        $defaultPassword = 'password123';
+        if (!empty($targetUser->nrp)) {
+            $emp = DB::table('karyawan')->where('nrp', (string)$targetUser->nrp)->first();
+            if ($emp) {
+                $defaultPassword = \App\Services\AccountSyncService::generateAccountPassword((string)$targetUser->nrp, $emp->tgl_masuk ?? null);
+            }
+        }
+
+        $targetUser->password = $defaultPassword;
+        $targetUser->password_hash = Hash::make($defaultPassword);
         $targetUser->save();
 
         try {
@@ -566,7 +574,7 @@ class SuperAdminController extends Controller
 
         \App\Services\GoogleSyncService::syncTablesAsync(['users']);
 
-        return redirect()->back()->with('success', "Password untuk user '{$targetUser->nama}' berhasil direset menjadi 'password123'.");
+        return redirect()->back()->with('success', "Password untuk user '{$targetUser->nama}' berhasil direset menjadi '{$defaultPassword}'.");
     }
 
     /**

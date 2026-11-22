@@ -772,7 +772,7 @@
                     <p class="font-bold text-slate-800">Format Kolom Excel / CSV yang Didukung:</p>
                     <p class="font-mono text-[10px] text-slate-700 font-semibold bg-white p-1.5 border border-slate-200 overflow-x-auto whitespace-nowrap">NRP &bull; NAMA LENGKAP &bull; CODE BAGIAN &bull; NAMA BAGIAN &bull; SECTION &bull; DEPARTMENT &bull; DIVISION &bull; POSITION &bull; START WORK &bull; KJ &bull; GOLONGAN &bull; AKSI</p>
                     <p class="text-[10px] text-slate-500 font-mono">Format standar sistem juga didukung: EMPLOYEENO, FULLNAME, ORGSTRUCTURECODE, ORGSTRUCTURENAME, LINE CATEGORY, POSITION, DIVISION, DEPT, SECTION, EMPLOYMENTTYPE, JOBCLASSCODE, JOBLEVELCODE, JOINDATE.</p>
-                    <p class="text-[10px] text-emerald-700 font-bold mt-1">&check; Otomatis membuat/memperbarui akun login di Manajemen Akun untuk posisi FOREMAN, SECTION HEAD, DEPT HEAD, DIV HEAD (Email: NRPPOSITION@musashi.id, Password: NRP+POSITION).</p>
+                    <p class="text-[10px] text-emerald-700 font-bold mt-1">&check; Otomatis membuat/memperbarui akun login di Manajemen Akun untuk posisi FOREMAN, SECTION HEAD, DEPT HEAD, DIV HEAD (Email: NRPPOSITION@musashi.id, Password: NRP@Musashi{TahunMasuk}, misal 9@Musashi96).</p>
                 </div>
                 <div class="pt-3 border-t border-slate-200 flex items-center justify-between">
                     <a href="{{ route('karyawan.template') }}" class="text-xs font-bold text-emerald-700 hover:underline">

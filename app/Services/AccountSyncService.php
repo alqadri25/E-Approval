@@ -109,13 +109,38 @@ class AccountSyncService
     }
 
     /**
-     * Generate standard account password: {NRP}+{POSITION} -> {NRP}{POSITION}
+     * Extract 2-digit year from start_work / tgl_masuk (e.g. '08-May-96' -> '96', '2023-01-01' -> '23')
      */
-    public static function generateAccountPassword(string $nrp, string $posLabel): string
+    public static function extract2DigitYear(?string $tglMasuk): string
+    {
+        if (empty($tglMasuk)) {
+            return '20';
+        }
+        $raw = trim($tglMasuk);
+        // 1. Match 4-digit year like 1996 or 2023
+        if (preg_match('/\b(19|20)(\d{2})\b/', $raw, $m)) {
+            return $m[2];
+        }
+        // 2. Match date format with hyphen, slash or space ending in 2 digits (e.g. 08-May-96, 01/01/23)
+        if (preg_match('/(?:-|\/|\s)(\d{2})$/', $raw, $m)) {
+            return $m[1];
+        }
+        // 3. Fallback: match any 2 digits at the end
+        if (preg_match('/(\d{2})$/', $raw, $m)) {
+            return $m[1];
+        }
+        return '20';
+    }
+
+    /**
+     * Generate standard account password: {NRP}@Musashi{YY}
+     * Where {YY} is the last 2 digits of the year of start work / tgl_masuk (e.g. NRP@Musashi96, NRP@Musashi23)
+     */
+    public static function generateAccountPassword(string $nrp, ?string $tglMasuk = null): string
     {
         $cleanNrp = trim($nrp);
-        $cleanPos = self::cleanPositionLabel($posLabel);
-        return strtoupper("{$cleanNrp}{$cleanPos}");
+        $yy = self::extract2DigitYear($tglMasuk);
+        return "{$cleanNrp}@Musashi{$yy}";
     }
 
     /**
@@ -176,7 +201,7 @@ class AccountSyncService
         $role = $leadership ? $leadership['role'] : 'foreman';
         $posLabel = $leadership ? $leadership['label'] : 'FOREMAN';
         $email = self::generateAccountEmail($cleanNrp, $posLabel);
-        $passwordPlain = self::generateAccountPassword($cleanNrp, $posLabel);
+        $passwordPlain = self::generateAccountPassword($cleanNrp, (string)($emp->tgl_masuk ?? ''));
 
         $rawDept = trim((string)($emp->departemen ?? ''));
         $dept = ($rawDept !== '' && $rawDept !== '-') ? $rawDept : (trim((string)($emp->division ?? '')) ?: 'ALL');
@@ -377,7 +402,7 @@ class AccountSyncService
                 $role = $leadership['role'];
                 $posLabel = $leadership['label'];
                 $email = self::generateAccountEmail($nrp, $posLabel);
-                $passwordPlain = self::generateAccountPassword($nrp, $posLabel);
+                $passwordPlain = self::generateAccountPassword($nrp, (string)($emp->tgl_masuk ?? ''));
 
                 $rawDept = trim((string)($emp->departemen ?? ''));
                 $dept = ($rawDept !== '' && $rawDept !== '-') ? $rawDept : (trim((string)($emp->division ?? '')) ?: 'ALL');

@@ -6,7 +6,7 @@
     showAddModal: false, 
     showEditModal: false, 
     showUploadModal: false,
-    editUser: { id: '', nama: '', email: '', role: '', nrp: '', departemen: '' } 
+    editUser: { id: '', nama: '', email: '', password: '', role: '', nrp: '', departemen: '' } 
 }">
 
     <!-- Top Header Card (Musashi Red Banner, Solid & Clean) -->
@@ -151,6 +151,7 @@
                         <th class="py-3 px-3 border border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-12">No</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700">Nama Lengkap</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700">Email</th>
+                        <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700">Password</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700">NRP</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700">Role / Posisi</th>
                         <th class="py-3 px-3.5 border border-slate-300 bg-slate-100 font-bold text-slate-700">Division</th>
@@ -176,6 +177,24 @@
                         <!-- Email -->
                         <td class="py-2.5 px-3.5 border border-slate-300 font-mono text-[11px] text-slate-600">
                             {{ $u->email }}
+                        </td>
+
+                        <!-- Password -->
+                        <td class="py-2.5 px-3.5 border border-slate-300 font-mono text-slate-700 whitespace-nowrap">
+                            <div class="inline-flex items-center gap-1.5" x-data="{ copied: false }">
+                                <span class="font-mono text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 border border-slate-300 select-all tracking-wide">
+                                    {{ $u->password ?: '-' }}
+                                </span>
+                                @if(!empty($u->password))
+                                <button type="button" 
+                                        @click="navigator.clipboard.writeText('{{ addslashes($u->password) }}'); copied = true; setTimeout(() => copied = false, 1500)" 
+                                        class="p-1 text-slate-400 hover:text-slate-700 cursor-pointer" 
+                                        :title="copied ? 'Tersalin!' : 'Salin Password'">
+                                    <svg x-show="!copied" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                    <svg x-show="copied" class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                </button>
+                                @endif
+                            </div>
                         </td>
 
                         <!-- NRP -->
@@ -242,6 +261,7 @@
                                             editUser.id = '{{ $u->id }}';
                                             editUser.nama = '{{ addslashes($u->nama) }}';
                                             editUser.email = '{{ addslashes($u->email) }}';
+                                            editUser.password = '{{ addslashes($u->password ?? '') }}';
                                             editUser.role = '{{ $u->role }}';
                                             editUser.nrp = '{{ addslashes($u->nrp ?? '') }}';
                                             editUser.departemen = '{{ addslashes($u->departemen ?? 'ALL') }}';
@@ -453,9 +473,16 @@
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Password Baru (Opsional)</label>
-                            <input type="password" name="password" placeholder="Kosongkan jika tidak ubah" 
-                                   class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                            <div class="relative" x-data="{ showEditPw: true }">
+                                <input :type="showEditPw ? 'text' : 'password'" name="password" x-model="editUser.password" required 
+                                       class="w-full px-3 py-2 pr-8 border border-slate-300 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                                <button type="button" @click="showEditPw = !showEditPw" class="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-700 cursor-pointer" title="Lihat/Sembunyikan Password">
+                                    <svg x-show="!showEditPw" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    <svg x-show="showEditPw" class="w-4 h-4 text-[#92302e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                                </button>
+                            </div>
+                            <span class="text-[10px] text-slate-500 mt-0.5 block leading-tight">Password saat ini. Ubah di sini untuk mengganti password.</span>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Divisi / Departemen</label>
@@ -514,7 +541,7 @@
                     <ul class="list-disc pl-4 space-y-0.5 text-[11px] text-slate-600">
                         <li><strong>Akun Otomatis</strong>: Dibuat untuk posisi <code>FOREMAN</code>, <code>SECTION HEAD</code>, <code>DEPT HEAD</code>, dan <code>DIV HEAD</code>.</li>
                         <li><strong>Format Email</strong>: <code>NRPPOSITION@musashi.id</code> (Contoh: <code>112SECTIONHEAD@musashi.id</code>).</li>
-                        <li><strong>Format Password Default</strong>: <code>NRP+POSITION</code> (Contoh: <code>112SECTIONHEAD</code> / <code>112SECTION HEAD</code>).</li>
+                        <li><strong>Format Password Default</strong>: <code>NRP@Musashi{TahunMasuk}</code> (Contoh: <code>9@Musashi96</code>, <code>16353@Musashi23</code>). Diambil 2 digit terakhir tahun masuk karyawan.</li>
                     </ul>
                 </div>
 
