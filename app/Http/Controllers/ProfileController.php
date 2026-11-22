@@ -61,7 +61,7 @@ class ProfileController extends Controller
             'nama' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'password' => 'nullable|string|min:4',
-            'password_confirmation' => 'nullable|same:password',
+            'password_confirmation' => 'nullable|required_with:password|same:password',
             'signature_file' => 'nullable|image|mimes:png,jpg,jpeg,webp,svg|max:5120',
             'signature_data' => 'nullable|string',
             'jabatan' => 'nullable|string|max:255',
@@ -73,6 +73,7 @@ class ProfileController extends Controller
             'email.required' => 'Email perusahaan wajib diisi.',
             'email.email' => 'Format email tidak valid.',
             'password.min' => 'Password minimal harus 4 karakter.',
+            'password_confirmation.required_with' => 'Harap konfirmasi password baru Anda.',
             'password_confirmation.same' => 'Konfirmasi password baru tidak cocok.',
             'signature_file.image' => 'Berkas tanda tangan harus berupa gambar (PNG, JPG, WebP).',
             'signature_file.max' => 'Ukuran berkas tanda tangan maksimal 5MB.',
@@ -108,6 +109,13 @@ class ProfileController extends Controller
         $user->ttdbarcode = $barcodeData;
         $user->signature_path = $barcodeData;
         $user->save();
+
+        // Fast sync user row to Google Spreadsheet (instant < 1s)
+        try {
+            \App\Services\GoogleSyncService::syncUserUpsertRow($user);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Fast syncUserUpsertRow failed: " . $e->getMessage());
+        }
 
         $tablesToSync = ['users'];
 

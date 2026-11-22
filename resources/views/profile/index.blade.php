@@ -147,7 +147,7 @@
                 </div>
 
                 <!-- Card 2: Pengaturan Keamanan Password (Opsional) -->
-                <div class="bg-white border border-slate-300 shadow-sm rounded-none overflow-hidden">
+                <div class="bg-white border border-slate-300 shadow-sm rounded-none overflow-hidden" x-data="{ showNewPw: false, showConfirmPw: false }">
                     <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="text-base text-amber-600">🔒</span>
@@ -162,15 +162,27 @@
                                 <label for="passwordInput" class="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                                     Password Baru
                                 </label>
-                                <input type="password" id="passwordInput" name="password" placeholder="Minimal 4 karakter..." 
-                                       class="w-full text-xs font-medium text-slate-900 border border-slate-300 focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] px-3 py-2 transition shadow-2xs">
+                                <div class="relative">
+                                    <input :type="showNewPw ? 'text' : 'password'" id="passwordInput" name="password" placeholder="Minimal 4 karakter..." 
+                                           class="w-full text-xs font-mono font-semibold text-slate-900 border border-slate-300 focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] px-3 py-2 pr-9 transition shadow-2xs">
+                                    <button type="button" @click="showNewPw = !showNewPw" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-700 cursor-pointer" title="Lihat/Sembunyikan Password">
+                                        <svg x-show="!showNewPw" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="showNewPw" class="w-4 h-4 text-[#92302e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label for="passwordConfirmInput" class="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                                     Konfirmasi Password Baru
                                 </label>
-                                <input type="password" id="passwordConfirmInput" name="password_confirmation" placeholder="Ulangi password baru..." 
-                                       class="w-full text-xs font-medium text-slate-900 border border-slate-300 focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] px-3 py-2 transition shadow-2xs">
+                                <div class="relative">
+                                    <input :type="showConfirmPw ? 'text' : 'password'" id="passwordConfirmInput" name="password_confirmation" placeholder="Ulangi password baru..." 
+                                           class="w-full text-xs font-mono font-semibold text-slate-900 border border-slate-300 focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] px-3 py-2 pr-9 transition shadow-2xs">
+                                    <button type="button" @click="showConfirmPw = !showConfirmPw" class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-700 cursor-pointer" title="Lihat/Sembunyikan Password">
+                                        <svg x-show="!showConfirmPw" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                        <svg x-show="showConfirmPw" class="w-4 h-4 text-[#92302e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -261,22 +273,6 @@
                         </div>
 
                     </div>
-                </div>
-
-                <!-- Info Synchronization -->
-                <div class="p-4 bg-slate-100 border border-slate-300 text-slate-600 text-xs space-y-1.5">
-                    <strong class="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Keamanan &amp; Integrasi Cloud:</strong>
-                    <p class="text-[11px] leading-relaxed">
-                        Barcode tanda tangan digital ini memuat data identitas resmi (NRP &amp; Nama) yang terenkripsi dan otomatis tersinkronisasi ke Google Spreadsheet saat proses penilaian karyawan difinalisasi.
-                    </p>
-                </div>
-
-            </div>
-                <div class="p-4 bg-slate-100 border border-slate-300 text-slate-600 text-xs space-y-1.5">
-                    <strong class="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Keamanan &amp; Integrasi Cloud:</strong>
-                    <p class="text-[11px] leading-relaxed">
-                        Tanda tangan digital Anda disimpan secara aman di server lokal dan otomatis tersinkronisasi ke folder database dokumen (Google Drive &amp; Sheets) saat berkas penilaian karyawan difinalisasi.
-                    </p>
                 </div>
 
             </div>

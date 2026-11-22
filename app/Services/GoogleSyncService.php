@@ -680,7 +680,7 @@ class GoogleSyncService
             } elseif (Schema::hasTable($localTable)) {
                 if ($localTable === 'app_users') {
                     $rows = DB::table('app_users')
-                        ->select('id', 'nama', 'email', 'password', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode')
+                        ->select('id', 'nama', 'email', 'password', 'role', 'nrp', 'divisi', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode')
                         ->get()
                         ->map(function ($row) {
                             $arr = (array)$row;
@@ -690,8 +690,8 @@ class GoogleSyncService
                                 } elseif ($arr['role'] === 'admin') {
                                     $arr['password'] = 'admin123';
                                 } else {
-                                    $pos = strtoupper((string)preg_replace('/[^A-Za-z0-9]/', '', (string)($arr['role'] ?? '')));
-                                    $arr['password'] = strtoupper(trim((string)($arr['nrp'] ?? '')) . $pos);
+                                    $cleanNrp = trim((string)($arr['nrp'] ?? ''));
+                                    $arr['password'] = \App\Services\AccountSyncService::generateAccountPassword($cleanNrp, null);
                                 }
                             }
                             return $arr;
@@ -945,6 +945,81 @@ class GoogleSyncService
         } catch (\Throwable $e) {
             Log::warning("Async Google sync user delete launch failed: " . $e->getMessage() . ", running synchronously");
             self::syncUserDeleteRow($nrp, $email);
+        }
+    }
+
+    /**
+     * Fast single user upsert to sheet 'users' in Google Spreadsheet.
+     * Updates name, email, password, role, nrp, divisi, departemen, barcode in real time.
+     */
+    public static function syncUserUpsertRow(\App\Models\User $user): array
+    {
+        $config = self::getConfig();
+        $appscriptUrl = $config['appscript_url'] ?? '';
+
+        if (empty($appscriptUrl) || !filter_var($appscriptUrl, FILTER_VALIDATE_URL)) {
+            return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
+        }
+
+        $keyCol = !empty($user->nrp) ? 'nrp' : 'email';
+        $keyVal = !empty($user->nrp) ? (string)$user->nrp : (string)$user->email;
+
+        $rowData = [
+            'id' => $user->id,
+            'nama' => $user->nama,
+            'email' => $user->email,
+            'password' => $user->password ?: '',
+            'role' => $user->role,
+            'nrp' => $user->nrp ?: '',
+            'divisi' => $user->getDivisionName(),
+            'departemen' => $user->getDepartmentName(),
+            'aktif' => $user->aktif ? 1 : 0,
+            'barcodettd' => $user->barcodettd ?: ($user->ttdbarcode ?: ''),
+            'ttdbarcode' => $user->barcodettd ?: ($user->ttdbarcode ?: ''),
+        ];
+
+        $payload = [
+            'action' => 'upsert_row',
+            'tables' => ['users'],
+            'key_column' => $keyCol,
+            'key_value' => $keyVal,
+            'row_data' => $rowData,
+        ];
+
+        try {
+            $response = Http::timeout(15)->withoutVerifying()->post($appscriptUrl, $payload);
+            if ($response->successful()) {
+                $body = $response->json();
+                if (isset($body['status']) && $body['status'] === 'success') {
+                    $timestampNow = date('d F Y, H:i') . ' WIB';
+                    DB::table('pengaturan')->updateOrInsert(
+                        ['key' => 'terakhir_push_google'],
+                        ['value' => $timestampNow]
+                    );
+                    return ['success' => true, 'fast_path' => true, 'data' => $body];
+                }
+            }
+            return self::syncTables(['users']);
+        } catch (\Throwable $e) {
+            Log::warning("Fast user upsert Google sync notice: " . $e->getMessage() . ", fallback full sync");
+            return self::syncTables(['users']);
+        }
+    }
+
+    /**
+     * Non-blocking Async Dispatch for User Row Upsert to Google Spreadsheet.
+     */
+    public static function syncUserUpsertRowAsync(\App\Models\User $user): void
+    {
+        if (self::isServerless()) {
+            self::syncUserUpsertRow($user);
+            return;
+        }
+
+        try {
+            self::syncUserUpsertRow($user);
+        } catch (\Throwable $e) {
+            Log::warning("Async Google sync user upsert failed: " . $e->getMessage());
         }
     }
 
@@ -1980,10 +2055,18 @@ class GoogleSyncService
                             $aktif = isset($u['aktif']) ? (int)$u['aktif'] : 1;
                             $barcode = $u['barcodettd'] ?? null;
 
+                            $divisi = trim((string)($u['divisi'] ?? ''));
+                            $rawPw = trim((string)($u['password'] ?? ''));
+
                             if ($existing) {
                                 if ($nama !== '') $existing->nama = $nama;
                                 if ($role !== '') $existing->role = $role;
                                 if ($dept !== '') $existing->departemen = $dept;
+                                if ($divisi !== '') $existing->divisi = $divisi;
+                                if ($rawPw !== '') {
+                                    $existing->password = $rawPw;
+                                    $existing->password_hash = Hash::make($rawPw);
+                                }
                                 $existing->aktif = $aktif;
                                 if (!empty($barcode)) {
                                     $existing->barcodettd = $barcode;
@@ -1999,9 +2082,11 @@ class GoogleSyncService
                                     'email' => $email ?: ($nrp . '@musashi.id'),
                                     'nrp' => $nrp,
                                     'role' => $role ?: 'foreman',
+                                    'divisi' => $divisi ?: 'ALL',
                                     'departemen' => $dept ?: 'ALL',
                                     'aktif' => $aktif,
-                                    'password_hash' => Hash::make('password123'),
+                                    'password' => $rawPw ?: null,
+                                    'password_hash' => Hash::make($rawPw ?: 'password123'),
                                     'barcodettd' => $barcode,
                                     'ttdbarcode' => $barcode,
                                 ]);
@@ -2155,7 +2240,7 @@ var CONFIG_TABLES = {
     'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK MANDIRI', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
   ],
   'users': [
-    'id', 'nama', 'email', 'password', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
+    'id', 'nama', 'email', 'password', 'role', 'nrp', 'divisi', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
   ],
   'kuota_departemen': [
     'id', 'departemen', 'grade_s_max', 'grade_a_max', 'grade_b_max', 'grade_c_max', 'grade_k_max'

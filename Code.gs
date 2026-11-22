@@ -73,7 +73,7 @@ var CONFIG_TABLES = {
     'No', 'Division', 'Department', 'Target_Kuota', 'Sudah_Dinilai', 'Belum_Dinilai', 'Realisasi_Persen', 'Target_S', 'Target_A', 'Target_B', 'Target_C', 'Target_K', 'Status', 'Terakhir_Update'
   ],
   'users': [
-    'id', 'nama', 'email', 'password', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
+    'id', 'nama', 'email', 'password', 'role', 'nrp', 'divisi', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
   ],
   'kuota_departemen': [
     'id', 'departemen', 'grade_s_max', 'grade_a_max', 'grade_b_max', 'grade_c_max', 'grade_k_max'

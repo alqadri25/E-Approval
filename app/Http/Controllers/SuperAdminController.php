@@ -314,6 +314,7 @@ class SuperAdminController extends Controller
         $departemenOptions = array_values(array_unique(array_merge(['ALL', 'PROD 1', 'PROD 2', 'PROD 3', 'PROD 4', 'PROD 5', 'HR & IR', 'GA', 'IT'], $allDepartments)));
 
         $karyawanLookupMap = [];
+        $existingUsersByNrp = $allUsers->keyBy(fn($u) => trim((string)$u->nrp));
         foreach ($karyawanList as $k) {
             $cleanNrp = trim((string)$k->nrp);
             if ($cleanNrp === '') continue;
@@ -330,6 +331,16 @@ class SuperAdminController extends Controller
             $posLabel = $posInfo['label'] ?? 'STAFF';
             $email = \App\Services\AccountSyncService::generateAccountEmail($cleanNrp, $posLabel);
             $password = \App\Services\AccountSyncService::generateAccountPassword($cleanNrp, $k->tgl_masuk ?? null);
+
+            $uMatch = $existingUsersByNrp->get($cleanNrp);
+            if ($uMatch) {
+                if (!empty($uMatch->password)) {
+                    $password = $uMatch->password;
+                }
+                if (!empty($uMatch->nama)) {
+                    $k->nama_lengkap = $uMatch->nama;
+                }
+            }
 
             $karyawanLookupMap[$cleanNrp] = [
                 'nrp' => $cleanNrp,
@@ -433,7 +444,7 @@ class SuperAdminController extends Controller
 
         $rawPassword = $request->input('password');
         $barcodeData = User::generateBarcodeDataUri($request->input('nrp') ?: '-', $request->input('nama'), $request->input('role'));
-        User::create([
+        $newUser = User::create([
             'nama' => trim($request->input('nama')),
             'email' => trim($request->input('email')),
             'password' => $rawPassword,
@@ -446,6 +457,10 @@ class SuperAdminController extends Controller
             'barcodettd' => $barcodeData,
             'ttdbarcode' => $barcodeData,
         ]);
+
+        try {
+            \App\Services\GoogleSyncService::syncUserUpsertRow($newUser);
+        } catch (\Throwable $e) {}
 
         try {
             app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('users');
@@ -505,6 +520,10 @@ class SuperAdminController extends Controller
         $targetUser->barcodettd = $barcodeData;
         $targetUser->ttdbarcode = $barcodeData;
         $targetUser->save();
+
+        try {
+            \App\Services\GoogleSyncService::syncUserUpsertRow($targetUser);
+        } catch (\Throwable $e) {}
 
         $tablesToSync = ['users'];
 
@@ -577,6 +596,10 @@ class SuperAdminController extends Controller
         $targetUser->aktif = $targetUser->aktif ? 0 : 1;
         $targetUser->save();
 
+        try {
+            \App\Services\GoogleSyncService::syncUserUpsertRow($targetUser);
+        } catch (\Throwable $e) {}
+
         \App\Services\GoogleSyncService::syncTablesAsync(['users']);
 
         $statusText = $targetUser->aktif ? 'diaktifkan' : 'dinonaktifkan';
@@ -611,6 +634,10 @@ class SuperAdminController extends Controller
         $targetUser->password = $defaultPassword;
         $targetUser->password_hash = Hash::make($defaultPassword);
         $targetUser->save();
+
+        try {
+            \App\Services\GoogleSyncService::syncUserUpsertRow($targetUser);
+        } catch (\Throwable $e) {}
 
         try {
             app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('users');
