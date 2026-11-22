@@ -639,7 +639,7 @@ class GoogleSyncService
                 'aspek_kode', 'skor', 'deskripsi'
             ],
             'users' => [
-                'id', 'nama', 'email', 'password', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode'
+                'id', 'nama', 'email', 'password', 'role', 'nrp', 'divisi', 'departemen', 'aktif', 'barcodettd', 'ttdbarcode'
             ],
             default => ['id', 'created_at']
         };

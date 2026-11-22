@@ -748,6 +748,10 @@ class User extends Authenticatable
             return $this->resolved_division;
         }
 
+        if (!empty($this->divisi) && $this->divisi !== '-' && $this->divisi !== 'ALL') {
+            return $this->divisi;
+        }
+
         if ($this->isAdmin() || $this->isSuperadmin()) {
             return 'ALL';
         }

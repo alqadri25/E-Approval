@@ -6,7 +6,48 @@
     showAddModal: false, 
     showEditModal: false, 
     showUploadModal: false,
-    editUser: { id: '', nama: '', email: '', password: '', role: '', nrp: '', departemen: '' } 
+    editUser: { id: '', nama: '', email: '', password: '', role: '', nrp: '', divisi: 'ALL', departemen: 'ALL' },
+    newUser: { nama: '', email: '', password: 'password123', role: 'foreman', nrp: '', divisi: 'ALL', departemen: 'ALL' },
+    karyawanMap: {{ \Illuminate\Support\Js::from($karyawanLookupMap ?? []) }},
+    lookupNrp(nrp) {
+        if (!nrp) return null;
+        let clean = String(nrp).trim();
+        return this.karyawanMap[clean] || this.karyawanMap[clean.toUpperCase()] || null;
+    },
+    onNrpChange(target) {
+        let nrpVal = (target === 'edit' ? this.editUser.nrp : this.newUser.nrp || '').trim();
+        if (!nrpVal) return;
+        let found = this.lookupNrp(nrpVal);
+        if (found) {
+            this.applyKaryawanData(target, found);
+            return;
+        }
+        fetch(`/api/user-karyawan-lookup?nrp=${encodeURIComponent(nrpVal)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.found && data.karyawan) {
+                    this.applyKaryawanData(target, data.karyawan);
+                }
+            })
+            .catch(() => {});
+    },
+    applyKaryawanData(target, k) {
+        if (target === 'edit') {
+            if (k.nama) this.editUser.nama = k.nama;
+            if (k.division) this.editUser.divisi = k.division;
+            if (k.departemen) this.editUser.departemen = k.departemen;
+            if (k.role) this.editUser.role = k.role;
+            if (k.email) this.editUser.email = k.email;
+            if (k.password) this.editUser.password = k.password;
+        } else {
+            if (k.nama) this.newUser.nama = k.nama;
+            if (k.division) this.newUser.divisi = k.division;
+            if (k.departemen) this.newUser.departemen = k.departemen;
+            if (k.role) this.newUser.role = k.role;
+            if (k.email) this.newUser.email = k.email;
+            if (k.password) this.newUser.password = k.password;
+        }
+    }
 }">
 
     <!-- Top Header Card (Musashi Red Banner, Solid & Clean) -->
@@ -264,7 +305,8 @@
                                             editUser.password = '{{ addslashes($u->password ?? '') }}';
                                             editUser.role = '{{ $u->role }}';
                                             editUser.nrp = '{{ addslashes($u->nrp ?? '') }}';
-                                            editUser.departemen = '{{ addslashes($u->departemen ?? 'ALL') }}';
+                                            editUser.divisi = '{{ addslashes($u->getDivisionName()) }}';
+                                            editUser.departemen = '{{ addslashes($u->getDepartmentName()) }}';
                                             showEditModal = true;
                                         "
                                         class="p-1.5 border border-slate-300 bg-white hover:bg-blue-50 hover:border-blue-400 text-slate-600 hover:text-blue-600 transition shadow-2xs cursor-pointer"
@@ -366,19 +408,23 @@
                     @csrf
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
-                        <input type="text" name="nama" required placeholder="Contoh: Danu Kurniawan" 
+                        <input type="text" name="nama" x-model="newUser.nama" required placeholder="Contoh: Danu Kurniawan" 
                                class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">NRP</label>
-                            <input type="text" name="nrp" placeholder="Contoh: 1045" 
+                            <input type="text" name="nrp" x-model="newUser.nrp" 
+                                   @input.debounce.300ms="onNrpChange('add')"
+                                   @change="onNrpChange('add')"
+                                   placeholder="Contoh: 1045" 
                                    class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                            <span class="text-[10px] text-slate-400 mt-0.5 block leading-tight">Ketik NRP untuk memanggil data otomatis</span>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Role Akun / Posisi</label>
-                            <select name="role" required class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e] bg-white">
+                            <select name="role" x-model="newUser.role" required class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e] bg-white">
                                 @foreach($roleGroups as $groupLabel => $roles)
                                     <optgroup label="{{ $groupLabel }}">
                                         @foreach($roles as $val => $lbl)
@@ -392,19 +438,29 @@
 
                     <div>
                         <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
-                        <input type="email" name="email" required placeholder="nama@musashi.co.id" 
+                        <input type="email" name="email" x-model="newUser.email" required placeholder="nama@musashi.co.id" 
                                class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Password Awal</label>
+                        <input type="text" name="password" x-model="newUser.password" required 
+                               class="w-full px-3 py-2 border border-slate-300 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                        <span class="text-[10px] text-slate-400 mt-0.5 block leading-tight">Otomatis diisi NRP@Musashi{YY} saat NRP dimasukkan</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Password Awal</label>
-                            <input type="password" name="password" required value="password123" 
-                                   class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Divisi (Division)</label>
+                            <select name="divisi" x-model="newUser.divisi" class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e] bg-white">
+                                @foreach($divisiOptions as $dOpt)
+                                    <option value="{{ $dOpt }}">{{ $dOpt }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Divisi / Departemen</label>
-                            <select name="departemen" class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Departemen (Department)</label>
+                            <select name="departemen" x-model="newUser.departemen" class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e] bg-white">
                                 @foreach($departemenOptions as $opt)
                                     <option value="{{ $opt }}">{{ $opt }}</option>
                                 @endforeach
@@ -449,7 +505,10 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">NRP</label>
                             <input type="text" name="nrp" x-model="editUser.nrp" 
+                                   @input.debounce.300ms="onNrpChange('edit')"
+                                   @change="onNrpChange('edit')"
                                    class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                            <span class="text-[10px] text-slate-400 mt-0.5 block leading-tight">Ubah NRP untuk memanggil data otomatis</span>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Role Akun / Posisi</label>
@@ -471,22 +530,32 @@
                                class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
                     </div>
 
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                        <div class="relative" x-data="{ showEditPw: true }">
+                            <input :type="showEditPw ? 'text' : 'password'" name="password" x-model="editUser.password" required 
+                                   class="w-full px-3 py-2 pr-8 border border-slate-300 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                            <button type="button" @click="showEditPw = !showEditPw" class="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-700 cursor-pointer" title="Lihat/Sembunyikan Password">
+                                <svg x-show="!showEditPw" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <svg x-show="showEditPw" class="w-4 h-4 text-[#92302e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
+                            </button>
+                        </div>
+                        <span class="text-[10px] text-slate-500 mt-0.5 block leading-tight">Password saat ini. Ubah di sini untuk mengganti password.</span>
+                    </div>
+
+                    <!-- Pisahkan Divisi dan Departemen -->
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
-                            <div class="relative" x-data="{ showEditPw: true }">
-                                <input :type="showEditPw ? 'text' : 'password'" name="password" x-model="editUser.password" required 
-                                       class="w-full px-3 py-2 pr-8 border border-slate-300 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
-                                <button type="button" @click="showEditPw = !showEditPw" class="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-700 cursor-pointer" title="Lihat/Sembunyikan Password">
-                                    <svg x-show="!showEditPw" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                    <svg x-show="showEditPw" class="w-4 h-4 text-[#92302e]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"/></svg>
-                                </button>
-                            </div>
-                            <span class="text-[10px] text-slate-500 mt-0.5 block leading-tight">Password saat ini. Ubah di sini untuk mengganti password.</span>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Divisi (Division)</label>
+                            <select name="divisi" x-model="editUser.divisi" class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e] bg-white">
+                                @foreach($divisiOptions as $dOpt)
+                                    <option value="{{ $dOpt }}">{{ $dOpt }}</option>
+                                @endforeach
+                            </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 mb-1">Divisi / Departemen</label>
-                            <select name="departemen" x-model="editUser.departemen" class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e]">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Departemen (Department)</label>
+                            <select name="departemen" x-model="editUser.departemen" class="w-full px-3 py-2 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#92302e] bg-white">
                                 @foreach($departemenOptions as $opt)
                                     <option value="{{ $opt }}">{{ $opt }}</option>
                                 @endforeach

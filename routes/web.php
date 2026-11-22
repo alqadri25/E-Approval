@@ -144,6 +144,7 @@ Route::middleware('auth')->group(function () {
     // User Management Routes (Mockup Screens: Kelola User / Manajemen Akun, Pengaturan)
     Route::get('/superadmin/users', [SuperAdminController::class, 'kelolaUser'])->name('superadmin.users');
     Route::get('/admin/manajemen-akun', [SuperAdminController::class, 'kelolaUser'])->name('admin.users');
+    Route::get('/api/user-karyawan-lookup', [SuperAdminController::class, 'apiLookupKaryawan'])->name('api.user.karyawan.lookup');
     Route::post('/superadmin/users/sync', [SuperAdminController::class, 'syncFromKaryawan'])->name('superadmin.users.sync');
     Route::post('/admin/manajemen-akun/sync', [SuperAdminController::class, 'syncFromKaryawan'])->name('admin.users.sync');
     Route::post('/superadmin/users', [SuperAdminController::class, 'storeUser'])->name('superadmin.users.store');

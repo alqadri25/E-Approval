@@ -6,6 +6,7 @@ use App\Contracts\SheetRepositoryInterface;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -197,21 +198,22 @@ class SuperAdminController extends Controller
                 $u->resolved_department = 'ALL';
             } else {
                 $emp = $karyawanRows->get(trim((string)$u->nrp));
-                $div = trim((string)($emp->division ?? ''));
+                $div = trim((string)($u->divisi ?? ''));
+                if ($div === '' || $div === '-' || $div === 'ALL') {
+                    $div = trim((string)($emp->division ?? ''));
+                }
                 if ($div === '' || $div === '-') {
                     $empDept = trim((string)($emp->departemen ?? ''));
                     $userDept = trim((string)($u->departemen ?? ''));
                     $div = $deptToDivMap[$empDept] ?? ($deptToDivMap[$userDept] ?? '-');
                 }
 
-                $dept = trim((string)($emp->departemen ?? ''));
+                $dept = trim((string)($u->departemen ?? ''));
+                if ($dept === '' || $dept === '-' || $dept === 'ALL') {
+                    $dept = trim((string)($emp->departemen ?? ''));
+                }
                 if ($dept === '' || $dept === '-') {
-                    $userDept = trim((string)($u->departemen ?? ''));
-                    if ($userDept !== '' && $userDept !== 'ALL' && !str_contains($userDept, 'DIV')) {
-                        $dept = $userDept;
-                    } else {
-                        $dept = '-';
-                    }
+                    $dept = '-';
                 }
 
                 $u->resolved_division = $div;
@@ -304,13 +306,41 @@ class SuperAdminController extends Controller
             $filteredUsers = $filteredUsers->where('aktif', $isAktif);
         }
 
-        $departemenOptions = [
-            'ALL',
-            'PROD 1',
-            'PROD 2',
-            'PROD 3',
-            'PROD 4',
-        ];
+        $karyawanList = DB::table('karyawan')->get();
+        $allDivisions = $karyawanList->pluck('division')->filter(fn($d) => !empty($d) && $d !== '-')->unique()->values()->toArray();
+        $allDepartments = $karyawanList->pluck('departemen')->filter(fn($d) => !empty($d) && $d !== '-')->unique()->values()->toArray();
+
+        $divisiOptions = array_values(array_unique(array_merge(['ALL'], $allDivisions)));
+        $departemenOptions = array_values(array_unique(array_merge(['ALL', 'PROD 1', 'PROD 2', 'PROD 3', 'PROD 4', 'PROD 5', 'HR & IR', 'GA', 'IT'], $allDepartments)));
+
+        $karyawanLookupMap = [];
+        foreach ($karyawanList as $k) {
+            $cleanNrp = trim((string)$k->nrp);
+            if ($cleanNrp === '') continue;
+
+            $div = trim((string)($k->division ?? ''));
+            if ($div === '' || $div === '-') {
+                $div = $deptToDivMap[trim((string)($k->departemen ?? ''))] ?? '-';
+            }
+            $dept = trim((string)($k->departemen ?? ''));
+            if ($dept === '-') $dept = '';
+
+            $posInfo = \App\Services\AccountSyncService::resolveLeadershipRole($k->jabatan ?? '', $k->kj ?? '', $k->sub_gol ?? '', $k->golongan ?? '');
+            $role = $posInfo['role'] ?? ($k->jabatan ?? 'STAFF');
+            $posLabel = $posInfo['label'] ?? 'STAFF';
+            $email = \App\Services\AccountSyncService::generateAccountEmail($cleanNrp, $posLabel);
+            $password = \App\Services\AccountSyncService::generateAccountPassword($cleanNrp, $k->tgl_masuk ?? null);
+
+            $karyawanLookupMap[$cleanNrp] = [
+                'nrp' => $cleanNrp,
+                'nama' => trim((string)$k->nama_lengkap),
+                'division' => $div,
+                'departemen' => $dept,
+                'role' => $role,
+                'email' => $email,
+                'password' => $password,
+            ];
+        }
 
         // Standard role & position options categorized for selection modals
         $roleGroups = [
@@ -364,7 +394,9 @@ class SuperAdminController extends Controller
             'activeRole',
             'search',
             'statusFilter',
+            'divisiOptions',
             'departemenOptions',
+            'karyawanLookupMap',
             'loginAliases',
             'roleGroups'
         ));
@@ -392,6 +424,7 @@ class SuperAdminController extends Controller
             'role' => 'required|string',
             'nrp' => 'nullable|string|max:50',
             'departemen' => 'nullable|string|max:100',
+            'divisi' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -408,6 +441,7 @@ class SuperAdminController extends Controller
             'role' => $request->input('role'),
             'nrp' => trim($request->input('nrp', '')) ?: null,
             'departemen' => trim($request->input('departemen', 'ALL')),
+            'divisi' => trim($request->input('divisi', 'ALL')),
             'aktif' => $request->boolean('aktif', true) ? 1 : 0,
             'barcodettd' => $barcodeData,
             'ttdbarcode' => $barcodeData,
@@ -446,6 +480,7 @@ class SuperAdminController extends Controller
             'role' => 'required|string',
             'nrp' => 'nullable|string|max:50',
             'departemen' => 'nullable|string|max:100',
+            'divisi' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -458,6 +493,9 @@ class SuperAdminController extends Controller
         $targetUser->role = $request->input('role');
         $targetUser->nrp = trim($request->input('nrp', '')) ?: null;
         $targetUser->departemen = trim($request->input('departemen', 'ALL'));
+        if ($request->has('divisi')) {
+            $targetUser->divisi = trim($request->input('divisi', 'ALL'));
+        }
         if ($request->filled('password')) {
             $rawPassword = $request->input('password');
             $targetUser->password = $rawPassword;
@@ -473,11 +511,18 @@ class SuperAdminController extends Controller
         if (!empty($targetUser->nrp)) {
             $cleanNrp = (string)$targetUser->nrp;
             try {
-                DB::table('karyawan')->where('nrp', $cleanNrp)->update([
+                $karyawanUpdates = [
                     'nama_lengkap' => $newNama,
-                    'departemen' => $targetUser->departemen !== 'ALL' ? $targetUser->departemen : DB::raw('departemen'),
                     'updated_at' => now(),
-                ]);
+                ];
+                if ($targetUser->departemen !== 'ALL' && $targetUser->departemen !== '') {
+                    $karyawanUpdates['departemen'] = $targetUser->departemen;
+                }
+                $newDivisi = trim($request->input('divisi', ''));
+                if ($newDivisi !== '' && $newDivisi !== 'ALL') {
+                    $karyawanUpdates['division'] = $newDivisi;
+                }
+                DB::table('karyawan')->where('nrp', $cleanNrp)->update($karyawanUpdates);
                 $tablesToSync[] = 'karyawan';
 
                 DB::table('dokumen')->where('nrp_foreman', $cleanNrp)->update(['nama_foreman' => $newNama]);
@@ -604,6 +649,83 @@ class SuperAdminController extends Controller
         \App\Services\GoogleSyncService::syncTablesAsync(['users']);
 
         return redirect()->back()->with('success', "Akun '{$userName}' berhasil dihapus dari sistem.");
+    }
+
+    /**
+     * API lookup for employee by NRP to automatically populate form fields in Manajemen Akun
+     */
+    public function apiLookupKaryawan(Request $request)
+    {
+        $query = trim((string)$request->query('nrp', $request->query('q', '')));
+        if ($query === '') {
+            return response()->json(['found' => false, 'message' => 'NRP query kosong']);
+        }
+
+        $deptToDivMap = [
+            'PROD 1' => 'PRODUCTION A DIV',
+            'PROD 2' => 'PRODUCTION A DIV',
+            'PROD 3' => 'PRODUCTION A DIV',
+            'PROD 4' => 'PRODUCTION B DIV',
+            'PRODUCTION A DIV' => 'PRODUCTION A DIV',
+            'PRODUCTION B DIV' => 'PRODUCTION B DIV',
+        ];
+
+        $k = DB::table('karyawan')->where('nrp', $query)->first();
+        if (!$k) {
+            $k = DB::table('karyawan')->where('nrp', 'like', "%{$query}%")->first();
+        }
+
+        if (!$k) {
+            return response()->json(['found' => false, 'message' => "Karyawan dengan NRP '{$query}' tidak ditemukan."]);
+        }
+
+        $cleanNrp = trim((string)$k->nrp);
+        $div = trim((string)($k->division ?? ''));
+        if ($div === '' || $div === '-') {
+            $div = $deptToDivMap[trim((string)($k->departemen ?? ''))] ?? '-';
+        }
+        $dept = trim((string)($k->departemen ?? ''));
+        if ($dept === '-') $dept = '';
+
+        $posInfo = \App\Services\AccountSyncService::resolveLeadershipRole($k->jabatan ?? '', $k->kj ?? '', $k->sub_gol ?? '', $k->golongan ?? '');
+        $role = $posInfo['role'] ?? ($k->jabatan ?? 'STAFF');
+        $posLabel = $posInfo['label'] ?? 'STAFF';
+        $email = \App\Services\AccountSyncService::generateAccountEmail($cleanNrp, $posLabel);
+        $password = \App\Services\AccountSyncService::generateAccountPassword($cleanNrp, $k->tgl_masuk ?? null);
+
+        $existingUser = User::where('nrp', $cleanNrp)->first();
+        if ($existingUser) {
+            if (!empty($existingUser->password)) {
+                $password = $existingUser->password;
+            }
+            if (!empty($existingUser->email)) {
+                $email = $existingUser->email;
+            }
+            if (!empty($existingUser->role)) {
+                $role = $existingUser->role;
+            }
+            $existingDiv = $existingUser->getDivisionName();
+            if ($existingDiv !== '-' && $existingDiv !== 'ALL') {
+                $div = $existingDiv;
+            }
+            $existingDept = $existingUser->getDepartmentName();
+            if ($existingDept !== '-' && $existingDept !== 'ALL') {
+                $dept = $existingDept;
+            }
+        }
+
+        return response()->json([
+            'found' => true,
+            'karyawan' => [
+                'nrp' => $cleanNrp,
+                'nama' => trim((string)$k->nama_lengkap),
+                'division' => $div,
+                'departemen' => $dept,
+                'role' => $role,
+                'email' => $email,
+                'password' => $password,
+            ]
+        ]);
     }
 
     /**
