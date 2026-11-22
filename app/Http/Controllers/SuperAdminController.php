@@ -255,19 +255,25 @@ class SuperAdminController extends Controller
             'admin' => $allUsers->where('role', 'admin')->count(),
             'foreman' => $allUsers->whereIn('role', ['foreman', 'ketua'])->count(),
             'section_head' => $allUsers->where('role', 'section_head')->count(),
-            'dept_head' => $allUsers->where('role', 'department_head')->count(),
-            'div_head' => $allUsers->where('role', 'division_head')->count(),
+            'dept_head' => $allUsers->whereIn('role', ['department_head', 'dept_head'])->count(),
+            'div_head' => $allUsers->whereIn('role', ['division_head', 'div_head'])->count(),
+            'gol_4_non_kasie' => $allUsers->filter(fn($u) => $u->isGol4NonKasie())->count(),
+            'staff' => $allUsers->filter(fn($u) => in_array(strtoupper(trim($u->role)), ['STAFF', 'STAF', 'SENIOR STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)', 'OPERATOR']))->count(),
         ];
 
         $filteredUsers = $allUsers;
 
         if ($activeRole !== 'semua') {
             if ($activeRole === 'dept_head') {
-                $filteredUsers = $filteredUsers->where('role', 'department_head');
+                $filteredUsers = $filteredUsers->whereIn('role', ['department_head', 'dept_head']);
             } elseif ($activeRole === 'foreman') {
                 $filteredUsers = $filteredUsers->whereIn('role', ['foreman', 'ketua']);
             } elseif ($activeRole === 'div_head') {
-                $filteredUsers = $filteredUsers->where('role', 'division_head');
+                $filteredUsers = $filteredUsers->whereIn('role', ['division_head', 'div_head']);
+            } elseif ($activeRole === 'gol_4_non_kasie') {
+                $filteredUsers = $filteredUsers->filter(fn($u) => $u->isGol4NonKasie());
+            } elseif ($activeRole === 'staff' || $activeRole === 'staf') {
+                $filteredUsers = $filteredUsers->filter(fn($u) => in_array(strtoupper(trim($u->role)), ['STAFF', 'STAF', 'SENIOR STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)', 'OPERATOR']));
             } else {
                 $filteredUsers = $filteredUsers->where('role', $activeRole);
             }
@@ -278,6 +284,8 @@ class SuperAdminController extends Controller
                 return stripos($u->nama, $search) !== false
                     || stripos($u->email, $search) !== false
                     || stripos($u->nrp ?? '', $search) !== false
+                    || stripos($u->role ?? '', $search) !== false
+                    || stripos($u->roleLabel() ?? '', $search) !== false
                     || stripos($u->departemen ?? '', $search) !== false
                     || stripos($u->resolved_division ?? '', $search) !== false
                     || stripos($u->resolved_department ?? '', $search) !== false;
@@ -297,6 +305,51 @@ class SuperAdminController extends Controller
             'PROD 4',
         ];
 
+        // Standard role & position options categorized for selection modals
+        $roleGroups = [
+            'Struktural (Penilai)' => [
+                'foreman' => 'Foreman',
+                'section_head' => 'Section Head',
+                'department_head' => 'Department Head',
+                'division_head' => 'Division Head',
+            ],
+            'Non-Struktural & Posisi / Staf' => [
+                'STAF' => 'Staf',
+                'STAFF' => 'Staff',
+                'GOL 4 NON KASIE' => 'Gol 4 Non Kasie',
+                'SENIOR STAFF' => 'Senior Staff',
+                'OPERATOR (ORIGIN : STAFF KJ5)' => 'Operator (Origin : Staff KJ5)',
+                'OPERATOR' => 'Operator',
+            ],
+            'Administrator Sistem' => [
+                'admin' => 'Admin Penilaian',
+            ],
+        ];
+
+        if ($user->isSuperadmin()) {
+            $roleGroups['Administrator Sistem']['superadmin'] = 'Super Admin';
+        }
+
+        // Auto-discover any additional unique roles in app_users
+        $knownKeys = [];
+        foreach ($roleGroups as $g) {
+            foreach ($g as $k => $v) {
+                $knownKeys[strtoupper($k)] = true;
+            }
+        }
+
+        $extraRoles = [];
+        foreach ($allUsers as $u) {
+            $r = trim((string)$u->role);
+            if ($r !== '' && !isset($knownKeys[strtoupper($r)])) {
+                $extraRoles[$r] = $u->roleLabel();
+                $knownKeys[strtoupper($r)] = true;
+            }
+        }
+        if (!empty($extraRoles)) {
+            $roleGroups['Posisi Lainnya'] = $extraRoles;
+        }
+
         return view('superadmin.users', compact(
             'user',
             'filteredUsers',
@@ -305,7 +358,8 @@ class SuperAdminController extends Controller
             'search',
             'statusFilter',
             'departemenOptions',
-            'loginAliases'
+            'loginAliases',
+            'roleGroups'
         ));
     }
 

@@ -368,6 +368,18 @@ class User extends Authenticatable
             || stripos($this->role, 'NON KASIE') !== false;
     }
 
+    public function isStaff(): bool
+    {
+        $r = strtoupper(trim((string)$this->role));
+        return in_array($r, ['STAFF', 'STAF', 'SENIOR STAFF'], true);
+    }
+
+    public function isOperator(): bool
+    {
+        $r = strtoupper(trim((string)$this->role));
+        return str_contains($r, 'OPERATOR');
+    }
+
     /**
      * Check if this Section Head has any Foreman subordinates.
      */
@@ -707,6 +719,8 @@ class User extends Authenticatable
             return 'Department Head';
         }
 
+        $r = strtoupper(trim((string)$this->role));
+
         return match (true) {
             $this->role === 'superadmin' => 'Super Admin',
             $this->role === 'admin' => 'Admin Penilaian',
@@ -714,8 +728,13 @@ class User extends Authenticatable
             in_array($this->role, ['foreman', 'ketua']) => 'Foreman',
             $this->role === 'section_head' => 'Section Head',
             in_array($this->role, ['div_head', 'division_head']) => 'Division Head',
-            $this->isGol4NonKasie() => 'GOL 4 NON KASIE',
-            default => strtoupper(str_replace('_', ' ', $this->role)),
+            $this->isGol4NonKasie() => 'Gol 4 Non Kasie',
+            $r === 'SENIOR STAFF' => 'Senior Staff',
+            $r === 'STAFF' => 'Staff',
+            $r === 'STAF' => 'Staf',
+            $r === 'OPERATOR (ORIGIN : STAFF KJ5)' => 'Operator (Staff KJ5)',
+            $r === 'OPERATOR' => 'Operator',
+            default => ucwords(strtolower(str_replace('_', ' ', $this->role))),
         };
     }
 

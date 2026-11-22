@@ -147,9 +147,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/superadmin/users/sync', [SuperAdminController::class, 'syncFromKaryawan'])->name('superadmin.users.sync');
     Route::post('/admin/manajemen-akun/sync', [SuperAdminController::class, 'syncFromKaryawan'])->name('admin.users.sync');
     Route::post('/superadmin/users', [SuperAdminController::class, 'storeUser'])->name('superadmin.users.store');
+    Route::post('/admin/manajemen-akun', [SuperAdminController::class, 'storeUser'])->name('admin.users.store');
     Route::post('/superadmin/users/{id}/update', [SuperAdminController::class, 'updateUser'])->name('superadmin.users.update');
+    Route::post('/admin/manajemen-akun/{id}/update', [SuperAdminController::class, 'updateUser'])->name('admin.users.update');
     Route::post('/superadmin/users/{id}/toggle-status', [SuperAdminController::class, 'toggleUserStatus'])->name('superadmin.users.toggleStatus');
+    Route::post('/admin/manajemen-akun/{id}/toggle-status', [SuperAdminController::class, 'toggleUserStatus'])->name('admin.users.toggleStatus');
     Route::post('/superadmin/users/{id}/reset-password', [SuperAdminController::class, 'resetUserPassword'])->name('superadmin.users.resetPassword');
+    Route::post('/admin/manajemen-akun/{id}/reset-password', [SuperAdminController::class, 'resetUserPassword'])->name('admin.users.resetPassword');
     Route::post('/superadmin/users/{id}/delete', [SuperAdminController::class, 'deleteUser'])->name('superadmin.users.delete');
     Route::delete('/superadmin/users/{id}', [SuperAdminController::class, 'deleteUser'])->name('superadmin.users.destroy');
     Route::post('/admin/manajemen-akun/{id}/delete', [SuperAdminController::class, 'deleteUser'])->name('admin.users.delete');
