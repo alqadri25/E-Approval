@@ -70,10 +70,6 @@ class AuthController extends Controller
             return redirect()->route('dashboard');
         }
 
-        try {
-            \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
-        } catch (\Throwable $e) {}
-
         return view('auth.login', [
             'testAccounts' => [],
             'defaultEmail' => '',

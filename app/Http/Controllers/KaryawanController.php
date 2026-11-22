@@ -1733,6 +1733,7 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
+        \Illuminate\Support\Facades\Cache::put('last_google_operational_sync', true, 60);
 
         // Background Drive PDF deletion, phantom account cleanup, and Google Spreadsheet sync (< 5ms)
         \App\Services\GoogleSyncService::syncEmployeeRowAsync('delete', $nrp);
@@ -1933,6 +1934,7 @@ class KaryawanController extends Controller
         \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
         \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
+        \Illuminate\Support\Facades\Cache::put('last_google_operational_sync', true, 60);
 
         // Background Drive PDF deletion, phantom account cleanup, and Google Spreadsheet sync (< 5ms)
         \App\Services\GoogleSyncService::syncTablesAsync([
