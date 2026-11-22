@@ -109,7 +109,7 @@ class DashboardController extends Controller
                 $is07006 = PenilaianController::isForm07006($expectedKodeForm);
 
                 if ($is07006) {
-                    $status = 'menunggu_section_head';
+                    $status = 'menunggu_dept_head';
                 } elseif (!empty($k['nrp_foreman'])) {
                     $status = 'menunggu_foreman';
                 } elseif (!empty($k['nrp_section_head'])) {

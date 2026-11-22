@@ -61,16 +61,26 @@ class KaryawanController extends Controller
             foreach ($baseKaryawan as $k) {
                 $nrpK = $k['nrp'] ?? '';
                 if (!$nrpK) continue;
-                $expectedKode = (strcasecmp($nrpK, $user->nrp) === 0)
+                $isSelf = (strcasecmp($nrpK, $user->nrp) === 0);
+                $expectedKode = $isSelf
                     ? '07-006-SH'
                     : PenilaianController::determineKodeForm($k);
+
+                $empKj = (int) preg_replace('/[^\d]/', '', (string)($k['kj'] ?? '0'));
+                $empGol = strtoupper(trim((string)($k['golongan'] ?? '')));
+                $isSub07006 = !$isSelf && (
+                    str_starts_with($expectedKode, '07-006') ||
+                    $empKj >= 5 ||
+                    in_array($empGol, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
+                );
+                $expectedStatus = ($isSelf || $isSub07006) ? 'menunggu_dept_head' : 'menunggu_section_head';
 
                 if (empty($docsByNrp[$nrpK])) {
                     $newDocId = DB::table('dokumen')->insertGetId([
                         'periode_id' => $activePeriod->id ?? 1,
                         'nrp' => $nrpK,
                         'kode_form' => $expectedKode,
-                        'status' => 'menunggu_section_head',
+                        'status' => $expectedStatus,
                         'kode_verifikasi' => 'VERIF-' . strtoupper(Str::random(10)),
                         'created_at' => now()->toDateTimeString(),
                         'updated_at' => now()->toDateTimeString(),
@@ -80,7 +90,7 @@ class KaryawanController extends Controller
                         'periode_id' => $activePeriod->id ?? 1,
                         'nrp' => $nrpK,
                         'kode_form' => $expectedKode,
-                        'status' => 'menunggu_section_head',
+                        'status' => $expectedStatus,
                     ];
                 } elseif (in_array($docsByNrp[$nrpK]['status'] ?? '', ['draft', 'menunggu_foreman', 'menunggu_section_head', 'belum_dinilai']) && empty($docsByNrp[$nrpK]['total_nilai'])) {
                     $updates = [];
@@ -88,9 +98,9 @@ class KaryawanController extends Controller
                         $updates['kode_form'] = $expectedKode;
                         $docsByNrp[$nrpK]['kode_form'] = $expectedKode;
                     }
-                    if (($docsByNrp[$nrpK]['status'] ?? '') === 'menunggu_foreman') {
-                        $updates['status'] = 'menunggu_section_head';
-                        $docsByNrp[$nrpK]['status'] = 'menunggu_section_head';
+                    if (($docsByNrp[$nrpK]['status'] ?? '') !== $expectedStatus) {
+                        $updates['status'] = $expectedStatus;
+                        $docsByNrp[$nrpK]['status'] = $expectedStatus;
                     }
                     if (!empty($updates)) {
                         $updates['updated_at'] = now()->toDateTimeString();
@@ -280,12 +290,25 @@ class KaryawanController extends Controller
             $formName = PenilaianController::getFormName($kodeForm);
 
             // Synchronize unfinalized documents without scores to proper KJ 1-5 / self form and status
+            $isSelfK = (strcasecmp($k['nrp'] ?? '', $user->nrp) === 0);
+            $empKj = (int) preg_replace('/[^\d]/', '', (string)($k['kj'] ?? '0'));
+            $empGol = strtoupper(trim((string)($k['golongan'] ?? '')));
+            $isSub07006 = !$isSelfK && (
+                str_starts_with($kodeForm, '07-006') ||
+                $empKj >= 5 ||
+                in_array($empGol, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
+            );
+
             if (!empty($doc['id']) && in_array($doc['status'] ?? '', ['draft', 'menunggu_foreman', 'menunggu_section_head']) && empty($doc['total_nilai'])) {
                 $updates = [];
                 if (($doc['kode_form'] ?? '') !== $kodeForm) {
                     $updates['kode_form'] = $kodeForm;
                 }
-                if (empty($k['nrp_foreman']) && ($doc['status'] ?? '') === 'menunggu_foreman') {
+                if ($isSelfK || $isSub07006) {
+                    if (($doc['status'] ?? '') !== 'menunggu_dept_head') {
+                        $updates['status'] = 'menunggu_dept_head';
+                    }
+                } elseif (empty($k['nrp_foreman']) && ($doc['status'] ?? '') === 'menunggu_foreman') {
                     $updates['status'] = 'menunggu_section_head';
                 }
                 if (!empty($updates)) {
@@ -298,6 +321,8 @@ class KaryawanController extends Controller
                 'kode_form' => $kodeForm,
                 'form_name' => $formName,
                 'doc_id' => $doc['id'] ?? null,
+                'is_subordinate_07006' => $isSub07006,
+                'doc_status' => $doc['status'] ?? '',
             ]);
         }
 
@@ -908,7 +933,18 @@ class KaryawanController extends Controller
         if ($exists) {
             return;
         }
-        if (empty($status) || ($status === 'menunggu_foreman' && empty($employee['nrp_foreman']))) {
+        $kodeFormDetermined = PenilaianController::determineKodeForm($employee);
+        $empKj = (int) preg_replace('/[^\d]/', '', (string)($employee['kj'] ?? '0'));
+        $empGol = strtoupper(trim((string)($employee['golongan'] ?? '')));
+        $isSub07006 = (
+            str_starts_with($kodeFormDetermined, '07-006') ||
+            $empKj >= 5 ||
+            in_array($empGol, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
+        );
+
+        if ($isSub07006) {
+            $status = 'menunggu_dept_head';
+        } elseif (empty($status) || ($status === 'menunggu_foreman' && empty($employee['nrp_foreman']))) {
             if (!empty($employee['nrp_foreman'])) {
                 $status = 'menunggu_foreman';
             } elseif (!empty($employee['nrp_section_head'])) {
@@ -1549,8 +1585,19 @@ class KaryawanController extends Controller
                 // Ensure initial appraisal document exists for updated employees if missing
                 if (!isset($existingDocNrps[$lowerNrp])) {
                     $maxDocId++;
+                    $determinedKodeEmp = PenilaianController::determineKodeForm($employeeRecord);
+                    $empKj = (int) preg_replace('/[^\d]/', '', (string)($employeeRecord['kj'] ?? '0'));
+                    $empGol = strtoupper(trim((string)($employeeRecord['golongan'] ?? '')));
+                    $isSub07006Emp = (
+                        str_starts_with($determinedKodeEmp, '07-006') ||
+                        $empKj >= 5 ||
+                        in_array($empGol, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
+                    );
+
                     $docStatus = 'menunggu_section_head';
-                    if (!empty($nrpForemanVal)) {
+                    if ($isSub07006Emp) {
+                        $docStatus = 'menunggu_dept_head';
+                    } elseif (!empty($nrpForemanVal)) {
                         $docStatus = 'menunggu_foreman';
                     } elseif (!empty($nrpSectionVal)) {
                         $docStatus = 'menunggu_section_head';
@@ -1563,7 +1610,7 @@ class KaryawanController extends Controller
                         'id' => $maxDocId,
                         'periode_id' => $activePeriod->id ?? 1,
                         'nrp' => $nrp,
-                        'kode_form' => PenilaianController::determineKodeForm($employeeRecord),
+                        'kode_form' => $determinedKodeEmp,
                         'status' => $docStatus,
                         'total_nilai' => null,
                         'grade_original' => null,
@@ -1587,8 +1634,19 @@ class KaryawanController extends Controller
                 // Automatically create initial appraisal document for ALL imported employees
                 if (!isset($existingDocNrps[$lowerNrp])) {
                     $maxDocId++;
+                    $determinedKodeNew = PenilaianController::determineKodeForm($newEmployee);
+                    $empKjNew = (int) preg_replace('/[^\d]/', '', (string)($newEmployee['kj'] ?? '0'));
+                    $empGolNew = strtoupper(trim((string)($newEmployee['golongan'] ?? '')));
+                    $isSub07006New = (
+                        str_starts_with($determinedKodeNew, '07-006') ||
+                        $empKjNew >= 5 ||
+                        in_array($empGolNew, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
+                    );
+
                     $docStatus = 'menunggu_section_head';
-                    if (!empty($nrpForemanVal)) {
+                    if ($isSub07006New) {
+                        $docStatus = 'menunggu_dept_head';
+                    } elseif (!empty($nrpForemanVal)) {
                         $docStatus = 'menunggu_foreman';
                     } elseif (!empty($nrpSectionVal)) {
                         $docStatus = 'menunggu_section_head';
@@ -1601,7 +1659,7 @@ class KaryawanController extends Controller
                         'id' => $maxDocId,
                         'periode_id' => $activePeriod->id ?? 1,
                         'nrp' => $nrp,
-                        'kode_form' => PenilaianController::determineKodeForm($newEmployee),
+                        'kode_form' => $determinedKodeNew,
                         'status' => $docStatus,
                         'total_nilai' => null,
                         'grade_original' => null,

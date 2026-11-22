@@ -389,28 +389,55 @@
                         <!-- Aksi Buttons (Nilai / Edit) -->
                         <td class="py-2.5 px-2.5 border-b border-r border-slate-300 text-center whitespace-nowrap">
                             <div class="inline-flex items-center justify-center gap-1.5">
+                                @php
+                                    $isSub07006Row = !empty($k['is_subordinate_07006']) || (!$isSelf && (str_starts_with($k['kode_form'] ?? '', '07-006') || ((int)($k['kj'] ?? 0) >= 5)));
+                                @endphp
                                 @if(!empty($k['doc_id']))
-                                <a href="{{ route('penilaian.show', $k['doc_id']) }}"
-                                   class="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition shadow-2xs inline-flex items-center justify-center cursor-pointer"
-                                   title="{{ $isSelf ? ('Buka Lembar Penilaian Mandiri (Anda): ' . ($k['form_name'] ?? 'Form Penilaian')) : ('Buka Lembar Penilaian: ' . ($k['form_name'] ?? 'Form Penilaian')) }}">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                                    </svg>
-                                    <span class="sr-only">{{ $isSelf ? 'Nilai Mandiri (Anda)' : 'Form Penilaian' }}</span>
-                                </a>
+                                    @if($user->isSectionHead() && $isSub07006Row)
+                                        <a href="{{ route('penilaian.show', $k['doc_id']) }}"
+                                           class="p-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-300 transition shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                                           title="Lihat Nilai (Karyawan KJ 5+ dinilai langsung oleh Dept Head): {{ $k['form_name'] ?? 'Form Penilaian' }}">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                            </svg>
+                                            <span class="sr-only">Lihat Nilai</span>
+                                        </a>
+                                    @else
+                                        <a href="{{ route('penilaian.show', $k['doc_id']) }}"
+                                           class="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                                           title="{{ $isSelf ? ('Buka Lembar Penilaian Mandiri (Anda): ' . ($k['form_name'] ?? 'Form Penilaian')) : ('Buka Lembar Penilaian: ' . ($k['form_name'] ?? 'Form Penilaian')) }}">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                            </svg>
+                                            <span class="sr-only">{{ $isSelf ? 'Nilai Mandiri (Anda)' : 'Form Penilaian' }}</span>
+                                        </a>
+                                    @endif
                                 @else
-                                <form method="POST" action="{{ route('penilaian.buka') }}" class="inline">
-                                    @csrf
-                                    <input type="hidden" name="nrp" value="{{ $k['nrp'] }}">
-                                    <button type="submit" 
-                                            class="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition shadow-2xs inline-flex items-center justify-center cursor-pointer"
-                                            title="{{ $isSelf ? ('Nilai Mandiri (Anda): ' . ($k['form_name'] ?? 'Form Penilaian')) : ('Nilai Karyawan: ' . ($k['form_name'] ?? 'Form Penilaian')) }}">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                                        </svg>
-                                        <span class="sr-only">{{ $isSelf ? 'Nilai Mandiri (Anda)' : 'Nilai Karyawan' }}</span>
-                                    </button>
-                                </form>
+                                    <form method="POST" action="{{ route('penilaian.buka') }}" class="inline">
+                                        @csrf
+                                        <input type="hidden" name="nrp" value="{{ $k['nrp'] }}">
+                                        @if($user->isSectionHead() && $isSub07006Row)
+                                            <button type="submit" 
+                                                    class="p-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-300 transition shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                                                    title="Lihat Nilai (Karyawan KJ 5+ dinilai langsung oleh Dept Head): {{ $k['form_name'] ?? 'Form Penilaian' }}">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                </svg>
+                                                <span class="sr-only">Lihat Nilai</span>
+                                            </button>
+                                        @else
+                                            <button type="submit" 
+                                                    class="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                                                    title="{{ $isSelf ? ('Nilai Mandiri (Anda): ' . ($k['form_name'] ?? 'Form Penilaian')) : ('Nilai Karyawan: ' . ($k['form_name'] ?? 'Form Penilaian')) }}">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                                                </svg>
+                                                <span class="sr-only">{{ $isSelf ? 'Nilai Mandiri (Anda)' : 'Nilai Karyawan' }}</span>
+                                            </button>
+                                        @endif
+                                    </form>
                                 @endif
 
                                 @if(!$user->isForeman() && ($user->isAdmin() || $user->isHr() || $user->isSuperadmin()))

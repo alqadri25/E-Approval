@@ -2427,21 +2427,22 @@ class PenilaianController extends Controller
         }
 
         // Auto-heal / State Integrity check for Form 07-006 (Section Head / Gol 4 Non Kasie / KJ 5 ke atas):
-        // Jika dokumen Form 07-006 belum pernah diisi/ditandatangani penilaian mandiri (Kolom 1 / foreman),
-        // status TIDAK BOLEH langsung melompati tahap mandiri ke 'menunggu_dept_head' atau 'menunggu_div_head'!
-        // Harus berada pada tahap 'menunggu_section_head' agar karyawan dapat menilai diri sendiri terlebih dahulu.
+        // Karyawan KJ 5 ke atas / Form 07-006 bawahan (seperti Gol 4 Non Kasie / Staff KJ 5+) dinilai langsung oleh Dept Head!
+        // Section Head hanya melihat nilai bawahan dan tidak menilai. Maka status dokumennya adalah 'menunggu_dept_head'.
         $kodeFormCheck = $dokumen['kode_form'] ?? '';
         $is07006FormCheck = self::isForm07006($kodeFormCheck);
-        if ($is07006FormCheck && in_array($dokumen['status'] ?? '', ['menunggu_dept_head', 'menunggu_div_head'])) {
-            $hasMandiriSignCheck = DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', 'foreman')->exists();
-            $hasMandiriScoresCheck = DB::table('nilai')->where('dokumen_id', $id)->where('level', 'foreman')->exists();
-            if (!$hasMandiriSignCheck && !$hasMandiriScoresCheck && empty($dokumen['total_nilai'])) {
-                DB::table('dokumen')->where('id', $id)->update([
-                    'status' => 'menunggu_section_head',
-                    'updated_at' => now()->toDateTimeString()
-                ]);
-                $dokumen['status'] = 'menunggu_section_head';
-                $dokumenRow->status = 'menunggu_section_head';
+        $kCheck = DB::table('karyawan')->where('nrp', $dokumen['nrp'])->first();
+        $isActualSHCheck = $kCheck ? self::isActualSectionHead((array)$kCheck) : false;
+        $isSubordinate07006Check = $is07006FormCheck && !$isActualSHCheck;
+
+        if ($isSubordinate07006Check && in_array($dokumen['status'] ?? '', ['menunggu_section_head', 'menunggu_foreman', 'draft'])) {
+            DB::table('dokumen')->where('id', $id)->update([
+                'status' => 'menunggu_dept_head',
+                'updated_at' => now()->toDateTimeString()
+            ]);
+            $dokumen['status'] = 'menunggu_dept_head';
+            if ($dokumenRow) {
+                $dokumenRow->status = 'menunggu_dept_head';
             }
         }
 
@@ -2786,12 +2787,11 @@ class PenilaianController extends Controller
                     $canEditSectionHead = false;
                     $canSignSectionHead = false;
                     $canRevisi = false;
-                } elseif ($isGol4UpDoc) {
-                    // Kasus Atasan Langsung (Section Head) yang menilai bawahan Gol 4 Non Kasie pada Form 07-006 (Slot Kolom 2 / section_head):
-                    if (in_array($status, ['menunggu_section_head', 'revisi']) && empty($ttdByLevel['section_head'])) {
-                        $canEditSectionHead = true;
-                        $canSignSectionHead = true;
-                    }
+                } elseif ($isGol4UpDoc || (isset($karyawan['kj']) && (int)preg_replace('/[^0-9]/', '', (string)$karyawan['kj']) >= 5)) {
+                    // Kasus bawahan menggunakan Form 07-006 / KJ 5 ke atas (seperti Gol 4 Non Kasie / Staff KJ 5+):
+                    // "ketika dia kj 5 keatas, maka yang menilai langsung department head, jadi section headnya ini hanya bisa melihat nilai bawahannya saja gabisa merubah atau mengedit"
+                    $canEditSectionHead = false;
+                    $canSignSectionHead = false;
                     $canEditForeman = false;
                     $canSignForeman = false;
                     $canRevisi = false;
@@ -3024,6 +3024,9 @@ class PenilaianController extends Controller
             }
         }
 
+        $empKjNumViewer = isset($karyawan['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$karyawan['kj']) : 0;
+        $isReadOnlySubordinate07006 = ($user->isSectionHead() && !$isSelfDoc && ($isGol4Up || $empKjNumViewer >= 5));
+
         return view('penilaian.form', compact(
             'dokumen',
             'karyawan',
@@ -3031,6 +3034,7 @@ class PenilaianController extends Controller
             'kodeForm',
             'isGol4Up',
             'isQuotaExempt',
+            'isReadOnlySubordinate07006',
             'subFormVariant',
             'musashiLogoBase64',
             'formStructure',
@@ -3587,6 +3591,14 @@ class PenilaianController extends Controller
                 }
                 return in_array($status, ['menunggu_section_head', 'draft', 'revisi']);
             }
+
+            // Karyawan KJ 5 ke atas / Form 07-006 dinilai langsung oleh Department Head:
+            // "ketika dia kj 5 keatas, maka yang menilai langsung department head, jadi section headnya ini hanya bisa melihat nilai bawahannya saja gabisa merubah atau mengedit"
+            $empKjNum = isset($karyawan['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$karyawan['kj']) : 0;
+            if ($isGol4Up || $empKjNum >= 5) {
+                return false; // Section Head CANNOT evaluate Form 07-006 / KJ >= 5 subordinates!
+            }
+
             // Langsung Section Head tanpa Foreman (misal KJ 1-5 langsung SH -> DH)
             if (!$hasForeman || !$user->hasForemanSubordinates()) {
                 return in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi']);
@@ -5318,12 +5330,28 @@ class PenilaianController extends Controller
                 $nilaiSection = $finalScore > 0 ? $this->calcService->scoreToGrade($finalScore) : '';
             }
 
+            $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
+            $isSubordinate07006 = !$isSelf && (str_starts_with($kodeFormRow, '07-006') || $empKjNum >= 5);
+
             // Waiting states
             $isWaitingForeman = $hasForemanEmp && ($statusRaw === 'menunggu_foreman' || !$hasForemanVal);
-            $canEvaluate = !$isWaitingForeman && !in_array($statusRaw, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+            $canEvaluate = !$isWaitingForeman && !$isSubordinate07006 && !in_array($statusRaw, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
 
-            // Status label: Dinilai or Menunggu
-            $statusLabel = $hasSectionVal ? 'Dinilai' : ($isWaitingForeman ? 'Menunggu Foreman' : 'Menunggu');
+            if ($isSubordinate07006) {
+                $canEvaluate = false;
+                if ($statusRaw === 'selesai') {
+                    $statusLabel = 'Selesai';
+                } elseif ($statusRaw === 'menunggu_div_head') {
+                    $statusLabel = 'Review Div Head';
+                } elseif (!empty($nilaiSection)) {
+                    $statusLabel = 'Dinilai Dept Head';
+                } else {
+                    $statusLabel = 'Menunggu Dept Head';
+                }
+            } else {
+                // Status label: Dinilai or Menunggu
+                $statusLabel = $hasSectionVal ? 'Dinilai' : ($isWaitingForeman ? 'Menunggu Foreman' : 'Menunggu');
+            }
 
             // Note / Catatan
             $catatan = $indByDocId[$docId]['kelebihan'] ?? '';
@@ -5336,6 +5364,7 @@ class PenilaianController extends Controller
                 'seksi' => $k['seksi'] ?? ($user->seksi ?? 'Produksi'),
                 'kode_form' => $kodeFormRow,
                 'is_self' => $isSelf,
+                'is_subordinate_07006' => $isSubordinate07006,
                 'foreman_nama' => $fNameClean,
                 'foreman_nrp' => $hasForemanEmp ? $fNrp : '',
                 'has_foreman_sign' => $hasForemanEmp && (!empty($doc['ttd_foreman']) || ($hasForemanVal && $fScore > 0)),
@@ -5352,7 +5381,7 @@ class PenilaianController extends Controller
             $rows[] = $rowItem;
 
             // Track latest pending evaluation from foreman
-            if ($statusRaw === 'menunggu_section_head' && !$latestPending && !empty($docId)) {
+            if ($statusRaw === 'menunggu_section_head' && !$latestPending && !empty($docId) && !$isSubordinate07006) {
                 $latestPending = $rowItem;
             }
         }
@@ -5428,6 +5457,10 @@ class PenilaianController extends Controller
 
             $k = $this->repository->find('karyawan', 'nrp', $doc['nrp']);
             $isSelfDoc = strcasecmp($doc['nrp'] ?? '', $user->nrp) === 0;
+            $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
+            if (!$isSelfDoc && (self::isForm07006($doc['kode_form'] ?? '') || $empKjNum >= 5)) {
+                continue; // Karyawan KJ 5 ke atas (Form 07-006) dinilai langsung oleh Dept Head
+            }
             $isDirectDeptSub = !empty($k['nrp_dept_head']) && strcasecmp($k['nrp_dept_head'], $user->nrp) === 0;
             if (!$isSelfDoc && !$user->canAccessDepartment($k['departemen'] ?? '') && !$user->isSuperadmin() && !$isDirectDeptSub) {
                 continue;
@@ -5499,6 +5532,10 @@ class PenilaianController extends Controller
 
                 $k = $this->repository->find('karyawan', 'nrp', $doc['nrp']);
                 $isSelfDoc = strcasecmp($doc['nrp'] ?? '', $user->nrp) === 0;
+                $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
+                if (!$isSelfDoc && (self::isForm07006($doc['kode_form'] ?? '') || $empKjNum >= 5)) {
+                    continue; // Karyawan KJ 5 ke atas (Form 07-006) dinilai langsung oleh Dept Head
+                }
                 $isDirectDeptSub = !empty($k['nrp_dept_head']) && strcasecmp($k['nrp_dept_head'], $user->nrp) === 0;
                 if (!$isSelfDoc && !$user->canAccessDepartment($k['departemen'] ?? '') && !$user->isSuperadmin() && !$isDirectDeptSub) {
                     continue;
@@ -5802,17 +5839,21 @@ class PenilaianController extends Controller
             $nilaiAkhir = $doc['docking_final'] ?? ($deptCalculatedGrade ?: ($selfNilaiAkhir ?: ($doc['grade_original'] ?? '')));
             if ($nilaiAkhir === '-') $nilaiAkhir = '';
 
+            $isDirectDeptHeadEval = !$isSelf && ($isGol4UpDoc || $isKj5Up);
+
             $isDone = ($statusRaw === 'selesai' || ($isSelf && $statusRaw === 'menunggu_div_head') || !empty($doc['docking_final']) || $hasDeptSign);
-            $isWaitingForeman = !empty($fNrp) && ($statusRaw === 'menunggu_foreman' || !$hasForemanSign);
-            $isWaitingSection = ($statusRaw === 'menunggu_section_head' || (!$hasSectionSign && !$isWaitingForeman && !$isSelf && !$isSectionHeadEmp));
+            $isWaitingForeman = !$isDirectDeptHeadEval && !empty($fNrp) && ($statusRaw === 'menunggu_foreman' || !$hasForemanSign);
+            $isWaitingSection = !$isDirectDeptHeadEval && ($statusRaw === 'menunggu_section_head' || (!$hasSectionSign && !$isWaitingForeman && !$isSelf && !$isSectionHeadEmp));
             $canEvaluateDept = $isSelf 
                 ? ($statusRaw !== 'menunggu_div_head' && $statusRaw !== 'selesai') 
-                : ((($statusRaw === 'menunggu_dept_head') && (!$hasMandiriWorkflow || !empty($hasMandiriSign))) || $user->isSuperadmin());
+                : ((($statusRaw === 'menunggu_dept_head' || $isDirectDeptHeadEval) && (!$hasMandiriWorkflow || !empty($hasMandiriSign) || $isDirectDeptHeadEval)) || $user->isSuperadmin());
 
             if ($isDone) {
                 $statusLabel = ($isSelf && $statusRaw === 'menunggu_div_head') ? 'Menunggu Div. Head' : 'Sudah dinilai';
             } elseif ($isSelf) {
                 $statusLabel = 'Penilaian Mandiri';
+            } elseif ($isDirectDeptHeadEval && in_array($statusRaw, ['menunggu_dept_head', 'menunggu_section_head', 'draft'])) {
+                $statusLabel = 'Menunggu Dept Head';
             } elseif ($hasMandiriWorkflow && empty($hasMandiriSign)) {
                 $statusLabel = 'Proses Penilaian Mandiri';
             } elseif ($isWaitingForeman) {
@@ -5868,6 +5909,7 @@ class PenilaianController extends Controller
                 'is_waiting_section' => $isWaitingSection,
                 'is_done' => $isDone,
                 'can_evaluate_dept' => $canEvaluateDept,
+                'is_direct_dept_head_eval' => $isDirectDeptHeadEval,
             ];
             $rows[] = $rowItem;
 
@@ -6003,6 +6045,10 @@ class PenilaianController extends Controller
 
             $k = $this->repository->find('karyawan', 'nrp', $doc['nrp']);
             $isSelfDoc = strcasecmp($doc['nrp'] ?? '', $user->nrp) === 0;
+            $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
+            if (!$isSelfDoc && (self::isForm07006($doc['kode_form'] ?? '') || $empKjNum >= 5)) {
+                continue; // Karyawan KJ 5 ke atas (Form 07-006) dinilai langsung oleh Dept Head
+            }
             $isDirectDeptSub = !empty($k['nrp_dept_head']) && strcasecmp($k['nrp_dept_head'], $user->nrp) === 0;
             if (!$isSelfDoc && !$user->canAccessDepartment($k['departemen'] ?? '') && !$user->isSuperadmin() && !$isDirectDeptSub) {
                 continue;
@@ -6380,6 +6426,10 @@ class PenilaianController extends Controller
 
             $k = $this->repository->find('karyawan', 'nrp', $doc['nrp']);
             $isSelfDoc = strcasecmp($doc['nrp'] ?? '', $user->nrp) === 0;
+            $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
+            if (!$isSelfDoc && (self::isForm07006($doc['kode_form'] ?? '') || $empKjNum >= 5)) {
+                continue; // Karyawan KJ 5 ke atas (Form 07-006) dinilai langsung oleh Dept Head
+            }
             $isDirectDeptSub = !empty($k['nrp_dept_head']) && strcasecmp($k['nrp_dept_head'], $user->nrp) === 0;
             if (!$isSelfDoc && !$user->canAccessDepartment($k['departemen'] ?? '') && !$user->isSuperadmin() && !$isDirectDeptSub) {
                 continue;
@@ -7724,6 +7774,10 @@ class PenilaianController extends Controller
 
             $k = $this->repository->find('karyawan', 'nrp', $doc['nrp']);
             $isSelfDoc = strcasecmp($doc['nrp'] ?? '', $user->nrp) === 0;
+            $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
+            if (!$isSelfDoc && (self::isForm07006($doc['kode_form'] ?? '') || $empKjNum >= 5)) {
+                continue; // Karyawan KJ 5 ke atas (Form 07-006) dinilai langsung oleh Dept Head
+            }
             $isDirectDeptSub = !empty($k['nrp_dept_head']) && strcasecmp($k['nrp_dept_head'], $user->nrp) === 0;
             if (!$isSelfDoc && !$user->canAccessDepartment($k['departemen'] ?? '') && !$user->isSuperadmin() && !$isDirectDeptSub) {
                 continue;

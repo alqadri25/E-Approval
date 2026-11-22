@@ -245,6 +245,22 @@
         </div>
     </div>
 
+    @if(!empty($isReadOnlySubordinate07006))
+    <!-- Banner Khusus Section Head Melihat Nilai Bawahan KJ >= 5 / Form 07-006 -->
+    <div class="no-print bg-amber-50 border-l-4 border-amber-500 border border-amber-300 p-3.5 shadow-xs flex items-center justify-between gap-3 text-amber-900 text-xs">
+        <div class="flex items-center gap-3">
+            <span class="text-xl">👁️</span>
+            <div>
+                <strong class="block text-amber-950 font-bold">Akses Lihat Nilai (Read-Only)</strong>
+                <span class="text-amber-800">Karyawan ini (KJ 5 ke atas / Form 07-006) dinilai langsung oleh Department Head. Anda dapat melihat hasil dan perkembangan penilaian tanpa mengubah nilai.</span>
+            </div>
+        </div>
+        <span class="px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[10px] uppercase whitespace-nowrap">
+            Mode Lihat Nilai
+        </span>
+    </div>
+    @endif
+
     <!-- Dedicated Banner / Panel Kuota: Form 07-006 Bebas Kuota (Untuk Semua Level) & Panel Penyesuaian Kuota -->
     @if(empty($waitingForLevel) && !empty($isQuotaExempt ?? $isGol4Up))
         <div class="no-print bg-sky-50/80 border border-sky-300 rounded-none p-3 sm:p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">

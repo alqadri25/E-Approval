@@ -138,14 +138,17 @@ class DatabaseSyncService
             $isDiv = $kodeForm === '07-006-DIV' || ($k->level_form ?? '') === 'DIV_HEAD' || str_contains($posUpper, 'DIV HEAD') || str_contains($posUpper, 'DIVISION HEAD');
             $isDept = $kodeForm === '07-006-DH' || ($k->level_form ?? '') === 'DEPT_HEAD' || str_contains($posUpper, 'DEPT HEAD') || str_contains($posUpper, 'DEPARTMENT HEAD');
             $isActualSH = (str_contains($posUpper, 'SECTION HEAD') || str_contains($posUpper, 'SECT HEAD') || str_contains($posUpper, 'DEPUTY SECTION HEAD')) && !str_contains($posUpper, 'NON KASIE');
-            $isSubordinate07006 = str_starts_with($kodeForm, '07-006') && !$isActualSH && !$isDept && !$isDiv;
+            $empKjNum = isset($k->kj) ? (int)preg_replace('/[^0-9]/', '', (string)$k->kj) : 0;
+            $isSubordinate07006 = (str_starts_with($kodeForm, '07-006') || $empKjNum >= 5) && !$isActualSH && !$isDept && !$isDiv;
 
             if ($isDiv) {
                 $status = 'menunggu_div_head';
-            } elseif ($isDept) {
+            } elseif ($isDept || $isSubordinate07006) {
+                // Karyawan KJ 5 ke atas / Form 07-006 (seperti Gol 4 Non Kasie / Staff KJ 5+):
+                // Yang menilai langsung Department Head! Section Head hanya melihat nilai.
                 $status = 'menunggu_dept_head';
-            } elseif ($isActualSH || $isSubordinate07006) {
-                $status = 'menunggu_section_head';
+            } elseif ($isActualSH) {
+                $status = 'menunggu_dept_head';
             } else {
                 $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
                 $status = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
@@ -183,13 +186,11 @@ class DatabaseSyncService
                         $docUpdate['nama_section_head'] = $resolvedShNama;
                     }
                 }
-                // If subordinate with 07-006 has no scores yet and status was incorrectly set to menunggu_dept_head or menunggu_div_head, reset to menunggu_section_head
+                // Untuk bawahan Form 07-006 / KJ >= 5: dinilai langsung oleh Dept Head (status menunggu_dept_head)
                 $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->first();
-                if ($existingDoc && str_starts_with($existingDoc->kode_form ?? '', '07-006') && empty($existingDoc->total_nilai) && empty($existingDoc->grade_original) && in_array($existingDoc->status, ['menunggu_dept_head', 'menunggu_div_head'])) {
-                    $hasScores = DB::table('nilai')->where('dokumen_id', $existingDoc->id)->exists();
-                    $hasSign = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'foreman')->exists();
-                    if (!$hasScores && !$hasSign) {
-                        $docUpdate['status'] = 'menunggu_section_head';
+                if ($existingDoc && $isSubordinate07006) {
+                    if (in_array($existingDoc->status, ['menunggu_section_head', 'draft', 'menunggu_foreman'])) {
+                        $docUpdate['status'] = 'menunggu_dept_head';
                     }
                 }
                 DB::table('dokumen')->where('nrp', $nrp)->update($docUpdate);

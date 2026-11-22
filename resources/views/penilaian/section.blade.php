@@ -297,7 +297,22 @@
 
                         <!-- 6. Nilai Akhir Section Head -->
                         <td class="py-2 px-3 border-b border-r border-slate-200 text-center">
-                            @if(!empty($row['doc_id']))
+                            @if(!empty($row['is_subordinate_07006']))
+                                @if(!empty($row['nilai_section']) && $row['nilai_section'] !== '-')
+                                    <div class="inline-flex flex-col items-center">
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
+                                            {{ $row['nilai_section'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
+                                               ($row['nilai_section'] === 'A' ? 'bg-blue-100 text-blue-800' :
+                                               ($row['nilai_section'] === 'B' ? 'bg-amber-100 text-amber-800' :
+                                               ($row['nilai_section'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
+                                            {{ $row['nilai_section'] }}
+                                        </span>
+                                        <span class="text-[9px] text-blue-700 font-bold mt-0.5">Dept Head</span>
+                                    </div>
+                                @else
+                                    <span class="text-slate-400 font-medium text-[11px] italic">Menunggu Dept Head</span>
+                                @endif
+                            @elseif(!empty($row['doc_id']))
                                 @php
                                     $canEditThisRow = !empty($row['can_evaluate']);
                                 @endphp
@@ -319,7 +334,9 @@
 
                         <!-- 7. Catatan Section Head -->
                         <td class="py-2 px-3 border-b border-r border-slate-200">
-                            @if(!empty($row['doc_id']))
+                            @if(!empty($row['is_subordinate_07006']))
+                                <span class="text-[11px] text-slate-500 italic block py-1">Dinilai langsung oleh Dept Head</span>
+                            @elseif(!empty($row['doc_id']))
                                 @php
                                     $canEditThisRow = !empty($row['can_evaluate']);
                                 @endphp
@@ -336,7 +353,25 @@
 
                         <!-- 8. Status Alur -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
-                            @if($row['status_raw'] === 'menunggu_foreman')
+                            @if(!empty($row['is_subordinate_07006']))
+                                @if($row['status_raw'] === 'selesai')
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        ✓ Selesai
+                                    </span>
+                                @elseif($row['status_raw'] === 'menunggu_div_head')
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                                        Review Div Head
+                                    </span>
+                                @elseif(!empty($row['nilai_section']) && $row['nilai_section'] !== '-')
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
+                                        Dinilai Dept Head
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                                        Menunggu Dept Head
+                                    </span>
+                                @endif
+                            @elseif($row['status_raw'] === 'menunggu_foreman')
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
                                     Proses Foreman
                                 </span>
@@ -369,7 +404,14 @@
 
                         <!-- 9. Aksi -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
-                            @if(!empty($row['doc_id']))
+                            @if(!empty($row['is_subordinate_07006']) && !empty($row['doc_id']))
+                            <a href="{{ route('penilaian.show.sechead', $row['doc_id']) }}"
+                               class="inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-none bg-slate-100 hover:bg-[#92302e] text-slate-700 hover:text-white border border-slate-300 transition shadow-2xs"
+                               title="Lihat nilai karyawan (Read-Only)">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <span>Lihat Nilai</span>
+                            </a>
+                            @elseif(!empty($row['doc_id']))
                             <a href="{{ route('penilaian.show.sechead', $row['doc_id']) }}"
                                class="inline-flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-none bg-white hover:bg-[#92302e] text-[#92302e] hover:text-white border border-[#92302e] transition shadow-2xs">
                                 <span>Review</span>
