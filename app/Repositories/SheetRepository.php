@@ -125,15 +125,12 @@ class SheetRepository implements SheetRepositoryInterface
         return Cache::remember($cacheKey, $cacheTtl, function () use ($table) {
             $localTable = $this->getLocalTableName($table);
 
-            if (GoogleSyncService::isServerless()) {
-                try {
-                    GoogleSyncService::syncOperationalTablesFromGoogle(false);
-                } catch (\Throwable $e) {}
-            }
-
             // 1. FAST LOCAL-FIRST: Check local SQLite database first (< 1ms)
             if (Schema::hasTable($localTable)) {
-                return $this->getFromLocal($table);
+                $localRows = $this->getFromLocal($table);
+                if (!empty($localRows)) {
+                    return $localRows;
+                }
             }
 
             // 2. Fetch fresh data from Google Apps Script Web App only if local DB is empty

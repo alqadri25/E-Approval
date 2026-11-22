@@ -249,12 +249,12 @@ class AccountSyncService
             }
             if ($dirty) {
                 $existingUser->save();
-                GoogleSyncService::syncTablesAsync(['users']);
+                GoogleSyncService::syncUserUpsertRowAsync($existingUser);
             }
             return ['action' => 'updated', 'nrp' => $cleanNrp, 'role' => $role];
         } else {
             $barcodeData = User::generateBarcodeDataUri($cleanNrp, $nama, $role);
-            User::create([
+            $newUser = User::create([
                 'nama' => $nama,
                 'email' => $email,
                 'password' => $passwordPlain,
@@ -266,7 +266,7 @@ class AccountSyncService
                 'barcodettd' => $barcodeData,
                 'ttdbarcode' => $barcodeData,
             ]);
-            GoogleSyncService::syncTablesAsync(['users']);
+            GoogleSyncService::syncUserUpsertRowAsync($newUser);
             return ['action' => 'created', 'nrp' => $cleanNrp, 'role' => $role];
         }
     }
@@ -492,11 +492,6 @@ class AccountSyncService
 
         // Clean up any phantom/obsolete leadership accounts not present in karyawan
         $cleanupResult = self::cleanupPhantomLeadershipAccounts();
-
-        // Push updated users to Google Spreadsheet sheet 'users'
-        try {
-            GoogleSyncService::syncTablesAsync(['users']);
-        } catch (\Throwable $e) {}
 
         return [
             'created' => $created,

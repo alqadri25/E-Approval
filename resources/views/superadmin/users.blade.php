@@ -32,17 +32,19 @@
             .catch(() => {});
     },
     applyKaryawanData(target, k) {
+        let divVal = k.division || k.divisi || '';
+        let deptVal = k.departemen || k.department || '';
         if (target === 'edit') {
             if (k.nama) this.editUser.nama = k.nama;
-            if (k.division) this.editUser.divisi = k.division;
-            if (k.departemen) this.editUser.departemen = k.departemen;
+            if (divVal) this.editUser.divisi = divVal;
+            if (deptVal) this.editUser.departemen = deptVal;
             if (k.role) this.editUser.role = k.role;
             if (k.email) this.editUser.email = k.email;
             if (k.password) this.editUser.password = k.password;
         } else {
             if (k.nama) this.newUser.nama = k.nama;
-            if (k.division) this.newUser.divisi = k.division;
-            if (k.departemen) this.newUser.departemen = k.departemen;
+            if (divVal) this.newUser.divisi = divVal;
+            if (deptVal) this.newUser.departemen = deptVal;
             if (k.role) this.newUser.role = k.role;
             if (k.email) this.newUser.email = k.email;
             if (k.password) this.newUser.password = k.password;

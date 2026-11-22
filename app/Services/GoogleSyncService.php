@@ -450,31 +450,66 @@ class GoogleSyncService
                             }
                         }
 
-                        // Auto-generate leadership accounts for the pulled employees
-                        AccountSyncService::syncLeadershipAccountsFromKaryawan();
-
-                        // Sync users barcodettd / ttdbarcode from spreadsheet if present
+                        // Sync users from spreadsheet if present (including custom passwords!)
                         if (!empty($data['users']) && is_array($data['users'])) {
                             foreach ($data['users'] as $uRow) {
-                                $uEmail = trim((string)($uRow['email'] ?? ''));
+                                $uEmail = strtolower(trim((string)($uRow['email'] ?? '')));
                                 $uNrp = trim((string)($uRow['nrp'] ?? ''));
+                                if ($uEmail === '' && $uNrp === '') continue;
+
+                                $existing = null;
+                                if ($uNrp !== '') {
+                                    $existing = DB::table('app_users')->where('nrp', $uNrp)->first();
+                                }
+                                if (!$existing && $uEmail !== '') {
+                                    $existing = DB::table('app_users')->where('email', $uEmail)->first();
+                                }
+
+                                $rawPw = trim((string)($uRow['password'] ?? ''));
+                                $nama = trim((string)($uRow['nama'] ?? ''));
+                                $role = trim((string)($uRow['role'] ?? ''));
+                                $dept = trim((string)($uRow['departemen'] ?? ''));
+                                $divisi = trim((string)($uRow['divisi'] ?? ''));
+                                $aktif = isset($uRow['aktif']) ? (int)$uRow['aktif'] : 1;
                                 $barcodeVal = trim((string)($uRow['barcodettd'] ?? ($uRow['ttdbarcode'] ?? '')));
+
+                                $updateData = [];
+                                if ($rawPw !== '') {
+                                    $updateData['password'] = $rawPw;
+                                    $updateData['password_hash'] = Hash::make($rawPw);
+                                }
+                                if ($nama !== '') $updateData['nama'] = $nama;
+                                if ($role !== '') $updateData['role'] = $role;
+                                if ($dept !== '') $updateData['departemen'] = $dept;
+                                if ($divisi !== '') $updateData['divisi'] = $divisi;
+                                $updateData['aktif'] = $aktif;
                                 if ($barcodeVal !== '') {
-                                    $q = DB::table('app_users');
-                                    if ($uEmail !== '') {
-                                        $q->where('email', $uEmail);
-                                    } elseif ($uNrp !== '') {
-                                        $q->where('nrp', $uNrp);
-                                    } else {
-                                        continue;
+                                    $updateData['barcodettd'] = $barcodeVal;
+                                    $updateData['ttdbarcode'] = $barcodeVal;
+                                }
+
+                                if ($existing) {
+                                    if (!empty($updateData)) {
+                                        DB::table('app_users')->where('id', $existing->id)->update($updateData);
                                     }
-                                    $q->update([
-                                        'barcodettd' => $barcodeVal,
-                                        'ttdbarcode' => $barcodeVal,
-                                    ]);
+                                } else {
+                                    $updateData['nrp'] = $uNrp ?: null;
+                                    $updateData['email'] = $uEmail ?: ($uNrp . '@musashi.id');
+                                    $updateData['nama'] = $nama ?: ('User ' . $uNrp);
+                                    $updateData['role'] = $role ?: 'foreman';
+                                    $updateData['divisi'] = $divisi ?: 'ALL';
+                                    $updateData['departemen'] = $dept ?: 'ALL';
+                                    $updateData['password'] = $rawPw ?: null;
+                                    $updateData['password_hash'] = Hash::make($rawPw ?: 'password123');
+                                    $updateData['created_at'] = now();
+                                    $updateData['updated_at'] = now();
+                                    DB::table('app_users')->insert($updateData);
                                 }
                             }
                         }
+
+                        // Auto-generate leadership accounts for the pulled employees only if missing
+                        AccountSyncService::syncLeadershipAccountsFromKaryawan();
 
                         // Sync pengaturan from Google Spreadsheet if present
                         $settingRows = $data['pengaturan'] ?? [];
@@ -657,11 +692,10 @@ class GoogleSyncService
             return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
         }
 
-        // Pastikan Dokumen_Dinilai, Target_Pemantauan, dan users selalu ikut tersinkronisasi bila karyawan atau dokumen diperbarui / dihapus
+        // Pastikan Dokumen_Dinilai dan Target_Pemantauan selalu ikut tersinkronisasi bila karyawan atau dokumen diperbarui / dihapus
         if (in_array('karyawan', $tables) || in_array('dokumen', $tables)) {
             if (!in_array('Dokumen_Dinilai', $tables)) $tables[] = 'Dokumen_Dinilai';
             if (!in_array('Target_Pemantauan', $tables)) $tables[] = 'Target_Pemantauan';
-            if (!in_array('users', $tables)) $tables[] = 'users';
         }
 
         $payload = [];

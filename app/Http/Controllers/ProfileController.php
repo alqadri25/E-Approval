@@ -117,7 +117,7 @@ class ProfileController extends Controller
             \Illuminate\Support\Facades\Log::warning("Fast syncUserUpsertRow failed: " . $e->getMessage());
         }
 
-        $tablesToSync = ['users'];
+        $tablesToSync = [];
 
         // Also sync name and department to karyawan, dokumen, and tanda_tangan if user has NRP
         if (!empty($user->nrp)) {
@@ -168,8 +168,10 @@ class ProfileController extends Controller
         Cache::forget('sheet_all_karyawan');
         Cache::forget('sheet_all_dokumen');
 
-        // Immediately sync to Google Spreadsheet (both users and employee data)
-        \App\Services\GoogleSyncService::syncTablesAsync(array_unique($tablesToSync));
+        // Immediately sync to Google Spreadsheet (employee & document data if changed)
+        if (!empty($tablesToSync)) {
+            \App\Services\GoogleSyncService::syncTablesAsync(array_unique($tablesToSync));
+        }
 
         if (isset($driveResult) && empty($driveResult['success']) && !empty($driveResult['message'])) {
             return redirect()->route('profile.index')
@@ -347,7 +349,10 @@ class ProfileController extends Controller
             } catch (\Throwable $e) {}
         }
 
-        \App\Services\GoogleSyncService::syncTablesAsync(['Master Tanda Tangan', 'users']);
+        try {
+            \App\Services\GoogleSyncService::syncUserUpsertRow($user);
+        } catch (\Throwable $e) {}
+        \App\Services\GoogleSyncService::syncTablesAsync(['Master Tanda Tangan']);
 
         return redirect()->route('profile.index')->with('success', 'Gambar tanda tangan digital berhasil dihapus.');
     }

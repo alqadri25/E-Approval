@@ -3879,9 +3879,9 @@ class AdminController extends Controller
         $tglMulai = trim((string)$request->input('tgl_mulai', ''));
         $tglSelesai = trim((string)$request->input('tgl_selesai', ''));
 
-        if (\App\Services\GoogleSyncService::isServerless()) {
+        if ($request->boolean('sync')) {
             try {
-                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
             } catch (\Throwable $e) {}
         }
 

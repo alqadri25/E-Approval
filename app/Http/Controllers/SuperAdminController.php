@@ -146,28 +146,26 @@ class SuperAdminController extends Controller
             abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
         }
 
-        // Sync dengan Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1
-        if ($request->boolean('sync')) {
+        // Sync dengan Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1 atau database user masih kosong
+        $shouldSync = $request->boolean('sync') || User::count() === 0;
+        if ($shouldSync) {
             try {
                 \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
             } catch (\Throwable $e) {}
-        }
 
-        // Selalu sinkronkan data password & akun terbaru dari sheet 'users' di Google Spreadsheet
-        try {
-            \App\Services\GoogleSyncService::syncUsersFromSpreadsheet($request->boolean('sync'));
-        } catch (\Throwable $e) {}
+            try {
+                \App\Services\GoogleSyncService::syncUsersFromSpreadsheet(true);
+            } catch (\Throwable $e) {}
 
-        // Auto sync with master karyawan & clean up phantom accounts so users are always 100% connected
-        $cleanup = \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
-        if (!empty($cleanup['deleted_count']) && $cleanup['deleted_count'] > 0) {
-            foreach ($cleanup['deleted_nrps'] as $idx => $delNrp) {
-                $delEmail = $cleanup['deleted_emails'][$idx] ?? null;
-                \App\Services\GoogleSyncService::syncUserDeleteRowAsync($delNrp, $delEmail);
+            $cleanup = \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+            if (!empty($cleanup['deleted_count']) && $cleanup['deleted_count'] > 0) {
+                foreach ($cleanup['deleted_nrps'] as $idx => $delNrp) {
+                    $delEmail = $cleanup['deleted_emails'][$idx] ?? null;
+                    \App\Services\GoogleSyncService::syncUserDeleteRowAsync($delNrp, $delEmail);
+                }
             }
-            \App\Services\GoogleSyncService::syncTablesAsync(['users']);
+            \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
         }
-        \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
 
         $karyawanNrps = DB::table('karyawan')->pluck('nrp')->map(fn($n) => trim((string)$n))->filter()->toArray();
 
@@ -472,8 +470,6 @@ class SuperAdminController extends Controller
         } catch (\Throwable $e) {}
         Cache::forget('sheet_all_users');
 
-        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
-
         return redirect()->back()->with('success', "User '{$request->input('nama')}' berhasil ditambahkan ke dalam sistem!");
     }
 
@@ -530,7 +526,7 @@ class SuperAdminController extends Controller
             \App\Services\GoogleSyncService::syncUserUpsertRow($targetUser);
         } catch (\Throwable $e) {}
 
-        $tablesToSync = ['users'];
+        $tablesToSync = [];
 
         if (!empty($targetUser->nrp)) {
             $cleanNrp = (string)$targetUser->nrp;
@@ -572,7 +568,9 @@ class SuperAdminController extends Controller
         Cache::forget('sheet_all_karyawan');
         Cache::forget('sheet_all_dokumen');
 
-        \App\Services\GoogleSyncService::syncTablesAsync(array_unique($tablesToSync));
+        if (!empty($tablesToSync)) {
+            \App\Services\GoogleSyncService::syncTablesAsync(array_unique($tablesToSync));
+        }
 
         return redirect()->back()->with('success', "Data user '{$targetUser->nama}' berhasil diperbarui.");
     }
@@ -604,8 +602,6 @@ class SuperAdminController extends Controller
         try {
             \App\Services\GoogleSyncService::syncUserUpsertRow($targetUser);
         } catch (\Throwable $e) {}
-
-        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
 
         $statusText = $targetUser->aktif ? 'diaktifkan' : 'dinonaktifkan';
         return redirect()->back()->with('success', "Akun user '{$targetUser->nama}' berhasil {$statusText}.");
@@ -649,8 +645,6 @@ class SuperAdminController extends Controller
         } catch (\Throwable $e) {}
         Cache::forget('sheet_all_users');
 
-        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
-
         return redirect()->back()->with('success', "Password untuk user '{$targetUser->nama}' berhasil direset menjadi '{$defaultPassword}'.");
     }
 
@@ -676,9 +670,13 @@ class SuperAdminController extends Controller
         }
 
         $userName = $targetUser->nama;
+        $delNrp = (string)($targetUser->nrp ?? '');
+        $delEmail = (string)($targetUser->email ?? '');
         $targetUser->delete();
 
-        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
+        try {
+            \App\Services\GoogleSyncService::syncUserDeleteRowAsync($delNrp, $delEmail);
+        } catch (\Throwable $e) {}
 
         return redirect()->back()->with('success', "Akun '{$userName}' berhasil dihapus dari sistem.");
     }
