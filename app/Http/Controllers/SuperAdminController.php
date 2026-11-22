@@ -153,6 +153,11 @@ class SuperAdminController extends Controller
             } catch (\Throwable $e) {}
         }
 
+        // Selalu sinkronkan data password & akun terbaru dari sheet 'users' di Google Spreadsheet
+        try {
+            \App\Services\GoogleSyncService::syncUsersFromSpreadsheet($request->boolean('sync'));
+        } catch (\Throwable $e) {}
+
         // Auto sync with master karyawan & clean up phantom accounts so users are always 100% connected
         $cleanup = \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
         if (!empty($cleanup['deleted_count']) && $cleanup['deleted_count'] > 0) {
@@ -768,14 +773,20 @@ class SuperAdminController extends Controller
             abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
         }
 
+        // 1. Tarik pembaruan password dan user dari sheet 'users' Google Spreadsheet
+        try {
+            \App\Services\GoogleSyncService::syncUsersFromSpreadsheet(true);
+        } catch (\Throwable $e) {}
+
+        // 2. Selaraskan akun kepemimpinan dari Master Karyawan
         $result = \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
         \Illuminate\Support\Facades\Cache::flush();
 
         $deletedText = ($result['deleted'] ?? 0) > 0 ? " dan {$result['deleted']} akun non-master karyawan dibersihkan" : "";
 
-        return redirect()->route('admin.users')->with(
+        return redirect()->back()->with(
             'success',
-            "Sinkronisasi Akun Berhasil! Total {$result['total']} akun pimpinan (Foreman, Section Head, Dept Head, Div Head) telah diselaraskan dengan Master Karyawan ({$result['created']} akun baru dibuat, {$result['updated']} akun diperbarui{$deletedText}). Format email: NRPPOSITION@musashi.id, password: NRP+POSITION."
+            "Sinkronisasi Akun Berhasil! Data akun dan password telah diselaraskan dengan Google Spreadsheet & Master Karyawan ({$result['created']} akun baru dibuat, {$result['updated']} akun diperbarui{$deletedText})."
         );
     }
 

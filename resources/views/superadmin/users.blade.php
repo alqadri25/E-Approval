@@ -61,8 +61,8 @@
             </p>
         </div>
         <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-            <!-- Sinkronkan Akun dari Master Karyawan -->
-            <form method="POST" action="{{ route('admin.users.sync') }}" class="inline-block m-0">
+            <!-- Sinkronkan Akun dari Master Karyawan & Spreadsheet -->
+            <form method="POST" action="{{ (request()->routeIs('admin.*') || str_starts_with(request()->path(), 'admin')) ? route('admin.users.sync') : route('superadmin.users.sync') }}" class="inline-block m-0">
                 @csrf
                 <button type="submit" 
                         class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition cursor-pointer" 

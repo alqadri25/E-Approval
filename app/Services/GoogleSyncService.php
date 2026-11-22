@@ -1024,6 +1024,119 @@ class GoogleSyncService
     }
 
     /**
+     * Fast synchronization of users from Google Spreadsheet sheet 'users'.
+     * Updates password, nama, role, divisi, departemen, and aktif in real time into local database.
+     */
+    public static function syncUsersFromSpreadsheet(bool $force = false): array
+    {
+        $cacheKey = 'last_sheet_users_pull_time';
+        if (!$force && Cache::has($cacheKey)) {
+            return ['status' => 'skipped_cache_active'];
+        }
+
+        $config = self::getConfig();
+        $appscriptUrl = $config['appscript_url'] ?? '';
+        if (empty($appscriptUrl) || !filter_var($appscriptUrl, FILTER_VALIDATE_URL)) {
+            return ['status' => 'skipped_no_url'];
+        }
+
+        try {
+            $response = Http::timeout(12)->withoutVerifying()->get($appscriptUrl, [
+                'action' => 'get_table',
+                'table' => 'users',
+            ]);
+
+            if ($response->successful()) {
+                $json = $response->json();
+                $rows = $json['data'] ?? [];
+                if (!empty($rows) && is_array($rows)) {
+                    DB::transaction(function () use ($rows) {
+                        foreach ($rows as $u) {
+                            $nrp = trim((string)($u['nrp'] ?? ''));
+                            $email = strtolower(trim((string)($u['email'] ?? '')));
+                            if ($nrp === '' && $email === '') continue;
+
+                            $existing = null;
+                            if ($nrp !== '') {
+                                $existing = \App\Models\User::where('nrp', $nrp)->first();
+                            }
+                            if (!$existing && $email !== '') {
+                                $existing = \App\Models\User::where('email', $email)->first();
+                            }
+
+                            $rawPw = trim((string)($u['password'] ?? ''));
+                            $nama = trim((string)($u['nama'] ?? ''));
+                            $role = trim((string)($u['role'] ?? ''));
+                            $dept = trim((string)($u['departemen'] ?? ''));
+                            $divisi = trim((string)($u['divisi'] ?? ''));
+                            $aktif = isset($u['aktif']) ? (int)$u['aktif'] : 1;
+                            $barcode = $u['barcodettd'] ?? null;
+
+                            if ($existing) {
+                                $dirty = false;
+                                if ($rawPw !== '' && $existing->password !== $rawPw) {
+                                    $existing->password = $rawPw;
+                                    $existing->password_hash = Hash::make($rawPw);
+                                    $dirty = true;
+                                }
+                                if ($nama !== '' && $existing->nama !== $nama) {
+                                    $existing->nama = $nama;
+                                    $dirty = true;
+                                }
+                                if ($role !== '' && $existing->role !== $role) {
+                                    $existing->role = $role;
+                                    $dirty = true;
+                                }
+                                if ($dept !== '' && $existing->departemen !== $dept) {
+                                    $existing->departemen = $dept;
+                                    $dirty = true;
+                                }
+                                if ($divisi !== '' && $existing->divisi !== $divisi) {
+                                    $existing->divisi = $divisi;
+                                    $dirty = true;
+                                }
+                                if ($existing->aktif != $aktif) {
+                                    $existing->aktif = $aktif;
+                                    $dirty = true;
+                                }
+                                if (!empty($barcode) && empty($existing->barcodettd)) {
+                                    $existing->barcodettd = $barcode;
+                                    $existing->ttdbarcode = $barcode;
+                                    $dirty = true;
+                                }
+                                if ($dirty) {
+                                    $existing->save();
+                                }
+                            } else {
+                                \App\Models\User::create([
+                                    'nama' => $nama ?: ('User ' . $nrp),
+                                    'email' => $email ?: ($nrp . '@musashi.id'),
+                                    'nrp' => $nrp ?: null,
+                                    'role' => $role ?: 'foreman',
+                                    'divisi' => $divisi ?: 'ALL',
+                                    'departemen' => $dept ?: 'ALL',
+                                    'aktif' => $aktif,
+                                    'password' => $rawPw ?: null,
+                                    'password_hash' => Hash::make($rawPw ?: 'password123'),
+                                    'barcodettd' => $barcode,
+                                    'ttdbarcode' => $barcode,
+                                ]);
+                            }
+                        }
+                    });
+
+                    Cache::put($cacheKey, now(), 15); // Cache for 15 seconds to prevent rate limiting
+                    return ['status' => 'success', 'count' => count($rows)];
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("syncUsersFromSpreadsheet failed: " . $e->getMessage());
+        }
+
+        return ['status' => 'failed'];
+    }
+
+    /**
      * Delete audit log entries from Google Spreadsheet sheet audit_log
      *
      * @param array<int|string>|int|string $ids
