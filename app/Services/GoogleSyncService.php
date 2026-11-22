@@ -765,6 +765,18 @@ class GoogleSyncService
     }
 
     /**
+     * Check if currently running in a serverless environment (e.g. Vercel, AWS Lambda)
+     */
+    public static function isServerless(): bool
+    {
+        return !empty(env('VERCEL'))
+            || !empty($_ENV['VERCEL'])
+            || !empty($_SERVER['VERCEL'])
+            || !empty(env('AWS_LAMBDA_FUNCTION_NAME'))
+            || !empty($_ENV['AWS_LAMBDA_FUNCTION_NAME']);
+    }
+
+    /**
      * Fast single employee row sync to Google Spreadsheet (Add / Edit / Delete).
      * Synchronous execution with short timeout and automatic fallback.
      */
@@ -801,7 +813,7 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(4)->withoutVerifying()->post($appscriptUrl, $payload);
+            $response = Http::timeout(15)->withoutVerifying()->post($appscriptUrl, $payload);
             if ($response->successful()) {
                 $body = $response->json();
                 if (isset($body['status']) && $body['status'] === 'success') {
@@ -813,14 +825,17 @@ class GoogleSyncService
                     return ['success' => true, 'fast_path' => true, 'data' => $body];
                 }
                 // Fallback jika Google Apps Script versi lama belum mendukung endpoint upsert_row / delete_row
-                if (isset($body['status']) && $body['status'] === 'unknown_action') {
+                if (isset($body['status']) && $body['status'] === 'unknown_action' && $cleanAction !== 'delete_row') {
                     Log::info("Apps Script does not support {$cleanAction}, falling back to full syncTables.");
                     return self::syncTables(['karyawan', 'dokumen']);
                 }
             }
             return ['success' => false, 'status' => $response->status()];
         } catch (\Throwable $e) {
-            Log::warning("Fast Google sync failed: " . $e->getMessage() . ", falling back to syncTables");
+            Log::warning("Fast Google sync failed: " . $e->getMessage() . ($cleanAction === 'delete_row' ? '' : ", falling back to syncTables"));
+            if ($cleanAction === 'delete_row') {
+                return ['success' => false, 'error' => $e->getMessage()];
+            }
             return self::syncTables(['karyawan', 'dokumen']);
         }
     }
@@ -832,6 +847,11 @@ class GoogleSyncService
      */
     public static function syncEmployeeRowAsync(string $action, string $nrp): void
     {
+        if (self::isServerless() || $action === 'delete') {
+            self::syncEmployeeRow($action, $nrp);
+            return;
+        }
+
         try {
             $artisanPath = base_path('artisan');
             $act = escapeshellarg($action);
@@ -872,18 +892,17 @@ class GoogleSyncService
         ];
 
         try {
-            $response = Http::timeout(4)->withoutVerifying()->post($appscriptUrl, $payload);
+            $response = Http::timeout(15)->withoutVerifying()->post($appscriptUrl, $payload);
             if ($response->successful()) {
                 $body = $response->json();
                 if (isset($body['status']) && $body['status'] === 'success') {
                     return ['success' => true, 'fast_path' => true, 'data' => $body];
                 }
             }
-            // Fallback: full sync of users table
-            return self::syncTables(['users']);
+            return ['success' => false, 'status' => $response->status()];
         } catch (\Throwable $e) {
-            Log::warning("Fast user delete Google sync failed: " . $e->getMessage() . ", falling back to syncTables(['users'])");
-            return self::syncTables(['users']);
+            Log::warning("Fast user delete Google sync notice: " . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
@@ -893,6 +912,11 @@ class GoogleSyncService
      */
     public static function syncUserDeleteRowAsync(string $nrp, ?string $email = null): void
     {
+        if (self::isServerless()) {
+            self::syncUserDeleteRow($nrp, $email);
+            return;
+        }
+
         try {
             $artisanPath = base_path('artisan');
             $nrpArg = escapeshellarg($nrp);
@@ -970,6 +994,11 @@ class GoogleSyncService
      */
     public static function syncTablesAsync(array $tables = []): void
     {
+        if (self::isServerless()) {
+            self::syncTables($tables ?: ['karyawan', 'dokumen']);
+            return;
+        }
+
         try {
             $artisanPath = base_path('artisan');
             $tablesArg = !empty($tables) ? ' --tables=' . escapeshellarg(implode(',', $tables)) : '';
@@ -1661,6 +1690,16 @@ class GoogleSyncService
             if ($response->successful()) {
                 $json = $response->json();
                 $data = $json['data'] ?? [];
+
+                // 0. Prune any deleted karyawan that no longer exist in Google Spreadsheet
+                if (!empty($data['karyawan']) && is_array($data['karyawan'])) {
+                    $sheetNrps = array_values(array_filter(array_map(fn($k) => trim((string)($k['nrp'] ?? '')), $data['karyawan'])));
+                    if (count($sheetNrps) >= 10) {
+                        DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
+                        DB::table('dokumen')->whereNotIn('nrp', $sheetNrps)->delete();
+                        DB::table('app_users')->whereIn('role', ['foreman', 'section_head', 'dept_head', 'division_head'])->whereNotIn('nrp', $sheetNrps)->delete();
+                    }
+                }
 
                 // 1. Sync dokumen (workflow statuses & scores)
                 $activeKaryawanNrps = DB::table('karyawan')->pluck('nrp')->map(fn($n) => trim((string)$n))->filter()->toArray();

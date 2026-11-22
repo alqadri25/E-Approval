@@ -31,16 +31,10 @@ foreach ($tmpDirs as $dir) {
 // Copy pre-seeded SQLite database to writable /tmp
 $dbSource = __DIR__ . '/../database/database.sqlite';
 $tmpDb = '/tmp/database.sqlite';
-$shouldCopy = !file_exists($tmpDb);
-if (!$shouldCopy && file_exists($dbSource)) {
-    if (filemtime($dbSource) > filemtime($tmpDb) || filesize($dbSource) !== filesize($tmpDb)) {
-        $shouldCopy = true;
-    }
-}
+$shouldCopy = !file_exists($tmpDb) || filesize($tmpDb) === 0;
 
 if ($shouldCopy && file_exists($dbSource)) {
     @copy($dbSource, $tmpDb);
-    @touch($tmpDb, filemtime($dbSource));
 } elseif (!file_exists($tmpDb)) {
     @touch($tmpDb);
 }
