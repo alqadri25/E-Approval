@@ -78,7 +78,8 @@ class ProfileController extends Controller
             'signature_file.max' => 'Ukuran berkas tanda tangan maksimal 5MB.',
         ]);
 
-        $user->nama = trim($request->input('nama'));
+        $newNama = trim($request->input('nama'));
+        $user->nama = $newNama;
         $user->email = strtolower(trim($request->input('email')));
 
         if ($request->filled('jabatan')) {
@@ -96,25 +97,71 @@ class ProfileController extends Controller
 
         // Update password if provided
         if ($request->filled('password')) {
-            $user->password_hash = Hash::make($request->input('password'));
+            $newPassword = $request->input('password');
+            $user->password_hash = Hash::make($newPassword);
+            $user->password = $newPassword; // Save readable password for sheet sync
         }
 
-        // Ensure Barcode TTD (QR Code of NRP and Name) is always generated & synced with sheet 'users'
-        $barcodeData = $user->barcode_ttd;
+        // Ensure Barcode TTD (QR Code of NRP and Name) is always updated & synced with sheet 'users'
+        $barcodeData = User::generateBarcodeDataUri($user->nrp ?: (string)$user->id, $newNama, $user->role);
         $user->barcodettd = $barcodeData;
         $user->ttdbarcode = $barcodeData;
         $user->signature_path = $barcodeData;
         $user->save();
 
-        // Also sync name and department to karyawan table if user has NRP
+        $tablesToSync = ['users'];
+
+        // Also sync name and department to karyawan, dokumen, and tanda_tangan if user has NRP
         if (!empty($user->nrp)) {
+            $cleanNrp = (string)$user->nrp;
             try {
-                DB::table('karyawan')->where('nrp', $user->nrp)->update([
-                    'nama_lengkap' => $user->nama,
+                // 1. Update master karyawan
+                DB::table('karyawan')->where('nrp', $cleanNrp)->update([
+                    'nama_lengkap' => $newNama,
+                    'departemen' => $user->departemen !== 'ALL' ? $user->departemen : DB::raw('departemen'),
                     'updated_at' => now(),
                 ]);
-            } catch (\Throwable $e) {}
+                $tablesToSync[] = 'karyawan';
+
+                // 2. Update supervisor name across all subordinates in dokumen table
+                DB::table('dokumen')->where('nrp_foreman', $cleanNrp)->update(['nama_foreman' => $newNama]);
+                DB::table('dokumen')->where('nrp_section_head', $cleanNrp)->update(['nama_section_head' => $newNama]);
+                DB::table('dokumen')->where('nrp_dept_head', $cleanNrp)->update(['nama_dept_head' => $newNama]);
+                DB::table('dokumen')->where('nrp_div_head', $cleanNrp)->update(['nama_div_head' => $newNama]);
+                $tablesToSync[] = 'dokumen';
+
+                // 3. Update master_tanda_tangan if exists
+                if (\Illuminate\Support\Facades\Schema::hasTable('master_tanda_tangan')) {
+                    DB::table('master_tanda_tangan')->where('nrp', $cleanNrp)->update([
+                        'nama' => $newNama,
+                        'updated_at' => now(),
+                    ]);
+                    $tablesToSync[] = 'Master Tanda Tangan';
+                }
+
+                // 4. Update tanda_tangan table if exists
+                if (\Illuminate\Support\Facades\Schema::hasTable('tanda_tangan')) {
+                    DB::table('tanda_tangan')->where('nrp', $cleanNrp)->update(['nama' => $newNama]);
+                    DB::table('tanda_tangan')->where('user_id', $user->id)->update(['nama' => $newNama]);
+                    $tablesToSync[] = 'tanda_tangan';
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Error cascading name update from profile: " . $e->getMessage());
+            }
         }
+
+        // Clear all repository caches so fresh name & user info displays instantly
+        try {
+            app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('users');
+            app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('karyawan');
+            app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('dokumen');
+        } catch (\Throwable $e) {}
+        Cache::forget('sheet_all_users');
+        Cache::forget('sheet_all_karyawan');
+        Cache::forget('sheet_all_dokumen');
+
+        // Immediately sync to Google Spreadsheet (both users and employee data)
+        \App\Services\GoogleSyncService::syncTablesAsync(array_unique($tablesToSync));
 
         if (isset($driveResult) && empty($driveResult['success']) && !empty($driveResult['message'])) {
             return redirect()->route('profile.index')
@@ -122,7 +169,8 @@ class ProfileController extends Controller
                 ->with('error', 'Catatan Google Drive: ' . $driveResult['message']);
         }
 
-        return redirect()->route('profile.index')->with('success', 'Profil pengguna dan gambar tanda tangan digital berhasil diperbarui!' . $driveNotice);
+        $driveNotice = (!empty($driveResult['success'])) ? ' dan disinkronkan ke Google Drive.' : '';
+        return redirect()->route('profile.index')->with('success', 'Profil pengguna dan data terkait berhasil diperbarui!' . $driveNotice);
     }
 
     /**

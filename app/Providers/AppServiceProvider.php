@@ -34,6 +34,15 @@ class AppServiceProvider extends ServiceProvider
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
 
+        // Ensure 'password' column exists in app_users
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('app_users') && !\Illuminate\Support\Facades\Schema::hasColumn('app_users', 'password')) {
+                \Illuminate\Support\Facades\Schema::table('app_users', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('password', 255)->nullable()->after('password_hash');
+                });
+            }
+        } catch (\Throwable $e) {}
+
         // 1. superadmin gate
         Gate::define('superadmin', function (User $user) {
             return $user->role === 'superadmin';

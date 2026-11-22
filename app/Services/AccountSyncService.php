@@ -214,6 +214,10 @@ class AccountSyncService
                 $existingUser->ttdbarcode = $existingUser->barcodettd;
                 $dirty = true;
             }
+            if (empty($existingUser->password)) {
+                $existingUser->password = $passwordPlain;
+                $dirty = true;
+            }
             if (empty($existingUser->password_hash)) {
                 $existingUser->password_hash = Hash::make($passwordPlain);
                 $dirty = true;
@@ -228,6 +232,7 @@ class AccountSyncService
             User::create([
                 'nama' => $nama,
                 'email' => $email,
+                'password' => $passwordPlain,
                 'password_hash' => Hash::make($passwordPlain),
                 'role' => $role,
                 'nrp' => $cleanNrp,
@@ -410,7 +415,10 @@ class AccountSyncService
                         $existingUser->ttdbarcode = $barcodeData;
                         $dirty = true;
                     }
-                    // Only compute expensive bcrypt hash if password is missing
+                    if (empty($existingUser->password)) {
+                        $existingUser->password = $passwordPlain;
+                        $dirty = true;
+                    }
                     if (empty($existingUser->password_hash)) {
                         $existingUser->password_hash = Hash::make($passwordPlain);
                         $dirty = true;
@@ -433,6 +441,7 @@ class AccountSyncService
                     $newUser = User::create([
                         'nama' => $nama,
                         'email' => $email,
+                        'password' => $passwordPlain,
                         'password_hash' => Hash::make($passwordPlain),
                         'role' => $role,
                         'nrp' => $nrp,

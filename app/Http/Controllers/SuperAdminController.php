@@ -398,15 +398,25 @@ class SuperAdminController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
+        $rawPassword = $request->input('password');
+        $barcodeData = User::generateBarcodeDataUri($request->input('nrp') ?: '-', $request->input('nama'), $request->input('role'));
         User::create([
             'nama' => trim($request->input('nama')),
             'email' => trim($request->input('email')),
-            'password_hash' => Hash::make($request->input('password')),
+            'password' => $rawPassword,
+            'password_hash' => Hash::make($rawPassword),
             'role' => $request->input('role'),
             'nrp' => trim($request->input('nrp', '')) ?: null,
             'departemen' => trim($request->input('departemen', 'ALL')),
             'aktif' => $request->boolean('aktif', true) ? 1 : 0,
+            'barcodettd' => $barcodeData,
+            'ttdbarcode' => $barcodeData,
         ]);
+
+        try {
+            app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('users');
+        } catch (\Throwable $e) {}
+        Cache::forget('sheet_all_users');
 
         \App\Services\GoogleSyncService::syncTablesAsync(['users']);
 
@@ -442,17 +452,58 @@ class SuperAdminController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $targetUser->nama = trim($request->input('nama'));
+        $newNama = trim($request->input('nama'));
+        $targetUser->nama = $newNama;
         $targetUser->email = trim($request->input('email'));
         $targetUser->role = $request->input('role');
         $targetUser->nrp = trim($request->input('nrp', '')) ?: null;
         $targetUser->departemen = trim($request->input('departemen', 'ALL'));
         if ($request->filled('password')) {
-            $targetUser->password_hash = Hash::make($request->input('password'));
+            $rawPassword = $request->input('password');
+            $targetUser->password = $rawPassword;
+            $targetUser->password_hash = Hash::make($rawPassword);
         }
+        $barcodeData = User::generateBarcodeDataUri($targetUser->nrp ?: (string)$targetUser->id, $newNama, $targetUser->role);
+        $targetUser->barcodettd = $barcodeData;
+        $targetUser->ttdbarcode = $barcodeData;
         $targetUser->save();
 
-        \App\Services\GoogleSyncService::syncTablesAsync(['users']);
+        $tablesToSync = ['users'];
+
+        if (!empty($targetUser->nrp)) {
+            $cleanNrp = (string)$targetUser->nrp;
+            try {
+                DB::table('karyawan')->where('nrp', $cleanNrp)->update([
+                    'nama_lengkap' => $newNama,
+                    'departemen' => $targetUser->departemen !== 'ALL' ? $targetUser->departemen : DB::raw('departemen'),
+                    'updated_at' => now(),
+                ]);
+                $tablesToSync[] = 'karyawan';
+
+                DB::table('dokumen')->where('nrp_foreman', $cleanNrp)->update(['nama_foreman' => $newNama]);
+                DB::table('dokumen')->where('nrp_section_head', $cleanNrp)->update(['nama_section_head' => $newNama]);
+                DB::table('dokumen')->where('nrp_dept_head', $cleanNrp)->update(['nama_dept_head' => $newNama]);
+                DB::table('dokumen')->where('nrp_div_head', $cleanNrp)->update(['nama_div_head' => $newNama]);
+                $tablesToSync[] = 'dokumen';
+
+                if (Schema::hasTable('tanda_tangan')) {
+                    DB::table('tanda_tangan')->where('nrp', $cleanNrp)->update(['nama' => $newNama]);
+                    DB::table('tanda_tangan')->where('user_id', $targetUser->id)->update(['nama' => $newNama]);
+                    $tablesToSync[] = 'tanda_tangan';
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        try {
+            app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('users');
+            app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('karyawan');
+            app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('dokumen');
+        } catch (\Throwable $e) {}
+        Cache::forget('sheet_all_users');
+        Cache::forget('sheet_all_karyawan');
+        Cache::forget('sheet_all_dokumen');
+
+        \App\Services\GoogleSyncService::syncTablesAsync(array_unique($tablesToSync));
 
         return redirect()->back()->with('success', "Data user '{$targetUser->nama}' berhasil diperbarui.");
     }
@@ -504,8 +555,14 @@ class SuperAdminController extends Controller
             return redirect()->back()->with('error', 'Admin tidak memiliki wewenang mereset password akun Super Admin.');
         }
 
+        $targetUser->password = 'password123';
         $targetUser->password_hash = Hash::make('password123');
         $targetUser->save();
+
+        try {
+            app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('users');
+        } catch (\Throwable $e) {}
+        Cache::forget('sheet_all_users');
 
         \App\Services\GoogleSyncService::syncTablesAsync(['users']);
 

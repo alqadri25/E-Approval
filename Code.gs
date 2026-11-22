@@ -73,7 +73,7 @@ var CONFIG_TABLES = {
     'No', 'Division', 'Department', 'Target_Kuota', 'Sudah_Dinilai', 'Belum_Dinilai', 'Realisasi_Persen', 'Target_S', 'Target_A', 'Target_B', 'Target_C', 'Target_K', 'Status', 'Terakhir_Update'
   ],
   'users': [
-    'id', 'nama', 'email', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
+    'id', 'nama', 'email', 'password', 'role', 'nrp', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
   ],
   'kuota_departemen': [
     'id', 'departemen', 'grade_s_max', 'grade_a_max', 'grade_b_max', 'grade_c_max', 'grade_k_max'
@@ -107,8 +107,8 @@ var CONFIG_TABLES = {
  */
 var COLUMN_FORMATS = {
   'users': {
-    widths: { 1: 60, 2: 220, 3: 220, 4: 140, 5: 90, 6: 180, 7: 70, 8: 100, 9: 280, 10: 160 },
-    alignCenter: [1, 4, 5, 7, 8, 10]
+    widths: { 1: 60, 2: 220, 3: 220, 4: 160, 5: 140, 6: 90, 7: 180, 8: 70, 9: 100, 10: 280, 11: 160 },
+    alignCenter: [1, 4, 5, 6, 8, 9, 11]
   },
   'karyawan': {
     widths: { 1: 90, 2: 230, 3: 90, 4: 80, 5: 80, 6: 220, 7: 110, 8: 180, 9: 180, 10: 100, 11: 110, 12: 130, 13: 120, 14: 110, 15: 110, 16: 220, 17: 180, 18: 120, 19: 190 },
@@ -1613,8 +1613,12 @@ function writeObjectsToSheet(ss, sheetName, items) {
   if (rows.length > 0) {
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
     if (targetName === 'users') {
-      for (var rIdx = 0; rIdx < rows.length; rIdx++) {
-        sheet.setRowHeight(rIdx + 2, 75);
+      try {
+        sheet.setRowHeights(2, rows.length, 75);
+      } catch (eH) {
+        for (var rIdx = 0; rIdx < Math.min(rows.length, 50); rIdx++) {
+          sheet.setRowHeight(rIdx + 2, 75);
+        }
       }
     }
   }

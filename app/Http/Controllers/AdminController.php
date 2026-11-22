@@ -3286,6 +3286,32 @@ class AdminController extends Controller
         $this->repository->update('karyawan', 'nrp', $nrp, $updateData);
         $this->repository->clearCache('karyawan');
 
+        // Cascade updated employee name to app_users, supervisor fields in dokumen, and signatures
+        $empName = $updateData['nama_lengkap'];
+        $linkedUser = DB::table('app_users')->where('nrp', $nrp)->first();
+        if ($linkedUser) {
+            $bc = User::generateBarcodeDataUri($nrp, $empName, $linkedUser->role);
+            DB::table('app_users')->where('id', $linkedUser->id)->update([
+                'nama' => $empName,
+                'departemen' => $updateData['departemen'] !== 'ALL' ? $updateData['departemen'] : DB::raw('departemen'),
+                'barcodettd' => $bc,
+                'ttdbarcode' => $bc,
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::table('dokumen')->where('nrp_foreman', $nrp)->update(['nama_foreman' => $empName]);
+        DB::table('dokumen')->where('nrp_section_head', $nrp)->update(['nama_section_head' => $empName]);
+        DB::table('dokumen')->where('nrp_dept_head', $nrp)->update(['nama_dept_head' => $empName]);
+        DB::table('dokumen')->where('nrp_div_head', $nrp)->update(['nama_div_head' => $empName]);
+
+        if (Schema::hasTable('tanda_tangan')) {
+            DB::table('tanda_tangan')->where('nrp', $nrp)->update(['nama' => $empName]);
+        }
+
+        $this->repository->clearCache('users');
+        Cache::forget('sheet_all_users');
+
         // Synchronize supervisor hierarchy to dokumen table
         $kRow = DB::table('karyawan')->where('nrp', $nrp)->first();
         if ($kRow) {
