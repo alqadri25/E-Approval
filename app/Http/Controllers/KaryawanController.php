@@ -1176,28 +1176,27 @@ class KaryawanController extends Controller
             return redirect()->back()->with('error', 'Format file tidak didukung. Mohon unggah file format .CSV atau .XLSX.');
         }
 
-        $syncExisting = $request->boolean('sync_existing');
+        // Clear stale repository and cache before processing import
+        $this->repository->clearCache('karyawan');
+        $this->repository->clearCache('dokumen');
+        \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
+        \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
+
+        // Always enable upsert by default (update if exists, insert if new)
+        $syncExisting = true;
+        if ($request->has('sync_existing') && !$request->boolean('sync_existing') && !$user->isAdmin() && !$user->isSuperadmin() && $user->role !== 'hr') {
+            $syncExisting = false;
+        }
         $imported = 0;
         $updatedExisting = 0;
         $skippedDuplicates = [];
         $existingNrps = [];
         
-        // Load all existing NRPs from DB table 'karyawan'
+        // Load existing NRPs directly from DB table 'karyawan'
         $dbRows = DB::table('karyawan')->select('nrp', 'nama_lengkap')->get();
         foreach ($dbRows as $row) {
             if (!empty($row->nrp)) {
                 $existingNrps[strtolower(trim($row->nrp))] = $row->nama_lengkap ?? '-';
-            }
-        }
-        
-        // Also check repository
-        $allKaryawan = $this->repository->all('karyawan');
-        foreach ($allKaryawan as $k) {
-            if (!empty($k['nrp'])) {
-                $kKey = strtolower(trim($k['nrp']));
-                if (!isset($existingNrps[$kKey])) {
-                    $existingNrps[$kKey] = $k['nama_lengkap'] ?? '-';
-                }
             }
         }
 
@@ -1367,15 +1366,16 @@ class KaryawanController extends Controller
             }
         };
 
-        foreach ($allKaryawan as $ek) {
+        $existingDbKaryawan = DB::table('karyawan')->get();
+        foreach ($existingDbKaryawan as $ek) {
             $indexLeadership(
-                trim((string)($ek['nrp'] ?? '')),
-                (string)($ek['jabatan'] ?? 'OPERATOR'),
-                (string)($ek['kj'] ?? 'KJ 2'),
-                (string)($ek['division'] ?? 'PRODUCTION A DIV'),
-                (string)($ek['departemen'] ?? ''),
-                (string)($ek['nama_sect'] ?? ($ek['seksi'] ?? '')),
-                (string)($ek['line_category'] ?? '')
+                trim((string)($ek->nrp ?? '')),
+                (string)($ek->jabatan ?? 'OPERATOR'),
+                (string)($ek->kj ?? 'KJ 2'),
+                (string)($ek->division ?? 'PRODUCTION A DIV'),
+                (string)($ek->departemen ?? ''),
+                (string)($ek->nama_sect ?? ($ek->seksi ?? '')),
+                (string)($ek->line_category ?? '')
             );
         }
         foreach ($parsedRows as $pr) {
@@ -1393,7 +1393,7 @@ class KaryawanController extends Controller
         }
 
         // Preload database lookups in memory to avoid repetitive queries inside the loop
-        $dbKaryawanMap = DB::table('karyawan')->get()->keyBy(fn ($k) => strtolower(trim((string)$k->nrp)))->toArray();
+        $dbKaryawanMap = $existingDbKaryawan->keyBy(fn ($k) => strtolower(trim((string)$k->nrp)))->toArray();
         $existingDocNrps = DB::table('dokumen')->pluck('nrp')->mapWithKeys(fn ($n) => [strtolower(trim((string)$n)) => true])->toArray();
         $activePeriod = DB::table('periode')->where('status', 'aktif')->first() ?? (object)['id' => 1];
 
@@ -1545,6 +1545,36 @@ class KaryawanController extends Controller
                 $karyawanUpdates[] = array_merge(['nrp' => $nrp, 'updated_at' => $now], $employeeRecord);
                 $dbKaryawanMap[$lowerNrp] = (object)array_merge(['nrp' => $nrp], $employeeRecord);
                 $updatedExisting++;
+
+                // Ensure initial appraisal document exists for updated employees if missing
+                if (!isset($existingDocNrps[$lowerNrp])) {
+                    $maxDocId++;
+                    $docStatus = 'menunggu_section_head';
+                    if (!empty($nrpForemanVal)) {
+                        $docStatus = 'menunggu_foreman';
+                    } elseif (!empty($nrpSectionVal)) {
+                        $docStatus = 'menunggu_section_head';
+                    } elseif (!empty($nrpDeptVal)) {
+                        $docStatus = 'menunggu_dept_head';
+                    } elseif (!empty($nrpDivVal)) {
+                        $docStatus = 'menunggu_div_head';
+                    }
+                    $dokumenInserts[] = [
+                        'id' => $maxDocId,
+                        'periode_id' => $activePeriod->id ?? 1,
+                        'nrp' => $nrp,
+                        'kode_form' => PenilaianController::determineKodeForm($employeeRecord),
+                        'status' => $docStatus,
+                        'total_nilai' => null,
+                        'grade_original' => null,
+                        'docking_final' => null,
+                        'drive_file_id' => null,
+                        'drive_url' => null,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                    $existingDocNrps[$lowerNrp] = true;
+                }
             } else {
                 $newEmployee = array_merge([
                     'nrp' => $nrp,
@@ -1672,7 +1702,7 @@ class KaryawanController extends Controller
             return redirect()->route($targetRoute)->with('success', $successMsg);
         }
 
-        return redirect()->route($targetRoute)->with('error', "Tidak ada data baru yang diimpor. Semua NRP sudah pernah ditambahkan dalam sistem (NRP tidak boleh dobel).{$msgDuplicates}");
+        return redirect()->route($targetRoute)->with('error', "Tidak ada baris data valid yang dapat diimpor dari file tersebut. Pastikan format file dan nama kolom sesuai (NRP, Nama Lengkap, Posisi/Jabatan, Golongan/KJ).{$msgDuplicates}");
     }
 
     /**

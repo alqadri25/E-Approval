@@ -673,6 +673,7 @@
             </div>
             <form action="{{ route('karyawan.import') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-4" x-data="{ isUploading: false }" @submit="isUploading = true">
                 @csrf
+                <input type="hidden" name="sync_existing" value="1">
                 <p class="text-xs text-slate-600 leading-relaxed">
                     Unggah file spreadsheet (format <strong>.XLSX</strong> atau <strong>.CSV</strong>) berisi daftar karyawan bawahan. Karyawan yang diunggah akan otomatis terhubung ke akun Anda sebagai penilai.
                 </p>
