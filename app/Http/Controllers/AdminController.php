@@ -3853,6 +3853,12 @@ class AdminController extends Controller
         $tglMulai = trim((string)$request->input('tgl_mulai', ''));
         $tglSelesai = trim((string)$request->input('tgl_selesai', ''));
 
+        if (\App\Services\GoogleSyncService::isServerless()) {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
+            } catch (\Throwable $e) {}
+        }
+
         // Query audit_log dari DB
         $query = DB::table('audit_log')
             ->leftJoin('app_users', 'audit_log.user_id', '=', 'app_users.id')
@@ -3967,6 +3973,8 @@ class AdminController extends Controller
 
         try {
             DB::table('audit_log')->where('id', $id)->delete();
+            \Illuminate\Support\Facades\Cache::put('last_google_operational_sync', true, 60);
+            \Illuminate\Support\Facades\Cache::forget('sheet_all_audit_log');
             \App\Services\GoogleSyncService::syncAuditLogDelete([$id]);
 
             return back()->with('success', 'Catatan riwayat aktivitas #' . $id . ' berhasil dihapus dari sistem dan sheet audit_log Google Spreadsheet.');
@@ -3993,6 +4001,8 @@ class AdminController extends Controller
 
         try {
             $count = DB::table('audit_log')->whereIn('id', $ids)->delete();
+            \Illuminate\Support\Facades\Cache::put('last_google_operational_sync', true, 60);
+            \Illuminate\Support\Facades\Cache::forget('sheet_all_audit_log');
             \App\Services\GoogleSyncService::syncAuditLogDelete($ids);
 
             return back()->with('success', "Sebanyak {$count} catatan riwayat aktivitas berhasil dihapus dari sistem dan sheet audit_log Google Spreadsheet.");
@@ -4015,6 +4025,8 @@ class AdminController extends Controller
         try {
             $totalCount = DB::table('audit_log')->count();
             DB::table('audit_log')->delete();
+            \Illuminate\Support\Facades\Cache::put('last_google_operational_sync', true, 60);
+            \Illuminate\Support\Facades\Cache::forget('sheet_all_audit_log');
             \App\Services\GoogleSyncService::syncAuditLogDelete([], true);
 
             return back()->with('success', "Seluruh riwayat aktivitas ({$totalCount} rekaman) berhasil dikosongkan dari sistem dan sheet audit_log Google Spreadsheet.");

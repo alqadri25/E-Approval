@@ -1997,6 +1997,32 @@ class GoogleSyncService
                     });
                 }
 
+                // 8. Sync / Prune audit_log from Google Spreadsheet
+                if (isset($data['audit_log']) && is_array($data['audit_log'])) {
+                    DB::transaction(function () use ($data) {
+                        $sheetLogIds = [];
+                        $logCols = Schema::getColumnListing('audit_log');
+                        $logColSet = array_flip($logCols);
+                        foreach ($data['audit_log'] as $logRow) {
+                            $logId = (int)($logRow['id'] ?? 0);
+                            if ($logId <= 0) continue;
+                            $sheetLogIds[] = $logId;
+                            $cleanRow = [];
+                            foreach ($logRow as $col => $val) {
+                                $cLower = strtolower(trim((string)$col));
+                                if (isset($logColSet[$cLower])) {
+                                    $cleanRow[$cLower] = $val;
+                                }
+                            }
+                            if (!empty($cleanRow)) {
+                                DB::table('audit_log')->updateOrInsert(['id' => $logId], $cleanRow);
+                            }
+                        }
+                        // Prune: any audit_log in local SQLite that is NOT in Google Spreadsheet is deleted!
+                        DB::table('audit_log')->whereNotIn('id', $sheetLogIds)->delete();
+                    });
+                }
+
                 // Clean up phantom leadership accounts if any
                 try {
                     \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
@@ -2010,6 +2036,7 @@ class GoogleSyncService
                     $sheetRepo->clearCache('indikator');
                     $sheetRepo->clearCache('tanda_tangan');
                     $sheetRepo->clearCache('karyawan');
+                    $sheetRepo->clearCache('audit_log');
                 } catch (\Throwable $e) {}
 
                 Cache::forget("sheet_all_dokumen");
@@ -2017,6 +2044,7 @@ class GoogleSyncService
                 Cache::forget("sheet_all_indikator");
                 Cache::forget("sheet_all_tanda_tangan");
                 Cache::forget("sheet_all_karyawan");
+                Cache::forget("sheet_all_audit_log");
 
                 Cache::put($cacheKey, true, 30); // Active cache for 30 seconds
                 return ['status' => 'success', 'timestamp' => now()->toIso8601String()];
