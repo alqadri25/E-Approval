@@ -119,6 +119,129 @@ class AccountSyncService
     }
 
     /**
+     * Fast targeted single employee account synchronization & cleanup (< 15ms).
+     * Used when editing employee data in admin/karyawan.
+     * - If employee is promoted / qualifies (KJ > 5 or leadership): automatically creates or updates their account.
+     * - If employee is demoted / lowered to KJ <= 5 (e.g. STAF KJ 2/3/4/5) and not an active supervisor:
+     *   AUTOMATICALLY DELETES their account from app_users and dispatches background deletion from Google Spreadsheet sheet 'users'.
+     */
+    public static function syncAccountForEmployee(string $nrp): ?array
+    {
+        $cleanNrp = trim($nrp);
+        if ($cleanNrp === '') {
+            return null;
+        }
+
+        $emp = DB::table('karyawan')->where('nrp', $cleanNrp)->first();
+
+        // Check if this employee is an active supervisor of any other subordinate in master karyawan
+        $isSupervisor = false;
+        if (DB::table('karyawan')
+            ->where('nrp_foreman', $cleanNrp)
+            ->orWhere('nrp_section_head', $cleanNrp)
+            ->orWhere('nrp_dept_head', $cleanNrp)
+            ->orWhere('nrp_div_head', $cleanNrp)
+            ->exists()) {
+            $isSupervisor = true;
+        }
+
+        $leadership = $emp ? self::resolveLeadershipRole(
+            (string)($emp->jabatan ?? ''),
+            (string)($emp->kj ?? ''),
+            (string)($emp->sub_gol ?? ''),
+            (string)($emp->golongan ?? '')
+        ) : null;
+
+        // If employee is NOT an active supervisor AND does NOT qualify (e.g. KJ <= 5 and non-leadership position like STAF):
+        // Automatically DELETE their user account from local database and Google Spreadsheet!
+        if (!$isSupervisor && !$leadership) {
+            $existingUser = User::where('nrp', $cleanNrp)->whereNotIn('role', ['superadmin', 'admin', 'hr'])->first();
+            if ($existingUser) {
+                $email = $existingUser->email;
+                $existingUser->delete();
+                // Fast non-blocking background delete from Google Spreadsheet sheet 'users'
+                GoogleSyncService::syncUserDeleteRowAsync($cleanNrp, $email);
+                GoogleSyncService::syncTablesAsync(['users']);
+                return [
+                    'action' => 'deleted',
+                    'nrp' => $cleanNrp,
+                    'reason' => 'Posisi/KJ sudah tidak memenuhi kriteria akun pimpinan / KJ 5 ke atas (KJ <= 5)',
+                ];
+            }
+            return null;
+        }
+
+        // Otherwise, employee qualifies: ensure account exists and is synchronized
+        $nama = trim((string)($emp->nama_lengkap ?? '')) ?: ('User ' . $cleanNrp);
+        $role = $leadership ? $leadership['role'] : 'foreman';
+        $posLabel = $leadership ? $leadership['label'] : 'FOREMAN';
+        $email = self::generateAccountEmail($cleanNrp, $posLabel);
+        $passwordPlain = self::generateAccountPassword($cleanNrp, $posLabel);
+
+        $rawDept = trim((string)($emp->departemen ?? ''));
+        $dept = ($rawDept !== '' && $rawDept !== '-') ? $rawDept : (trim((string)($emp->division ?? '')) ?: 'ALL');
+
+        $existingUser = User::where('nrp', $cleanNrp)->first()
+            ?? User::where('email', $email)->first();
+
+        if ($existingUser) {
+            if ($existingUser->isAdmin() || $existingUser->isSuperadmin()) {
+                return null;
+            }
+            $dirty = false;
+            if ($existingUser->nama !== $nama) {
+                $existingUser->nama = $nama;
+                $dirty = true;
+            }
+            if ($existingUser->role !== $role) {
+                $existingUser->role = $role;
+                $dirty = true;
+            }
+            if ($existingUser->departemen !== $dept) {
+                $existingUser->departemen = $dept;
+                $dirty = true;
+            }
+            if ($existingUser->email !== $email) {
+                $existingUser->email = $email;
+                $dirty = true;
+            }
+            if ($existingUser->aktif != 1) {
+                $existingUser->aktif = 1;
+                $dirty = true;
+            }
+            if (empty($existingUser->barcodettd) || empty($existingUser->ttdbarcode)) {
+                $existingUser->barcodettd = User::generateBarcodeDataUri($cleanNrp, $nama, $role);
+                $existingUser->ttdbarcode = $existingUser->barcodettd;
+                $dirty = true;
+            }
+            if (empty($existingUser->password_hash)) {
+                $existingUser->password_hash = Hash::make($passwordPlain);
+                $dirty = true;
+            }
+            if ($dirty) {
+                $existingUser->save();
+                GoogleSyncService::syncTablesAsync(['users']);
+            }
+            return ['action' => 'updated', 'nrp' => $cleanNrp, 'role' => $role];
+        } else {
+            $barcodeData = User::generateBarcodeDataUri($cleanNrp, $nama, $role);
+            User::create([
+                'nama' => $nama,
+                'email' => $email,
+                'password_hash' => Hash::make($passwordPlain),
+                'role' => $role,
+                'nrp' => $cleanNrp,
+                'departemen' => $dept,
+                'aktif' => 1,
+                'barcodettd' => $barcodeData,
+                'ttdbarcode' => $barcodeData,
+            ]);
+            GoogleSyncService::syncTablesAsync(['users']);
+            return ['action' => 'created', 'nrp' => $cleanNrp, 'role' => $role];
+        }
+    }
+
+    /**
      * Delete phantom/obsolete leadership accounts that do not exist in table 'karyawan'
      * or whose positions are no longer leadership (e.g. changed to Staff/Operator)
      * Keeps Admin, Superadmin, and HR accounts safe.
@@ -142,20 +265,16 @@ class AccountSyncService
         }
 
         // Target leadership & KJ > 5 roles that should strictly map to active leadership employees
-        $leadershipUsers = User::whereIn('role', [
-            'foreman', 'ketua', 'section_head', 'department_head', 'division_head', 
-            'GOL 4 NON KASIE', 'gol_4_non_kasie', 'SENIOR STAFF', 'STAFF', 'OPERATOR (ORIGIN : STAFF KJ5)'
-        ])
-            ->orWhere('role', 'LIKE', '%NON KASIE%')
-            ->orWhere('role', 'LIKE', '%STAFF%')
-            ->get();
+        // Superadmin, admin, and HR accounts are strictly preserved and never deleted
+        $leadershipUsers = User::whereNotIn('role', ['superadmin', 'admin', 'hr'])->get();
 
         $deletedCount = 0;
         $deletedDetails = [];
+        $deletedNrps = [];
+        $deletedEmails = [];
 
         // Hapus akun pimpinan yang tidak lagi terhubung ke data karyawan aktif
-        $validNrps = array_unique(array_filter(array_merge(
-            $karyawanNrps,
+        $activeSupervisors = array_unique(array_filter(array_merge(
             $activeForemanNrps,
             $activeSectionHeadNrps,
             $activeDeptHeadNrps,
@@ -164,9 +283,42 @@ class AccountSyncService
 
         foreach ($leadershipUsers as $u) {
             $uNrp = trim((string)$u->nrp);
-            // Jika seluruh karyawan dihapus atau NRP user ini tidak ada di master karyawan / atasan
-            if (empty($validNrps) || empty($uNrp) || !in_array($uNrp, $validNrps)) {
-                $deletedDetails[] = "{$u->nama} (NRP: {$u->nrp}, Role: {$u->role})";
+            $emp = ($uNrp !== '' && isset($karyawanByNrp[$uNrp])) ? $karyawanByNrp[$uNrp] : null;
+
+            $shouldDelete = false;
+            $reason = '';
+
+            if (empty($uNrp) || !$emp) {
+                // If user has no NRP or employee record is not found in master karyawan:
+                // Only keep if they are explicitly an active supervisor of someone
+                if (empty($uNrp) || !in_array($uNrp, $activeSupervisors)) {
+                    $shouldDelete = true;
+                    $reason = 'Tidak terdaftar di master karyawan aktif';
+                }
+            } else {
+                // Employee exists in master karyawan:
+                // 1. Check if user is an active supervisor of someone
+                $isSupervisor = in_array($uNrp, $activeSupervisors);
+
+                // 2. Check if user currently qualifies for an account based on their current jabatan, KJ, sub_gol, golongan
+                $qualification = self::resolveLeadershipRole(
+                    (string)($emp->jabatan ?? ''),
+                    (string)($emp->kj ?? ''),
+                    (string)($emp->sub_gol ?? ''),
+                    (string)($emp->golongan ?? '')
+                );
+
+                // If NOT an active supervisor AND does not qualify (e.g. KJ dropped to KJ 5 kebawah / KJ <= 5 and non-leadership position like STAF):
+                if (!$isSupervisor && !$qualification) {
+                    $shouldDelete = true;
+                    $reason = "Posisi/KJ tidak memenuhi kriteria akun pimpinan / KJ 5 ke atas (KJ: {$emp->kj}, Jabatan: {$emp->jabatan})";
+                }
+            }
+
+            if ($shouldDelete) {
+                $deletedDetails[] = "{$u->nama} (NRP: {$u->nrp}, Role: {$u->role}, Alasan: {$reason})";
+                $deletedNrps[] = $uNrp;
+                $deletedEmails[] = $u->email;
                 $u->delete();
                 $deletedCount++;
             }
@@ -175,6 +327,8 @@ class AccountSyncService
         return [
             'deleted_count' => $deletedCount,
             'deleted_details' => $deletedDetails,
+            'deleted_nrps' => array_values(array_filter($deletedNrps)),
+            'deleted_emails' => array_values(array_filter($deletedEmails)),
         ];
     }
 
@@ -222,7 +376,6 @@ class AccountSyncService
 
                 $rawDept = trim((string)($emp->departemen ?? ''));
                 $dept = ($rawDept !== '' && $rawDept !== '-') ? $rawDept : (trim((string)($emp->division ?? '')) ?: 'ALL');
-                $barcodeData = User::generateBarcodeDataUri($nrp, $nama, $role);
 
                 // Instant in-memory lookup
                 $lowerNrp = strtolower($nrp);
@@ -252,6 +405,7 @@ class AccountSyncService
                         $dirty = true;
                     }
                     if (empty($existingUser->barcodettd) || empty($existingUser->ttdbarcode)) {
+                        $barcodeData = User::generateBarcodeDataUri($nrp, $nama, $role);
                         $existingUser->barcodettd = $barcodeData;
                         $existingUser->ttdbarcode = $barcodeData;
                         $dirty = true;
@@ -275,6 +429,7 @@ class AccountSyncService
                         'password' => $passwordPlain,
                     ];
                 } else {
+                    $barcodeData = User::generateBarcodeDataUri($nrp, $nama, $role);
                     $newUser = User::create([
                         'nama' => $nama,
                         'email' => $email,

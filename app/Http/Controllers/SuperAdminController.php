@@ -153,7 +153,14 @@ class SuperAdminController extends Controller
         }
 
         // Auto sync with master karyawan & clean up phantom accounts so users are always 100% connected
-        \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+        $cleanup = \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
+        if (!empty($cleanup['deleted_count']) && $cleanup['deleted_count'] > 0) {
+            foreach ($cleanup['deleted_nrps'] as $idx => $delNrp) {
+                $delEmail = $cleanup['deleted_emails'][$idx] ?? null;
+                \App\Services\GoogleSyncService::syncUserDeleteRowAsync($delNrp, $delEmail);
+            }
+            \App\Services\GoogleSyncService::syncTablesAsync(['users']);
+        }
         \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
 
         $karyawanNrps = DB::table('karyawan')->pluck('nrp')->map(fn($n) => trim((string)$n))->filter()->toArray();

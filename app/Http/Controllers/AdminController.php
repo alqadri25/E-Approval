@@ -3323,11 +3323,14 @@ class AdminController extends Controller
             $this->repository->clearCache('dokumen');
         }
 
-        // Auto-sync leadership accounts so newly promoted roles (Section Head, Dept Head, Manager, Foreman) get their account immediately
+        // Fast real-time sync for this employee's account (< 15ms):
+        // Automatically creates account if promoted/qualified (KJ > 5 or leadership),
+        // and AUTOMATICALLY DELETES account from app_users and Google Spreadsheet if demoted to KJ <= 5 (e.g. STAF KJ 2/3/4/5)
         try {
-            \App\Services\AccountSyncService::cleanupPhantomLeadershipAccounts();
-            \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
-        } catch (\Throwable $e) {}
+            \App\Services\AccountSyncService::syncAccountForEmployee($nrp);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Account sync error in updateKaryawan: " . $e->getMessage());
+        }
 
         // Sinkronisasi update karyawan ke Google Spreadsheet secara background non-blocking (< 5ms)
         \App\Services\GoogleSyncService::syncEmployeeRowAsync('upsert', $nrp);

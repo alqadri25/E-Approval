@@ -851,6 +851,67 @@ class GoogleSyncService
     }
 
     /**
+     * Fast single user deletion from sheet 'users' in Google Spreadsheet.
+     * Prevents cascade deletion of employee or other operational tables.
+     */
+    public static function syncUserDeleteRow(string $nrp, ?string $email = null): array
+    {
+        $config = self::getConfig();
+        $appscriptUrl = $config['appscript_url'] ?? '';
+
+        if (empty($appscriptUrl) || !filter_var($appscriptUrl, FILTER_VALIDATE_URL)) {
+            return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
+        }
+
+        $payload = [
+            'action' => 'delete_user_row',
+            'tables' => ['users'],
+            'key_column' => 'nrp',
+            'key_value' => (string)$nrp,
+            'email' => (string)($email ?? ''),
+        ];
+
+        try {
+            $response = Http::timeout(4)->withoutVerifying()->post($appscriptUrl, $payload);
+            if ($response->successful()) {
+                $body = $response->json();
+                if (isset($body['status']) && $body['status'] === 'success') {
+                    return ['success' => true, 'fast_path' => true, 'data' => $body];
+                }
+            }
+            // Fallback: full sync of users table
+            return self::syncTables(['users']);
+        } catch (\Throwable $e) {
+            Log::warning("Fast user delete Google sync failed: " . $e->getMessage() . ", falling back to syncTables(['users'])");
+            return self::syncTables(['users']);
+        }
+    }
+
+    /**
+     * Non-blocking Async Dispatch for User Row Deletion from Google Spreadsheet.
+     * Runs in background immediately (< 5ms response time).
+     */
+    public static function syncUserDeleteRowAsync(string $nrp, ?string $email = null): void
+    {
+        try {
+            $artisanPath = base_path('artisan');
+            $nrpArg = escapeshellarg($nrp);
+            $emailArg = $email ? ' --email=' . escapeshellarg($email) : '';
+
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                $cmd = "start /B \"\" php \"{$artisanPath}\" google:sync-row delete_user --nrp={$nrpArg}{$emailArg} > NUL 2>&1";
+                pclose(popen($cmd, "r"));
+            } else {
+                $cmd = "php \"{$artisanPath}\" google:sync-row delete_user --nrp={$nrpArg}{$emailArg} > /dev/null 2>&1 &";
+                exec($cmd);
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Async Google sync user delete launch failed: " . $e->getMessage() . ", running synchronously");
+            self::syncUserDeleteRow($nrp, $email);
+        }
+    }
+
+    /**
      * Delete audit log entries from Google Spreadsheet sheet audit_log
      *
      * @param array<int|string>|int|string $ids
@@ -3247,6 +3308,54 @@ function doPost(e) {
         message: 'Data berhasil disinkronkan ke Google Spreadsheet',
         updated_tables: updatedTables,
         timestamp: new Date().toISOString()
+      });
+    }
+
+    // D.1 HAPUS 1 USER DARI SHEET USERS (TANPA MENGHAPUS DATA KARYAWAN)
+    if (action === 'delete_user_row' || (action === 'delete_row' && postData.tables && postData.tables.length === 1 && postData.tables[0] === 'users')) {
+      var uSheet = ss.getSheetByName('users');
+      var keyValue = String(postData.key_value || postData.nrp || '').trim().toLowerCase();
+      var keyEmail = String(postData.email || '').trim().toLowerCase();
+      var delCount = 0;
+
+      if (uSheet && uSheet.getLastRow() > 1) {
+        var uData = uSheet.getDataRange().getValues();
+        var uHeaders = uData[0].map(function(h) { return String(h).trim().toLowerCase(); });
+        var uNrpCol = uHeaders.indexOf('nrp');
+        var uEmailCol = uHeaders.indexOf('email');
+        var uRoleCol = uHeaders.indexOf('role');
+
+        var kept = [uData[0]];
+        for (var r = 1; r < uData.length; r++) {
+          var rowNrp = uNrpCol !== -1 ? String(uData[r][uNrpCol] || '').trim().toLowerCase() : '';
+          var rowEmail = uEmailCol !== -1 ? String(uData[r][uEmailCol] || '').trim().toLowerCase() : '';
+          var rowRole = uRoleCol !== -1 ? String(uData[r][uRoleCol] || '').trim().toLowerCase() : '';
+
+          var isMatch = (keyValue && rowNrp === keyValue) || (keyEmail && rowEmail === keyEmail);
+          if (isMatch) {
+            // Lindungi akun Superadmin dan Admin
+            if (rowRole === 'superadmin' || rowRole === 'admin') {
+              kept.push(uData[r]);
+              continue;
+            }
+            delCount++;
+          } else {
+            kept.push(uData[r]);
+          }
+        }
+
+        if (delCount > 0) {
+          uSheet.clear();
+          uSheet.getRange(1, 1, kept.length, kept[0].length).setValues(kept);
+          formatSheetColumns(uSheet, 'users');
+        }
+      }
+
+      return jsonResponse({
+        status: 'success',
+        action: 'delete_user_row',
+        nrp: keyValue,
+        deleted: delCount
       });
     }
 

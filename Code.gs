@@ -815,23 +815,40 @@ function cleanupPhantomUsersInSheet() {
   var uSheet = ss.getSheetByName('users');
   if (!uSheet || uSheet.getLastRow() <= 1) return 0;
 
-  var validNrps = {};
+  var validSupervisors = {};
+  var kMapByNrp = {};
+
   if (kSheet && kSheet.getLastRow() > 1) {
     var kData = kSheet.getDataRange().getValues();
     var kHeaders = kData[0].map(function(h) { return String(h).trim().toLowerCase(); });
-    var nrpCols = [
-      kHeaders.indexOf('nrp'),
+    var nrpIdx = kHeaders.indexOf('nrp');
+    var jabIdx = kHeaders.indexOf('jabatan');
+    var kjIdx = kHeaders.indexOf('kj');
+    var subGolIdx = kHeaders.indexOf('sub_gol');
+    var golIdx = kHeaders.indexOf('golongan');
+
+    var supervisorCols = [
       kHeaders.indexOf('nrp_foreman'),
       kHeaders.indexOf('nrp_section_head'),
       kHeaders.indexOf('nrp_dept_head'),
       kHeaders.indexOf('nrp_div_head')
     ];
+
     for (var kr = 1; kr < kData.length; kr++) {
-      for (var c = 0; c < nrpCols.length; c++) {
-        var colIdx = nrpCols[c];
-        if (colIdx !== -1) {
-          var nVal = String(kData[kr][colIdx] || '').trim().toLowerCase();
-          if (nVal) validNrps[nVal] = true;
+      var nVal = nrpIdx !== -1 ? String(kData[kr][nrpIdx] || '').trim().toLowerCase() : '';
+      if (nVal) {
+        kMapByNrp[nVal] = {
+          jabatan: jabIdx !== -1 ? String(kData[kr][jabIdx] || '').trim().toUpperCase() : '',
+          kj: kjIdx !== -1 ? String(kData[kr][kjIdx] || '').trim().toUpperCase() : '',
+          sub_gol: subGolIdx !== -1 ? String(kData[kr][subGolIdx] || '').trim().toUpperCase() : '',
+          golongan: golIdx !== -1 ? String(kData[kr][golIdx] || '').trim().toUpperCase() : ''
+        };
+      }
+      for (var sc = 0; sc < supervisorCols.length; sc++) {
+        var sCol = supervisorCols[sc];
+        if (sCol !== -1) {
+          var supNrp = String(kData[kr][sCol] || '').trim().toLowerCase();
+          if (supNrp) validSupervisors[supNrp] = true;
         }
       }
     }
@@ -853,10 +870,51 @@ function cleanupPhantomUsersInSheet() {
     }
 
     var nrpVal = uNrpCol !== -1 ? String(uData[ur][uNrpCol] || '').trim().toLowerCase() : '';
-    // Jika tidak ada karyawan sama sekali, atau NRP akun ini tidak ada di daftar karyawan / atasan aktif
-    if (nrpVal && validNrps[nrpVal]) {
+    if (!nrpVal) {
+      deletedCount++;
+      continue;
+    }
+
+    // Jika akun pimpinan aktif atau supervisor terdaftar
+    if (validSupervisors[nrpVal]) {
+      keptRows.push(uData[ur]);
+      continue;
+    }
+
+    var empInfo = kMapByNrp[nrpVal];
+    if (!empInfo) {
+      deletedCount++;
+      continue;
+    }
+
+    // Validasi apakah posisi / KJ memenuhi kriteria akun pimpinan atau KJ 5 ke atas (KJ 6+)
+    var isLeadership = empInfo.jabatan.indexOf('FOREMAN') !== -1 ||
+                       empInfo.jabatan.indexOf('KETUA') !== -1 ||
+                       empInfo.jabatan.indexOf('SECTION HEAD') !== -1 ||
+                       empInfo.jabatan.indexOf('SECT HEAD') !== -1 ||
+                       empInfo.jabatan.indexOf('DEPT HEAD') !== -1 ||
+                       empInfo.jabatan.indexOf('DEPARTMENT HEAD') !== -1 ||
+                       empInfo.jabatan.indexOf('MANAGER') !== -1 ||
+                       empInfo.jabatan.indexOf('MANAJER') !== -1 ||
+                       empInfo.jabatan.indexOf('DIV HEAD') !== -1 ||
+                       empInfo.jabatan.indexOf('DIVISION HEAD') !== -1;
+
+    var kjNum = 0;
+    var matchKj = empInfo.kj.match(/(?:KJ\s*|KATEGORI\s*)?(\d+)/i);
+    if (matchKj) {
+      kjNum = parseInt(matchKj[1], 10);
+    }
+    if (kjNum === 0) {
+      if (empInfo.sub_gol.indexOf('VI') !== -1 || empInfo.golongan.indexOf('VI') !== -1) kjNum = 6;
+      else if (empInfo.sub_gol.indexOf('V') !== -1 || empInfo.golongan.indexOf('V') !== -1) kjNum = 5;
+    }
+
+    var isKj5Up = kjNum > 5;
+
+    if (isLeadership || isKj5Up) {
       keptRows.push(uData[ur]);
     } else {
+      // Posisi sudah turun ke KJ <= 5 dan bukan struktural (misal STAF KJ 2/3/4) -> HAPUS DARI SHEET USERS
       deletedCount++;
     }
   }
@@ -1256,6 +1314,54 @@ function doPost(e) {
         message: 'Data berhasil disinkronkan ke Google Spreadsheet',
         updated_tables: updatedTables,
         timestamp: new Date().toISOString()
+      });
+    }
+
+    // D.1 HAPUS 1 USER DARI SHEET USERS (TANPA MENGHAPUS DATA KARYAWAN)
+    if (action === 'delete_user_row' || (action === 'delete_row' && postData.tables && postData.tables.length === 1 && postData.tables[0] === 'users')) {
+      var uSheet = ss.getSheetByName('users');
+      var keyValue = String(postData.key_value || postData.nrp || '').trim().toLowerCase();
+      var keyEmail = String(postData.email || '').trim().toLowerCase();
+      var delCount = 0;
+
+      if (uSheet && uSheet.getLastRow() > 1) {
+        var uData = uSheet.getDataRange().getValues();
+        var uHeaders = uData[0].map(function(h) { return String(h).trim().toLowerCase(); });
+        var uNrpCol = uHeaders.indexOf('nrp');
+        var uEmailCol = uHeaders.indexOf('email');
+        var uRoleCol = uHeaders.indexOf('role');
+
+        var kept = [uData[0]];
+        for (var r = 1; r < uData.length; r++) {
+          var rowNrp = uNrpCol !== -1 ? String(uData[r][uNrpCol] || '').trim().toLowerCase() : '';
+          var rowEmail = uEmailCol !== -1 ? String(uData[r][uEmailCol] || '').trim().toLowerCase() : '';
+          var rowRole = uRoleCol !== -1 ? String(uData[r][uRoleCol] || '').trim().toLowerCase() : '';
+
+          var isMatch = (keyValue && rowNrp === keyValue) || (keyEmail && rowEmail === keyEmail);
+          if (isMatch) {
+            // Lindungi akun Superadmin dan Admin
+            if (rowRole === 'superadmin' || rowRole === 'admin') {
+              kept.push(uData[r]);
+              continue;
+            }
+            delCount++;
+          } else {
+            kept.push(uData[r]);
+          }
+        }
+
+        if (delCount > 0) {
+          uSheet.clear();
+          uSheet.getRange(1, 1, kept.length, kept[0].length).setValues(kept);
+          formatSheetColumns(uSheet, 'users');
+        }
+      }
+
+      return jsonResponse({
+        status: 'success',
+        action: 'delete_user_row',
+        nrp: keyValue,
+        deleted: delCount
       });
     }
 

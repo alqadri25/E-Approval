@@ -12,7 +12,7 @@ class SyncGoogleRowCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'google:sync-row {action : upsert, delete, sync_all, or upload_pdf} {--nrp= : Employee NRP} {--doc-id= : Document ID for PDF upload} {--tables= : Comma-separated tables to sync}';
+    protected $signature = 'google:sync-row {action : upsert, delete, delete_user, sync_all, or upload_pdf} {--nrp= : Employee NRP} {--email= : User Email} {--doc-id= : Document ID for PDF upload} {--tables= : Comma-separated tables to sync}';
 
     /**
      * The console command description.
@@ -27,6 +27,22 @@ class SyncGoogleRowCommand extends Command
     public function handle(): int
     {
         $action = strtolower(trim($this->argument('action')));
+
+        if ($action === 'delete_user') {
+            $nrp = trim((string)$this->option('nrp'));
+            $email = trim((string)$this->option('email'));
+            if (empty($nrp) && empty($email)) {
+                $this->error('Option --nrp or --email is required for delete_user action.');
+                return Command::FAILURE;
+            }
+            $res = GoogleSyncService::syncUserDeleteRow($nrp, $email ?: null);
+            if ($res['success'] ?? false) {
+                $this->info("Successfully deleted user row (NRP: {$nrp}, Email: {$email}) from Google Spreadsheet.");
+                return Command::SUCCESS;
+            }
+            $this->error("Failed deleting user row: " . ($res['error'] ?? $res['message'] ?? 'Unknown error'));
+            return Command::FAILURE;
+        }
 
         if ($action === 'sync_all' || $action === 'sync_tables') {
             $rawTables = $this->option('tables');
