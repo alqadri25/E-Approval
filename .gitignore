@@ -25,4 +25,13 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 ~$*
-
+*.py
+__pycache__/
+*.docx
+*.xlsx
+/storage/app/temp/*
+!/storage/app/temp/.gitignore
+/storage/app/*_screenshots/
+/storage/app/*_annotated/
+/storage/app/*_pages/
+/public/panduan/

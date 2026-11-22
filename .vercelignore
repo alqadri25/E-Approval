@@ -2,6 +2,7 @@
 .github
 tests
 node_modules
+vendor
 .env
 .env.backup
 .env.production
@@ -9,4 +10,14 @@ node_modules
 phpunit.xml
 scratch
 *.log
-
+*.py
+__pycache__
+*.docx
+*.xlsx
+public/panduan
+storage/app/temp/*
+!storage/app/temp/.gitignore
+storage/app/*_screenshots
+storage/app/*_annotated
+storage/app/*_pages
+Code.gs
