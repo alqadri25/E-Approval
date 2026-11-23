@@ -2447,23 +2447,39 @@ class PenilaianController extends Controller
             abort(404, 'Dokumen penilaian tidak ditemukan.');
         }
 
-        // Auto-heal / State Integrity check for Form 07-006 (Section Head / Gol 4 Non Kasie / KJ 5 ke atas):
-        // Karyawan KJ 5 ke atas / Form 07-006 bawahan (seperti Gol 4 Non Kasie / Staff KJ 5+) dinilai langsung oleh Dept Head!
-        // Section Head hanya melihat nilai bawahan dan tidak menilai. Maka status dokumennya adalah 'menunggu_dept_head'.
+        // State Integrity check for Form 07-006 (Section Head / Subordinate 07-006 / KJ 5 ke atas):
+        // 1. Karyawan KJ 5 ke atas yang bukan Section Head (Form 07-006-KARYAWAN) dinilai PERTAMA oleh Section Head!
+        //    Jika Section Head belum bertanda tangan, status dokumen WAJIB 'menunggu_section_head'.
+        // 2. Jika Section Head sudah bertanda tangan dan Dept Head belum, status 'menunggu_dept_head'.
+        // 3. Jika Dept Head sudah bertanda tangan dan Div Head belum, status 'menunggu_div_head'.
         $kodeFormCheck = $dokumen['kode_form'] ?? '';
-        $is07006FormCheck = self::isForm07006($kodeFormCheck);
         $kCheck = DB::table('karyawan')->where('nrp', $dokumen['nrp'])->first();
-        $isActualSHCheck = $kCheck ? self::isActualSectionHead((array)$kCheck) : false;
-        $isSubordinate07006Check = $is07006FormCheck && !$isActualSHCheck;
+        $kCheckArr = $kCheck ? (array)$kCheck : [];
+        $isSubordinate07006Check = ($kodeFormCheck === '07-006-KARYAWAN') || self::isSubordinateForm07006($kCheckArr, $kodeFormCheck);
 
-        if ($isSubordinate07006Check && in_array($dokumen['status'] ?? '', ['menunggu_section_head', 'menunggu_foreman', 'draft'])) {
-            DB::table('dokumen')->where('id', $id)->update([
-                'status' => 'menunggu_dept_head',
-                'updated_at' => now()->toDateTimeString()
-            ]);
-            $dokumen['status'] = 'menunggu_dept_head';
-            if ($dokumenRow) {
-                $dokumenRow->status = 'menunggu_dept_head';
+        if ($isSubordinate07006Check) {
+            // Pastikan kode_form di database adalah 07-006-KARYAWAN
+            if (($dokumen['kode_form'] ?? '') !== '07-006-KARYAWAN') {
+                DB::table('dokumen')->where('id', $id)->update(['kode_form' => '07-006-KARYAWAN']);
+                $dokumen['kode_form'] = '07-006-KARYAWAN';
+                if ($dokumenRow) {
+                    $dokumenRow->kode_form = '07-006-KARYAWAN';
+                }
+            }
+
+            // Periksa tanda tangan Section Head
+            $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', 'section_head')->exists();
+            if (!$hasShTtd) {
+                if (in_array($dokumen['status'] ?? '', ['menunggu_dept_head', 'menunggu_foreman', 'draft', 'belum_ada'])) {
+                    DB::table('dokumen')->where('id', $id)->update([
+                        'status' => 'menunggu_section_head',
+                        'updated_at' => now()->toDateTimeString()
+                    ]);
+                    $dokumen['status'] = 'menunggu_section_head';
+                    if ($dokumenRow) {
+                        $dokumenRow->status = 'menunggu_section_head';
+                    }
+                }
             }
         }
 
@@ -2834,7 +2850,7 @@ class PenilaianController extends Controller
                     $canRevisi = false;
                 } elseif ($kodeForm === '07-006-KARYAWAN' || self::isSubordinateForm07006($karyawan, $kodeForm)) {
                     // Form 07-006 Varian Karyawan (KJ 5+ non-Section Head): Section Head menilai pertama (Kolom 1 / Sect. Head)
-                    if (in_array($status, ['menunggu_section_head', 'draft', 'revisi', 'belum_ada']) && empty($ttdByLevel['section_head'])) {
+                    if (empty($ttdByLevel['section_head']) && in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'draft', 'revisi', 'belum_ada'])) {
                         $canEditSectionHead = true;
                         $canSignSectionHead = true;
                     } else {
@@ -3105,7 +3121,8 @@ class PenilaianController extends Controller
         }
 
         $empKjNumViewer = isset($karyawan['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$karyawan['kj']) : 0;
-        $isReadOnlySubordinate07006 = ($user->isSectionHead() && !$isSelfDoc && !$canEditSectionHead && ($isGol4Up || $empKjNumViewer >= 5) && ($kodeForm !== '07-006-KARYAWAN' || !in_array($status, ['menunggu_section_head', 'draft', 'revisi', 'belum_ada'])));
+        // Hanya tampilkan Read-Only banner jika bawahan adalah sesama Section Head (07-006-SH) yang dinilai langsung Dept Head
+        $isReadOnlySubordinate07006 = ($user->isSectionHead() && !$isSelfDoc && !$canEditSectionHead && ($kodeForm === '07-006-SH' || self::isActualSectionHead($karyawan)));
 
         return view('penilaian.form', compact(
             'user',
@@ -3697,6 +3714,10 @@ class PenilaianController extends Controller
 
             // Karyawan Gol 4 Up (Form 07-006-KARYAWAN): Section Head adalah PENILAI 1!
             if ($isSubordinate07006) {
+                $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $dokumen['id'] ?? 0)->where('level', 'section_head')->exists();
+                if (!$hasShTtd) {
+                    return true;
+                }
                 return in_array($status, ['menunggu_section_head', 'draft', 'revisi', 'belum_ada']);
             }
 
@@ -5480,14 +5501,15 @@ class PenilaianController extends Controller
             $canEvaluate = !$isWaitingForeman && !in_array($statusRaw, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
 
             if ($isSubordinate07006) {
-                $canEvaluate = in_array($statusRaw, ['menunggu_section_head', 'draft', 'revisi', 'belum_ada']);
+                $hasShTtd = $docId ? DB::table('tanda_tangan')->where('dokumen_id', $docId)->where('level', 'section_head')->exists() : false;
+                $canEvaluate = !$hasShTtd && in_array($statusRaw, ['menunggu_section_head', 'menunggu_dept_head', 'draft', 'revisi', 'belum_ada']);
                 if ($statusRaw === 'selesai') {
                     $statusLabel = 'Selesai';
                 } elseif ($statusRaw === 'menunggu_div_head') {
                     $statusLabel = 'Review Div Head';
-                } elseif ($statusRaw === 'menunggu_dept_head') {
+                } elseif ($statusRaw === 'menunggu_dept_head' && $hasShTtd) {
                     $statusLabel = 'Menunggu Dept Head';
-                } elseif ($hasSectionVal) {
+                } elseif ($hasSectionVal || $hasShTtd) {
                     $statusLabel = 'Dinilai';
                 } else {
                     $statusLabel = 'Menunggu';
@@ -5524,8 +5546,8 @@ class PenilaianController extends Controller
             ];
             $rows[] = $rowItem;
 
-            // Track latest pending evaluation from foreman
-            if ($statusRaw === 'menunggu_section_head' && !$latestPending && !empty($docId) && !$isSubordinate07006) {
+            // Track latest pending evaluation
+            if ($statusRaw === 'menunggu_section_head' && !$latestPending && !empty($docId)) {
                 $latestPending = $rowItem;
             }
         }

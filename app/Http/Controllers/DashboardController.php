@@ -108,7 +108,11 @@ class DashboardController extends Controller
                 $expectedKodeForm = PenilaianController::determineKodeForm($k);
                 $is07006 = PenilaianController::isForm07006($expectedKodeForm);
 
-                if ($is07006) {
+                if ($expectedKodeForm === '07-006-KARYAWAN') {
+                    $status = 'menunggu_section_head';
+                } elseif ($expectedKodeForm === '07-006-SH') {
+                    $status = 'menunggu_section_head';
+                } elseif ($is07006) {
                     $status = 'menunggu_dept_head';
                 } elseif (!empty($k['nrp_foreman'])) {
                     $status = 'menunggu_foreman';
