@@ -59,8 +59,8 @@
         </div>
     </div>
 
-    <!-- 2. Informative Assessment Stat Cards (Seragam ukuran & tata letak) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 {{ !($isDeptWithoutForeman ?? false) ? 'lg:grid-cols-5' : 'lg:grid-cols-4' }} gap-3.5 items-stretch">
+    <!-- 2. Informative Assessment Stat Cards (5 Card Sejajar 1 Baris) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-3.5 items-stretch">
         <!-- Card 1: Total Anggota -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
             <div class="flex items-start justify-between gap-2">
