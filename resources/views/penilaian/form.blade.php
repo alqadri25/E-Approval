@@ -37,13 +37,15 @@
 </style>
 
 @php
-    $isGol4Up = in_array($kodeForm ?? ($dokumen['kode_form'] ?? ''), ['07-006-SH', '07-006-DH', '07-006-DIV']);
+    $user = Auth::user();
+    $kodeFormStr = (string)($kodeForm ?? ($dokumen['kode_form'] ?? ''));
+    $isGol4Up = \App\Http\Controllers\PenilaianController::isForm07006($kodeFormStr);
     $isSubordinate07006 = $isGol4Up && !\App\Http\Controllers\PenilaianController::isActualSectionHead($karyawan) && !\App\Http\Controllers\PenilaianController::isActualDeptHead($karyawan) && !\App\Http\Controllers\PenilaianController::isActualDivHead($karyawan);
     $isTanpaForemanStd = !$isGol4Up && empty($karyawan['nrp_foreman']);
     $showForemanData = !$isTanpaForemanStd || !empty($ttdByLevel['foreman']) || !empty($scoresByLevel['foreman']);
-    $currentUserSignatureUrl = Auth::user()?->signature_url;
-    $hasUserSignature = Auth::user()?->hasSignature() ?? false;
-    $officialFallbackSvg = \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri(Auth::user()->nama, Auth::user()->role, Auth::user()->nrp);
+    $currentUserSignatureUrl = $user?->signature_url;
+    $hasUserSignature = $user?->hasSignature() ?? false;
+    $officialFallbackSvg = $user ? \App\Http\Controllers\PenilaianController::makeOfficialSvgDataUri($user->nama, $user->role, $user->nrp) : '';
     $canViewForeman = $canViewForeman ?? true;
     $canViewSectionHead = $canViewSectionHead ?? true;
     $canViewDeptHead = $canViewDeptHead ?? true;
@@ -660,29 +662,26 @@
         
         <!-- Top Form Code Tag -->
         @php
-            $isGol4Up = in_array($kodeForm ?? ($dokumen['kode_form'] ?? ''), ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $kodeFormStr = (string)($kodeForm ?? ($dokumen['kode_form'] ?? ''));
+            $isGol4Up = \App\Http\Controllers\PenilaianController::isForm07006($kodeFormStr);
             $subFormVariant = $subFormVariant ?? null;
             if ($isGol4Up && empty($subFormVariant)) {
-                if ($kodeForm === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION')) {
+                if ($kodeFormStr === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION')) {
                     $subFormVariant = 'div_head';
-                } elseif ($kodeForm === '07-006-DH' || ($karyawan['level_form'] ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPARTMENT') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPT HEAD')) {
+                } elseif ($kodeFormStr === '07-006-DH' || ($karyawan['level_form'] ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPARTMENT') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPT HEAD')) {
                     $subFormVariant = 'dept_head';
-                } elseif ($kodeForm === '07-006-KARYAWAN' || $isSubordinate07006) {
+                } elseif ($kodeFormStr === '07-006-KARYAWAN' || $isSubordinate07006) {
                     $subFormVariant = 'karyawan_gol4';
                 } else {
                     $subFormVariant = 'section_head';
                 }
             }
 
-            $bannerTitle = match($kodeForm) {
+            $bannerTitle = match($kodeFormStr) {
                 '07-001' => 'KJ : 1 - 3',
                 '07-002' => 'KJ : 4 - 5 non jabatan',
                 '07-003' => 'LEADER',
                 '07-004' => 'FOREMAN',
-                '07-006-KARYAWAN' => 'GOLONGAN ' . ($karyawan['golongan'] ?? 'IV') . ' (KJ 5+)',
-                '07-006-SH' => ($isSubordinate07006 ? ('GOLONGAN ' . ($karyawan['golongan'] ?? 'IV') . ' (KJ 5+)') : 'SECTION HEAD / セクションヘッド'),
-                '07-006-DH' => 'DEPARTMENT HEAD / 部長',
-                '07-006-DIV' => 'DIVISION HEAD / 事業部長',
                 default => 'KJ : ' . ($karyawan['kj'] ?? '1 - 3'),
             };
 
@@ -1001,7 +1000,7 @@
             <tr>
                 <!-- Col 2: JABATAN label -->
                 <td class="whitespace-nowrap px-2 py-1 font-semibold text-slate-700 bg-white border-r border-slate-300 border-b border-slate-900 align-middle">
-                    {{ $isGol4Up ? 'JABATAN / 職階 :' : 'JABATAN :' }}
+                    {{ $isGol4Up ? 'JABATAN / 職位 :' : 'JABATAN :' }}
                 </td>
                 <!-- Col 3: JABATAN value -->
                 <td class="px-2 py-1 font-semibold text-slate-800 truncate bg-[#e2efda] border-r-2 border-slate-900 border-b border-slate-900 align-middle">
@@ -1193,7 +1192,15 @@
                                     @if($isFirstInGroup)
                                     <td rowspan="{{ count($group['aspects']) }}" class="border-r border-slate-900 p-2 align-middle text-center font-bold bg-white text-slate-900 border-b border-slate-900 w-3/12">
                                         <div class="uppercase tracking-wide leading-tight">
-                                            {{ $group['name'] }}
+                                            @if($isGol4Up)
+                                                @php $parts = explode('/', $group['name']); @endphp
+                                                <div class="font-bold text-slate-900">{{ trim($parts[0] ?? $group['name']) }}</div>
+                                                @if(isset($parts[1]))
+                                                    <div class="text-[10px] text-slate-600 font-medium mt-0.5 normal-case">{{ trim($parts[1]) }}</div>
+                                                @endif
+                                            @else
+                                                {{ $group['name'] }}
+                                            @endif
                                         </div>
                                     </td>
                                     @php $isFirstInGroup = false; @endphp
@@ -1201,7 +1208,18 @@
 
                                     <!-- Aspect Title (Col 2): Clean label like in Excel -->
                                     <td class="border-r border-slate-900 p-2 align-middle bg-white w-4/12">
-                                        <span class="font-medium text-slate-900 leading-tight block">{{ $aspectName }}</span>
+                                        @php
+                                            $dispAspect = $aspectName;
+                                            if ($isGol4Up) {
+                                                if ($aspectCode === 'PK_PLAN') $dispAspect = 'Plan';
+                                                elseif ($aspectCode === 'PK_DO') $dispAspect = 'Do';
+                                                elseif ($aspectCode === 'PK_CHECK') $dispAspect = 'Check';
+                                                elseif ($aspectCode === 'PK_ACTION') $dispAspect = 'Action';
+                                                elseif ($aspectCode === 'MM_KEPUTUSAN') $dispAspect = 'Pengambil Keputusan / 決まる能力';
+                                                elseif ($aspectCode === 'MM_PENGEMBANGAN') $dispAspect = 'Pengembangan Bawahan (Counching & Counseling) / 部下の発展の能力';
+                                            }
+                                        @endphp
+                                        <span class="font-medium text-slate-900 leading-tight block">{{ $dispAspect }}</span>
                                         <template x-if="kriteriaDescriptions['{{ $aspectCode }}']">
                                             <span class="text-[9.5px] text-emerald-800 italic block mt-1 leading-snug font-sans bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200"
                                                   x-text="'“' + kriteriaDescriptions['{{ $aspectCode }}'] + '”'"></span>

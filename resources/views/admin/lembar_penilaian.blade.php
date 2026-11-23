@@ -1188,7 +1188,7 @@ function lembarPenilaianPkHandler() {
         },
 
         getFormCodeLabel() {
-            if (['07-006-SH', '07-006-DH', '07-006-DIV'].includes(this.selectedKode)) {
+            if (this.selectedKode && this.selectedKode.startsWith('07-006')) {
                 return 'Code PDV Mapin - 07-006';
             }
             return 'Code PDV Mapin - ' + this.selectedKode;

@@ -150,6 +150,10 @@
             $dhNama = trim(preg_replace('/\s*\(.*?\)/', '', $rawDhNama));
             $dhNrp = $ttdByLevel['dept_head']['signer_nrp'] ?? ($ttdByLevel['dept_head']['user']['nrp'] ?? ($karyawan['nrp_dept_head'] ?? ''));
 
+            $rawDivHeadNama = $ttdByLevel['div_head']['signer_name'] ?? ($ttdByLevel['div_head']['user']['nama'] ?? ($karyawan['div_head_nama'] ?? ''));
+            $divHeadNama = trim(preg_replace('/\s*\(.*?\)/', '', $rawDivHeadNama));
+            $divHeadNrp = $ttdByLevel['div_head']['signer_nrp'] ?? ($ttdByLevel['div_head']['user']['nrp'] ?? ($karyawan['nrp_div_head'] ?? ''));
+
             // Resolusi NAMA SECT. (Seksi resmi organisasi, BUKAN Nama Bagian / tanpa akhiran .SEC)
             $displaySect = trim($karyawan['nama_sect'] ?? '');
             if (!$displaySect) {
@@ -784,20 +788,6 @@
                                 <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcForeman['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
                                 <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcSectionHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
                                 <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
-                                @elseif($subFormVariant === 'div_head')
-                                <td class="bg-blocked-gray"></td>
-                                <td class="bg-blocked-gray"></td>
-                                <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
-                                @elseif($subFormVariant === 'dept_head')
-                                <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcForeman['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
-                                <td class="bg-blocked-gray"></td>
-                                <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
-                                @else
-                                <td class="font-mono" style="background: #f1f5f9;">{!! ($isTanpaForemanStd && !$showForemanData) ? '&nbsp;' : $formatDecimalCell($calcForeman['groups'][$groupKey]['weighted_score'] ?? null) !!}</td>
-                                <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcSectionHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
-                                <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
-                                @endif
-                            </tr>
                                 @elseif($subFormVariant === 'div_head')
                                 <td class="bg-blocked-gray"></td>
                                 <td class="bg-blocked-gray"></td>

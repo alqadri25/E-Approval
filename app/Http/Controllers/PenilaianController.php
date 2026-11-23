@@ -1713,7 +1713,7 @@ class PenilaianController extends Controller
             $deptGrade = null;
 
             $hasForeman = !empty($foremanNrp);
-            $isGol4UpForm = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $isGol4UpForm = self::isForm07006($kodeForm);
             $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
 
             if ($docId) {
@@ -2895,7 +2895,7 @@ class PenilaianController extends Controller
                         $canRevisi = ($status === 'selesai' || $status === 'menunggu_div_head');
                     }
                 } elseif (in_array($status, ['menunggu_dept_head', 'revisi'])) {
-                    $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+                    $isGol4UpDoc = self::isForm07006($kodeForm);
                     if ($isGol4UpDoc) {
                         // Menilai Section Head / Gol 4 Non Kasie pada Form 07-006 (Slot Kolom 2 / section_head)
                         if (empty($ttdByLevel['section_head'])) {
@@ -3108,6 +3108,7 @@ class PenilaianController extends Controller
         $isReadOnlySubordinate07006 = ($user->isSectionHead() && !$isSelfDoc && !$canEditSectionHead && ($isGol4Up || $empKjNumViewer >= 5) && ($kodeForm !== '07-006-KARYAWAN' || !in_array($status, ['menunggu_section_head', 'draft', 'revisi', 'belum_ada'])));
 
         return view('penilaian.form', compact(
+            'user',
             'dokumen',
             'karyawan',
             'periode',
@@ -3342,7 +3343,7 @@ class PenilaianController extends Controller
         $ttdDeptHeadDate = null;
 
         $hasForeman = !empty($foremanNrp);
-        $isGol4UpForm = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+        $isGol4UpForm = self::isForm07006($kodeForm);
         $isSelf = (strcasecmp($matched['nrp'] ?? '', $user->nrp) === 0);
 
         if ($existingDoc) {
@@ -3552,7 +3553,7 @@ class PenilaianController extends Controller
         }
 
         $kodeForm = $dokumen['kode_form'] ?? '';
-        $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+        $isGol4Up = self::isForm07006($kodeForm);
         $isDivHead = $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']);
         $isDeptHead = $user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']);
 
@@ -4384,7 +4385,7 @@ class PenilaianController extends Controller
         if (!$karyawanRevisi) {
             abort(404, 'Data karyawan tidak ditemukan.');
         }
-        $isGol4UpRevisi = in_array($dokumen['kode_form'] ?? '', ['07-006-SH', '07-006-DH', '07-006-DIV']);
+        $isGol4UpRevisi = self::isForm07006($dokumen['kode_form'] ?? '');
         $hasForeman = !empty($karyawanRevisi['nrp_foreman']);
 
         // STRICT ACCESS CONTROL:
@@ -4543,7 +4544,7 @@ class PenilaianController extends Controller
         }
 
         $kodeForm = $dokumen['kode_form'] ?? '';
-        $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+        $isGol4Up = self::isForm07006($kodeForm);
         $isSelf = (strcasecmp($dokumen['nrp'], $user->nrp) === 0);
         $isAdmin = $user->isAdmin() || $user->isSuperadmin();
 
@@ -5109,7 +5110,7 @@ class PenilaianController extends Controller
         $periode = $sharedAssets['periode'] ?? $this->repository->find('periode', 'id', $dokumen['periode_id'] ?? 1);
 
         $docStatus = $dokumen['status'] ?? 'draft';
-        $isGol4UpTemp = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+        $isGol4UpTemp = self::isForm07006($kodeForm);
         if (in_array($docStatus, ['menunggu_section_head', 'menunggu_foreman', 'draft', 'revisi'])) {
             if ($isGol4UpTemp) {
                 $scoresByLevel['section_head'] = [];
@@ -5442,7 +5443,7 @@ class PenilaianController extends Controller
             $fUser = $userByNrp[$fNrp] ?? null;
             $fKaryawan = $karyawanMap[$fNrp] ?? null;
             $fName = $fUser['nama'] ?? ($fKaryawan['nama_lengkap'] ?? (!empty($fNrp) ? "Foreman ($fNrp)" : "-"));
-            $hasForemanEmp = !empty($fNrp) && !$isSelf && !in_array($kodeFormRow, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $hasForemanEmp = !empty($fNrp) && !$isSelf && !self::isForm07006($kodeFormRow);
             $fNameClean = $hasForemanEmp ? trim(preg_replace('/\s*\(.*?\)/', '', $fName)) : '-';
 
             // Nilai Foreman
@@ -8452,7 +8453,7 @@ class PenilaianController extends Controller
                 // Section Head without foreman: Pull Section Head's evaluation data and scores
                 // For Section Head self / 07-006-* form, SH scores live in 'foreman' (Mandiri Kolom 1).
                 // For KJ 1-5 subordinates without Foreman, SH scores live strictly in 'section_head' (Kolom 2).
-                $isGol4UpForm = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+                $isGol4UpForm = self::isForm07006($kodeForm);
                 $isSelfDoc = (strcasecmp($nrp, $user->nrp) === 0);
                 $scores = [];
                 if ($docId && isset($nilaiByDoc[$docId])) {
@@ -8516,7 +8517,7 @@ class PenilaianController extends Controller
                     $manMgtVal = ($hasManMgt && $calc['grand_total'] > 0) ? ($calc['groups']['man_management']['weighted_score'] ?? 0.00) : null;
                 }
             } else {
-                $isGol4UpForm = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+                $isGol4UpForm = self::isForm07006($kodeForm);
                 $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
                 $scores = [];
                 if ($docId && isset($nilaiByDoc[$docId])) {
@@ -8667,7 +8668,7 @@ class PenilaianController extends Controller
 
             // Values (hasilKerjaVal, etc.) assigned above per role context
 
-            $isGol4UpForm = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $isGol4UpForm = self::isForm07006($kodeForm);
             $hasForemanStructure = !empty($k['nrp_foreman']) && !$isGol4UpForm;
 
             // 1. NILAI PK FOREMAN (JIKA ADA)
