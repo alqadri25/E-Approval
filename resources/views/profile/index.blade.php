@@ -206,17 +206,7 @@
 
                     <div class="p-5 sm:p-6 space-y-5">
                         
-                        <!-- Status & Penjelasan Otomasi Barcode TTD -->
-                        <div class="p-3.5 bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs flex items-start gap-3">
-                            <span class="text-lg leading-none mt-0.5 text-emerald-600 font-bold">ℹ️</span>
-                            <div class="space-y-1">
-                                <strong class="font-black text-emerald-900 block text-[11.5px]">Otomasi Barcode Tanda Tangan (Sheet users):</strong>
-                                <p class="text-[11px] text-emerald-800 leading-relaxed">
-                                    Tanda tangan digital Anda kini menggunakan <strong>Barcode Tanda Tangan Resmi (QR Code)</strong> yang tersinkronisasi langsung dari kolom <code class="font-mono bg-emerald-100 px-1 py-0.5 text-emerald-950 font-bold">barcodettd</code> sheet <strong>users</strong>.
-                                    Anda <strong>tidak perlu lagi mengunggah tanda tangan</strong> secara manual. Barcode ini akan langsung digunakan secara otomatis saat Anda menandatangani penilaian karyawan.
-                                </p>
-                            </div>
-                        </div>
+
 
                         <!-- Barcode Display Box -->
                         <div>
