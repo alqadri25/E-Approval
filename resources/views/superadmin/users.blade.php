@@ -109,16 +109,20 @@
             'section_head' => ['label' => 'Section Head', 'count' => $counts['section_head'] ?? 0, 'sub' => 'Penilai Tingkat 2', 'code' => 'SH'],
             'dept_head' => ['label' => 'Dept. Head', 'count' => $counts['dept_head'] ?? 0, 'sub' => 'Penilai Tingkat 3', 'code' => 'DH'],
             'div_head' => ['label' => 'Div. Head', 'count' => $counts['div_head'] ?? 0, 'sub' => 'Penilai Final Divisi', 'code' => 'DIV'],
-            'gol_4_non_kasie' => ['label' => 'Gol 4 Non Kasie', 'count' => $counts['gol_4_non_kasie'] ?? 0, 'sub' => 'KJ 5 Keatas', 'code' => 'G4'],
-            'staff' => ['label' => 'Staf / Posisi', 'count' => $counts['staff'] ?? 0, 'sub' => 'Posisi Staf', 'code' => 'STF'],
         ];
+        if (!empty($counts['gol_4_non_kasie'])) {
+            $tabs['gol_4_non_kasie'] = ['label' => 'Gol 4 Non Kasie', 'count' => $counts['gol_4_non_kasie'], 'sub' => 'KJ 5 Keatas', 'code' => 'G4'];
+        }
+        if (!empty($counts['staff'])) {
+            $tabs['staff'] = ['label' => 'Staf / Posisi', 'count' => $counts['staff'], 'sub' => 'Posisi Staf', 'code' => 'STF'];
+        }
         $currentRoute = request()->routeIs('admin.*') ? 'admin.users' : 'superadmin.users';
         $isAdminRoute = request()->routeIs('admin.*') || str_starts_with(request()->path(), 'admin');
         $storeRoute = $isAdminRoute ? route('admin.users.store') : route('superadmin.users.store');
         $resetPwRouteName = $isAdminRoute ? 'admin.users.resetPassword' : 'superadmin.users.resetPassword';
         $toggleStatusRouteName = $isAdminRoute ? 'admin.users.toggleStatus' : 'superadmin.users.toggleStatus';
         $deleteRouteName = $isAdminRoute ? 'admin.users.delete' : 'superadmin.users.delete';
-        $gridCols = $isSuperadmin ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9' : 'grid-cols-2 sm:grid-cols-4 lg:grid-cols-8';
+        $gridCols = $isSuperadmin ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6';
     @endphp
 
     <div class="grid {{ $gridCols }} gap-3">
@@ -168,8 +172,12 @@
                 <option value="section_head" {{ $activeRole === 'section_head' ? 'selected' : '' }}>Section Head</option>
                 <option value="dept_head" {{ $activeRole === 'dept_head' ? 'selected' : '' }}>Dept. Head</option>
                 <option value="div_head" {{ $activeRole === 'div_head' ? 'selected' : '' }}>Div. Head</option>
-                <option value="gol_4_non_kasie" {{ $activeRole === 'gol_4_non_kasie' ? 'selected' : '' }}>Gol 4 Non Kasie</option>
-                <option value="staff" {{ in_array($activeRole, ['staff', 'staf']) ? 'selected' : '' }}>Staf / Posisi</option>
+                @if(!empty($counts['gol_4_non_kasie']))
+                    <option value="gol_4_non_kasie" {{ $activeRole === 'gol_4_non_kasie' ? 'selected' : '' }}>Gol 4 Non Kasie</option>
+                @endif
+                @if(!empty($counts['staff']))
+                    <option value="staff" {{ in_array($activeRole, ['staff', 'staf']) ? 'selected' : '' }}>Staf / Posisi</option>
+                @endif
             </select>
 
             <!-- Filter Status -->

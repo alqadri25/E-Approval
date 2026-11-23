@@ -57,36 +57,8 @@ class AccountSyncService
             ];
         }
 
-        // 5. Parse KJ Number
-        $kjNum = 0;
-        if (preg_match('/(?:KJ\s*|KATEGORI\s*)?(\d+)/i', $kjRaw, $matches)) {
-            $kjNum = (int)$matches[1];
-        }
-        if ($kjNum === 0) {
-            if (str_contains($subG, 'VI') || str_contains($gol, 'VI')) {
-                $kjNum = 6;
-            } elseif (str_contains($subG, 'V') || str_contains($gol, 'V')) {
-                $kjNum = 5;
-            }
-        }
-
-        // 6. Karyawan dengan KJ > 5 (KJ 6 ke atas):
-        // Wajib otomatis dibuatkan akun, memiliki login, dan QR barcode TTD untuk evaluasi mandiri Form 07-006!
-        // Sesuai permintaan user: Untuk jabatan yang bukan Section Head diganti jadi 'GOL 4 NON KASIE' (atau nama posisinya)
-        if ($kjNum > 5) {
-            $rawPos = strtoupper(trim($position));
-            $label = self::cleanPositionLabel($rawPos);
-            if (empty($label)) {
-                $label = 'GOL4NONKASIE';
-            }
-            $roleVal = (str_contains($rawPos, 'NON KASIE') || empty($rawPos) || $rawPos === '-') ? 'GOL 4 NON KASIE' : $rawPos;
-            return [
-                'role' => $roleVal,
-                'label' => $label,
-                'display' => $roleVal,
-            ];
-        }
-
+        // 5. Karyawan non-pimpinan (meskipun KJ >= 5 seperti Staf, Senior Staff, Gol 4 Non Kasie, Operator)
+        // Sekarang TIDAK dibuatkan akun dan tidak login sendiri.
         return null;
     }
 

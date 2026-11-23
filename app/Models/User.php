@@ -338,18 +338,7 @@ class User extends Authenticatable
 
     public function isSectionHead(): bool
     {
-        if ($this->role === 'section_head' || strcasecmp($this->role, 'section_head') === 0 || strcasecmp($this->role, 'sechead') === 0) {
-            return true;
-        }
-
-        // Non-foreman, non-dept, non-div, non-admin users with KJ > 5 get the Section Head layout and experience
-        if (!$this->isForeman() && !$this->isDepartmentHead() && !$this->isDivisionHead() && !$this->isAdmin() && !$this->isHr()) {
-            if ($this->isKj5Up()) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->role === 'section_head' || strcasecmp($this->role, 'section_head') === 0 || strcasecmp($this->role, 'sechead') === 0;
     }
 
     public function isDepartmentHead(): bool

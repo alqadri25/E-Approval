@@ -887,7 +887,7 @@ function cleanupPhantomUsersInSheet() {
       continue;
     }
 
-    // Validasi apakah posisi / KJ memenuhi kriteria akun pimpinan atau KJ 5 ke atas (KJ 6+)
+    // Validasi apakah posisi memenuhi kriteria akun pimpinan struktural (Foreman, Section Head, Dept Head, Div Head)
     var isLeadership = empInfo.jabatan.indexOf('FOREMAN') !== -1 ||
                        empInfo.jabatan.indexOf('KETUA') !== -1 ||
                        empInfo.jabatan.indexOf('SECTION HEAD') !== -1 ||
@@ -899,22 +899,10 @@ function cleanupPhantomUsersInSheet() {
                        empInfo.jabatan.indexOf('DIV HEAD') !== -1 ||
                        empInfo.jabatan.indexOf('DIVISION HEAD') !== -1;
 
-    var kjNum = 0;
-    var matchKj = empInfo.kj.match(/(?:KJ\s*|KATEGORI\s*)?(\d+)/i);
-    if (matchKj) {
-      kjNum = parseInt(matchKj[1], 10);
-    }
-    if (kjNum === 0) {
-      if (empInfo.sub_gol.indexOf('VI') !== -1 || empInfo.golongan.indexOf('VI') !== -1) kjNum = 6;
-      else if (empInfo.sub_gol.indexOf('V') !== -1 || empInfo.golongan.indexOf('V') !== -1) kjNum = 5;
-    }
-
-    var isKj5Up = kjNum > 5;
-
-    if (isLeadership || isKj5Up) {
+    if (isLeadership) {
       keptRows.push(uData[ur]);
     } else {
-      // Posisi sudah turun ke KJ <= 5 dan bukan struktural (misal STAF KJ 2/3/4) -> HAPUS DARI SHEET USERS
+      // Posisi non-pimpinan (meskipun KJ >= 5 seperti Staf, Senior Staff, Gol 4 Non Kasie, Operator) -> HAPUS DARI SHEET USERS
       deletedCount++;
     }
   }
