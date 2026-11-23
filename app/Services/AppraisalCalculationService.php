@@ -248,6 +248,53 @@ class AppraisalCalculationService
                 ]
             ],
 
+            '07-006-KARYAWAN' => [
+                'name' => 'Form Penilaian Karya Karyawan Gol. 4 Up (07-006)',
+                'level_form' => 'KARYAWAN_GOL4',
+                'groups' => [
+                    'hasil_kerja' => [
+                        'name' => 'HASIL KERJA (55%) / 仕事の結果 (55%)',
+                        'weight' => 55,
+                        'aspects' => [
+                            'HK_KUALITAS' => 'Kualitas / 質',
+                            'HK_KUANTITAS' => 'Kuantitas / 量',
+                            'HK_DELIVERY' => 'Delivery / 期間',
+                            'HK_IMPROVEMENT' => 'Improvement / 改善',
+                            'HK_COST' => 'Cost / コスト',
+                        ]
+                    ],
+                    'proses_kerja' => [
+                        'name' => 'PROSES KERJA (15%) / 仕事の方法 (15%)',
+                        'weight' => 15,
+                        'aspects' => [
+                            'PK_PLAN' => 'Plan (Perencanaan)',
+                            'PK_DO' => 'Do (Pelaksanaan)',
+                            'PK_CHECK' => 'Check (Pemeriksaan)',
+                            'PK_ACTION' => 'Action (Tindakan Lanjut)',
+                        ]
+                    ],
+                    'man_management' => [
+                        'name' => 'MAN MANAGEMENT (15%) / 人材管理 (15%)',
+                        'weight' => 15,
+                        'aspects' => [
+                            'MM_KEPEMIMPINAN' => 'Kepemimpinan / リーダーシップ',
+                            'MM_KEPUTUSAN' => 'Pengambilan Keputusan / 決まる能力',
+                            'MM_DELEGASI' => 'Pendelegasian Tugas / 部下の管理',
+                            'MM_PENGEMBANGAN' => 'Pengembangan Bawahan / 部下の発展の能力',
+                        ]
+                    ],
+                    'sikap_kerja' => [
+                        'name' => 'SIKAP KERJA (15%) / 仕事に関する性格 (15%)',
+                        'weight' => 15,
+                        'aspects' => [
+                            'SK_KOMUNIKASI' => 'Komunikasi & Kerja Sama / コミュニケーション',
+                            'SK_ADAPTASI' => 'Adaptasi / 順応',
+                            'SK_TANGGUNG_JAWAB' => 'Tanggung Jawab / 責任',
+                        ]
+                    ],
+                ]
+            ],
+
             '07-006-SH' => [
                 'name' => 'Form Penilaian Karya Section Head (Gol. 4 Up)',
                 'level_form' => 'SECTION_HEAD',

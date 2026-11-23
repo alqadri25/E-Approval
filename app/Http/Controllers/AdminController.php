@@ -2752,6 +2752,7 @@ class AdminController extends Controller
             '07-002' => DB::table('dokumen')->where('kode_form', '07-002')->value('id') ?? 7,
             '07-003' => DB::table('dokumen')->where('kode_form', '07-003')->value('id') ?? 10,
             '07-004' => DB::table('dokumen')->where('kode_form', '07-004')->value('id') ?? 11,
+            '07-006-KARYAWAN' => DB::table('dokumen')->where('kode_form', '07-006-KARYAWAN')->value('id') ?? 1,
             '07-006-SH' => DB::table('dokumen')->where('kode_form', '07-006-SH')->value('id') ?? 19,
             '07-006-DH' => DB::table('dokumen')->where('kode_form', '07-006-DH')->value('id') ?? 8,
             '07-006-DIV' => DB::table('dokumen')->where('kode_form', '07-006-DIV')->value('id') ?? 182,
@@ -2898,6 +2899,42 @@ class AdminController extends Controller
                     'penilai_2_col' => 'Section Head / Deputy Section Head',
                     'penilai_3_col' => 'Dept. Head (Final)',
                     'col1_type' => 'dash',
+                    'col2_type' => 'dash',
+                    'col3_type' => 'dash',
+                ],
+            ],
+            [
+                'kode' => '07-006-KARYAWAN',
+                'nama' => 'Formulir Penilaian Karyawan Gol. 4 Up',
+                'nama_jp' => '従業員評価表 (07-006)',
+                'level' => 'GOLONGAN IV (KJ 5+)',
+                'sasaran' => 'Foreman KJ 6, Senior Staff, Gol 4 Non Kasie, Staff KJ 6+ Up',
+                'penilai_1' => 'Section Head (Sect. Head)',
+                'penilai_2' => 'Department Head (Dept. head)',
+                'pengesahan' => 'Division Head (Div. Head)',
+                'bobot' => 'Hasil Kerja (55%), Proses (15%), Man Mgt (15%), Sikap (15%)',
+                'format' => '07-006-KARYAWAN.xlsx',
+                'is_bilingual' => true,
+                'sample_doc_id' => $sampleDocMap['07-006-KARYAWAN'] ?? 1,
+                'sample_karyawan' => [
+                    'nama' => 'WASITO SALEH',
+                    'nrp' => '1045',
+                    'golongan' => 'IV',
+                    'jabatan' => 'FOREMAN',
+                    'tgl_masuk' => '1996-05-08',
+                    'seksi' => 'PROD 1',
+                    'departemen' => 'PROD 1',
+                    'banner' => 'GOLONGAN IV (KJ 5+)',
+                ],
+                'ttd_config' => [
+                    'is_single_ttd' => false,
+                    'col1' => ['header' => 'Section Head', 'sub' => '', 'role' => 'Section Head', 'name' => 'KRISTIYANTO', 'is_blocked' => false],
+                    'col2' => ['header' => 'Department Head', 'sub' => '', 'role' => 'Dept. Head', 'name' => 'SUPARDI', 'is_blocked' => false],
+                    'col3' => ['header' => 'Division Head', 'sub' => '', 'role' => 'Div. Head', 'name' => 'ATASAN PROD A', 'is_blocked' => false],
+                    'penilai_1_col' => 'Sect. Head',
+                    'penilai_2_col' => 'Dept. head',
+                    'penilai_3_col' => 'Div. Head',
+                    'col1_type' => 'button',
                     'col2_type' => 'dash',
                     'col3_type' => 'dash',
                 ],
@@ -3491,7 +3528,8 @@ class AdminController extends Controller
             $docId = $doc->doc_id;
             $kodeForm = $doc->kode_form;
 
-            $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
+            $isKaryawan07006 = ($kodeForm === '07-006-KARYAWAN');
 
             // Needs Foreman?
             $needsForeman = !empty($doc->nrp_foreman) && trim($doc->nrp_foreman) !== '-' && !$isGol4Up;
@@ -3502,7 +3540,7 @@ class AdminController extends Controller
             $foremanTotal = $foremanCalc['grand_total'] ?? 0.00;
             $foremanSigned = !empty($ttdByDoc[$docId]['foreman'])
                 || in_array($doc->status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']);
-            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'revisi'])) {
+            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'revisi']) || $isKaryawan07006) {
                 $foremanSigned = false;
             }
             if (!$needsForeman && empty($foremanScores) && empty($ttdByDoc[$docId]['foreman'])) {
@@ -3511,21 +3549,26 @@ class AdminController extends Controller
             $hasForemanValue = (!empty($foremanScores) && $foremanTotal > 0) || $foremanSigned;
 
             // 2. Section Head scores & signature
-            // Pada Form 07-006 (07-006-SH / Mandiri Section Head): nilai Mandiri ada di slot 'foreman'
-            if ($isGol4Up) {
+            // Pada Form 07-006 standard (07-006-SH / Mandiri Section Head): nilai Mandiri ada di slot 'foreman'
+            // Pada Form 07-006-KARYAWAN: Section Head mengisi slot 'section_head'
+            if ($isGol4Up && !$isKaryawan07006) {
                 $sectionScores = $scoresByDoc[$docId]['foreman'] ?? [];
             } else {
                 $sectionScores = $scoresByDoc[$docId]['section_head'] ?? [];
             }
             $sectionCalc = !empty($sectionScores) ? $calcService->calculate($kodeForm, $sectionScores) : null;
             $sectionTotal = $sectionCalc['grand_total'] ?? 0.00;
-            if ($sectionTotal <= 0 && $isGol4Up && !empty($foremanTotal)) {
+            if ($sectionTotal <= 0 && $isGol4Up && !$isKaryawan07006 && !empty($foremanTotal)) {
                 $sectionTotal = $foremanTotal;
             }
             $sectionSigned = !empty($ttdByDoc[$docId]['section_head'])
-                || ($isGol4Up && !empty($ttdByDoc[$docId]['foreman']))
+                || ($isGol4Up && !$isKaryawan07006 && !empty($ttdByDoc[$docId]['foreman']))
                 || in_array($doc->status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
             if (in_array($doc->status, ['menunggu_foreman', 'draft'])) {
+                $sectionSigned = false;
+                $hasSectionValue = false;
+                $sectionTotal = 0.00;
+            } elseif ($doc->status === 'menunggu_section_head' && $isKaryawan07006) {
                 $sectionSigned = false;
                 $hasSectionValue = false;
                 $sectionTotal = 0.00;
@@ -3534,9 +3577,9 @@ class AdminController extends Controller
             }
 
             // 3. Dept Head scores & signature
-            // Pada Form 07-006: Atasan Langsung (Dept Head) disimpan di slot 'section_head'
-            // Pada Form standar: Dept Head disimpan di slot 'dept_head'
-            if ($isGol4Up) {
+            // Pada Form 07-006 standard: Atasan Langsung (Dept Head) disimpan di slot 'section_head'
+            // Pada Form standar dan 07-006-KARYAWAN: Dept Head disimpan di slot 'dept_head'
+            if ($isGol4Up && !$isKaryawan07006) {
                 $deptScores = $scoresByDoc[$docId]['section_head'] ?? [];
             } else {
                 $deptScores = $scoresByDoc[$docId]['dept_head'] ?? [];
@@ -3547,11 +3590,11 @@ class AdminController extends Controller
                 $deptTotal = (float)$doc->total_nilai;
             }
             $deptSigned = !empty($ttdByDoc[$docId]['dept_head'])
-                || ($isGol4Up && !empty($ttdByDoc[$docId]['section_head']))
+                || ($isGol4Up && !$isKaryawan07006 && !empty($ttdByDoc[$docId]['section_head']))
                 || in_array($doc->status, ['menunggu_div_head', 'selesai']);
 
             // JIKA status masih menunggu foreman / draft / menunggu section head / revisi, Dept Head BELUM mengisi!
-            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi'])) {
+            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) || ($doc->status === 'menunggu_dept_head' && $isKaryawan07006)) {
                 $deptSigned = false;
                 $hasDeptValue = false;
                 $deptTotal = 0.00;

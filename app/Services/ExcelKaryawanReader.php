@@ -413,6 +413,12 @@ class ExcelKaryawanReader
         if (str_contains($posUpper, 'SECTION HEAD') || str_contains($posUpper, 'SECT HEAD')) {
             return 'SECTION_HEAD';
         }
+        if (preg_match('/(\d+)/', $kj, $m)) {
+            $num = (int)$m[1];
+            if ($num > 5) {
+                return 'KARYAWAN_GOL4';
+            }
+        }
         if (str_contains($posUpper, 'FOREMAN')) {
             return 'FOREMAN';
         }

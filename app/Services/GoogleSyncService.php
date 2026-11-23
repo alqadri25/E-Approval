@@ -1553,7 +1553,8 @@ class GoogleSyncService
             $totalNilai = ($isDinilai && $grandTotal > 0) ? number_format($grandTotal, 2) : '-';
 
             // Predikat Nilai PK Berjenjang
-            $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV']);
+            $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']) || str_starts_with($kodeForm, '07-006');
+            $isKaryawan07006 = ($kodeForm === '07-006-KARYAWAN');
 
             $pkForeman = '-';
             if (!$isGol4Up) {
@@ -1564,9 +1565,9 @@ class GoogleSyncService
                 }
             }
 
-            // NILAI PK MANDIRI (Khusus Form 07-006 / KJ > 5 yang melakukan evaluasi mandiri)
+            // NILAI PK MANDIRI (Khusus Form 07-006 SH/DH/DIV yang melakukan evaluasi mandiri)
             $pkMandiri = '-';
-            if ($isGol4Up) {
+            if ($isGol4Up && !$isKaryawan07006) {
                 if ($calcForeman && ($calcForeman['grand_total'] ?? 0) > 0) {
                     $pkMandiri = $calcService->scoreToGrade($calcForeman['grand_total']);
                 } elseif ($isDinilai) {
@@ -1575,7 +1576,13 @@ class GoogleSyncService
             }
 
             $pkSect = '-';
-            if ($isGol4Up) {
+            if ($isKaryawan07006) {
+                if ($calcSect && ($calcSect['grand_total'] ?? 0) > 0) {
+                    $pkSect = $calcService->scoreToGrade($calcSect['grand_total']);
+                } elseif ($isDinilai) {
+                    $pkSect = $doc->grade_original ?? '-';
+                }
+            } elseif ($isGol4Up) {
                 if ($calcSect && ($calcSect['grand_total'] ?? 0) > 0) {
                     $pkSect = $calcService->scoreToGrade($calcSect['grand_total']);
                 } elseif ($isDinilai) {

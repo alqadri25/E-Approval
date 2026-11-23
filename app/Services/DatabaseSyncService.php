@@ -143,12 +143,13 @@ class DatabaseSyncService
 
             if ($isDiv) {
                 $status = 'menunggu_div_head';
-            } elseif ($isDept || $isSubordinate07006) {
-                // Karyawan KJ 5 ke atas / Form 07-006 (seperti Gol 4 Non Kasie / Staff KJ 5+):
-                // Yang menilai langsung Department Head! Section Head hanya melihat nilai.
-                $status = 'menunggu_dept_head';
+            } elseif ($isDept) {
+                $status = 'menunggu_div_head';
             } elseif ($isActualSH) {
                 $status = 'menunggu_dept_head';
+            } elseif ($kodeForm === '07-006-KARYAWAN') {
+                // Form 07-006-KARYAWAN (KJ 5+ non-Section Head): Dinilai pertama oleh Section Head!
+                $status = 'menunggu_section_head';
             } else {
                 $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
                 $status = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
@@ -186,11 +187,12 @@ class DatabaseSyncService
                         $docUpdate['nama_section_head'] = $resolvedShNama;
                     }
                 }
-                // Untuk bawahan Form 07-006 / KJ >= 5: dinilai langsung oleh Dept Head (status menunggu_dept_head)
+                // Form 07-006-KARYAWAN: dimulai dari Section Head (status menunggu_section_head) jika belum ditandatangani
                 $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->first();
-                if ($existingDoc && $isSubordinate07006) {
-                    if (in_array($existingDoc->status, ['menunggu_section_head', 'draft', 'menunggu_foreman'])) {
-                        $docUpdate['status'] = 'menunggu_dept_head';
+                if ($existingDoc && $kodeForm === '07-006-KARYAWAN') {
+                    $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
+                    if (!$hasShTtd && in_array($existingDoc->status, ['draft', 'menunggu_foreman', 'menunggu_dept_head'])) {
+                        $docUpdate['status'] = 'menunggu_section_head';
                     }
                 }
                 DB::table('dokumen')->where('nrp', $nrp)->update($docUpdate);

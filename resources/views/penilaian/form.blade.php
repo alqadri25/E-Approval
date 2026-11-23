@@ -178,18 +178,22 @@
                 <span>📄</span> PDF
             </a>
 
-            @if($canEditSectionHead && !$isTanpaForemanStd)
+            @if($canEditSectionHead && !$isTanpaForemanStd && $subFormVariant !== 'karyawan_gol4')
             <button type="button" @click="copyForemanScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor sebagai acuan dasar (dapat Anda modifikasi)">
                 <span>📋</span> {{ $isGol4Up ? 'Sama dg Mandiri' : 'Sama dg Foreman' }}
             </button>
             @elseif($canEditDeptHead)
             <button type="button" @click="copySectionHeadScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor sebagai acuan dasar (dapat Anda modifikasi)">
-                <span>📋</span> {{ $isGol4Up ? 'Sama dg Dept Head' : 'Sama dg Section Head' }}
+                <span>📋</span> {{ $subFormVariant === 'karyawan_gol4' ? 'Sama dg Section Head' : ($isGol4Up ? 'Sama dg Dept Head' : 'Sama dg Section Head') }}
+            </button>
+            @elseif($canEditDivHead)
+            <button type="button" @click="copyDeptHeadScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor Dept Head sebagai acuan dasar (dapat Anda modifikasi)">
+                <span>📋</span> Sama dg Dept Head
             </button>
             @endif
 
             <!-- Save Draft Button -->
-            @if($canEditForeman || $canEditSectionHead || $canEditDeptHead)
+            @if($canEditForeman || $canEditSectionHead || $canEditDeptHead || $canEditDivHead)
             <button type="submit" form="formPenilaian" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-all shadow-sm whitespace-nowrap flex-shrink-0" title="Simpan Draft">
                 <span>💾</span> Draft
             </button>
@@ -226,19 +230,27 @@
                 </button>
                 @endif
             @elseif($canSignSectionHead)
-            <button type="button" @click="openSignModal('section_head', '{{ $isGol4Up ? 'Department Head (Penilai 2)' : 'Section Head (Penilai 2)' }}')" class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 transition-all whitespace-nowrap flex-shrink-0">
+            <button type="button" @click="openSignModal('section_head', '{{ $subFormVariant === 'karyawan_gol4' ? 'Section Head' : ($isGol4Up ? 'Department Head (Penilai 2)' : 'Section Head (Penilai 2)') }}')" class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 transition-all whitespace-nowrap flex-shrink-0">
                 <span>✍</span> Kirim
             </button>
             @elseif($canSignDeptHead)
             <button type="button" 
-                    @click="if (isDivHeadViewer && isCurrentGradeOverQuota) { triggerQuotaToast(); return false; } openSignModal('dept_head', '{{ $isGol4Up ? 'Division Head (Penilai Final)' : 'Department Head (Penilai Final)' }}')" 
+                    @click="if (isDivHeadViewer && isCurrentGradeOverQuota) { triggerQuotaToast(); return false; } openSignModal('dept_head', '{{ $subFormVariant === 'karyawan_gol4' ? 'Department Head' : ($isGol4Up ? 'Division Head (Penilai Final)' : 'Department Head (Penilai Final)') }}')" 
                     :disabled="isDivHeadViewer && isCurrentGradeOverQuota"
                     :class="isDivHeadViewer && isCurrentGradeOverQuota 
                         ? 'opacity-40 cursor-not-allowed bg-slate-500 hover:bg-slate-500 shadow-none' 
                         : 'bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200'"
                     class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white transition-all whitespace-nowrap flex-shrink-0"
-                    :title="isDivHeadViewer && isCurrentGradeOverQuota ? 'Finalisasi Terkunci: Kuota Rank ' + dockingGrade + ' Penuh' : 'Finalisasi Dokumen Penilaian'">
-                <span x-text="isDivHeadViewer && isCurrentGradeOverQuota ? '⛔' : '✓'"></span>
+                    :title="isDivHeadViewer && isCurrentGradeOverQuota ? 'Finalisasi Terkunci: Kuota Rank ' + dockingGrade + ' Penuh' : ($subFormVariant === 'karyawan_gol4' ? 'Kirim ke Division Head' : 'Finalisasi Dokumen Penilaian')">
+                <span x-text="isDivHeadViewer && isCurrentGradeOverQuota ? '⛔' : '{{ $subFormVariant === 'karyawan_gol4' ? '✍' : '✓' }}'"></span>
+                <span>{{ $subFormVariant === 'karyawan_gol4' ? 'Kirim' : 'Finalisasi' }}</span>
+            </button>
+            @elseif($canSignDivHead)
+            <button type="button" 
+                    @click="openSignModal('div_head', 'Division Head (Penilai Final)')" 
+                    class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 transition-all whitespace-nowrap flex-shrink-0"
+                    title="Finalisasi Dokumen Penilaian Division Head">
+                <span>✓</span>
                 <span>Finalisasi</span>
             </button>
             @endif
@@ -655,6 +667,8 @@
                     $subFormVariant = 'div_head';
                 } elseif ($kodeForm === '07-006-DH' || ($karyawan['level_form'] ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPARTMENT') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPT HEAD')) {
                     $subFormVariant = 'dept_head';
+                } elseif ($kodeForm === '07-006-KARYAWAN' || $isSubordinate07006) {
+                    $subFormVariant = 'karyawan_gol4';
                 } else {
                     $subFormVariant = 'section_head';
                 }
@@ -665,26 +679,30 @@
                 '07-002' => 'KJ : 4 - 5 non jabatan',
                 '07-003' => 'LEADER',
                 '07-004' => 'FOREMAN',
+                '07-006-KARYAWAN' => 'GOLONGAN ' . ($karyawan['golongan'] ?? 'IV') . ' (KJ 5+)',
                 '07-006-SH' => ($isSubordinate07006 ? ('GOLONGAN ' . ($karyawan['golongan'] ?? 'IV') . ' (KJ 5+)') : 'SECTION HEAD / セクションヘッド'),
                 '07-006-DH' => 'DEPARTMENT HEAD / 部長',
                 '07-006-DIV' => 'DIVISION HEAD / 事業部長',
                 default => 'KJ : ' . ($karyawan['kj'] ?? '1 - 3'),
             };
 
-            $activeLevel = $canEditForeman ? 'foreman' : ($canEditSectionHead ? 'section_head' : ($canEditDeptHead ? 'dept_head' : ''));
+            $activeLevel = $canEditForeman ? 'foreman' : ($canEditSectionHead ? 'section_head' : ($canEditDeptHead ? 'dept_head' : ($canEditDivHead ? 'div_head' : '')));
             
             $col1Title = match($subFormVariant) {
                 'div_head' => '',
+                'karyawan_gol4' => 'Sect. Head',
                 'dept_head', 'section_head' => 'Mandiri / 自分',
                 default => 'Foreman (jika ada)',
             };
             $col2Title = match($subFormVariant) {
                 'div_head', 'dept_head' => '',
+                'karyawan_gol4' => 'Dept. head',
                 'section_head' => 'Dept. Head',
                 default => 'Section Head / Deputy Section Head',
             };
             $col3Title = match($subFormVariant) {
                 'div_head' => 'Mandiri / 自分',
+                'karyawan_gol4' => 'Div. Head',
                 'dept_head', 'section_head' => 'Div. Head',
                 default => 'Dept. Head (Final)',
             };
@@ -694,7 +712,7 @@
                 '07-002' => 'Code PDV Mapin - 07-002',
                 '07-003' => 'Code PDV Mapin - 07-003',
                 '07-004' => 'Code PDV Mapin - 07-004',
-                '07-006-SH', '07-006-DH', '07-006-DIV' => 'Code PDV Mapin - 07-006',
+                '07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN' => 'Code PDV Mapin - 07-006',
                 default => 'Code PDV Mapin - ' . $kodeForm,
             };
         @endphp
@@ -715,6 +733,10 @@
             $rawDhNama = $ttdByLevel['dept_head']['user']['nama'] ?? ($karyawan['dept_head_nama'] ?? '');
             $dhNama = trim(preg_replace('/\s*\(.*?\)/', '', $rawDhNama));
             $dhNrp = $ttdByLevel['dept_head']['user']['nrp'] ?? ($karyawan['nrp_dept_head'] ?? '');
+
+            $rawDivHeadNama = $ttdByLevel['div_head']['user']['nama'] ?? ($karyawan['div_head_nama'] ?? '');
+            $divHeadNama = trim(preg_replace('/\s*\(.*?\)/', '', $rawDivHeadNama));
+            $divHeadNrp = $ttdByLevel['div_head']['user']['nrp'] ?? ($karyawan['nrp_div_head'] ?? '');
 
             // Resolusi NAMA SECT. (Seksi resmi organisasi, BUKAN Nama Bagian / tanpa akhiran .SEC)
             $displaySect = trim($karyawan['nama_sect'] ?? '');
@@ -808,7 +830,11 @@
 
                 <!-- Col 6: Header Col 1 -->
                 <td class="w-[8%] bg-[#d9d9d9] border-b border-r border-slate-900 font-bold text-[10px] sm:text-[11px] text-center p-1 text-slate-900 align-middle">
-                    {{ $isGol4Up ? 'Kary. Ybs 個人的' : 'Foreman' }}
+                    @if($subFormVariant === 'karyawan_gol4')
+                        Section Head
+                    @else
+                        {{ $isGol4Up ? 'Kary. Ybs 個人的' : 'Foreman' }}
+                    @endif
                 </td>
 
                 <!-- Col 7: Header Col 2 -->
@@ -816,7 +842,11 @@
                 <td class="w-[8%] bg-[#bfbfbf] border-b border-r border-slate-900"></td>
                 @else
                 <td class="w-[8%] bg-[#d9d9d9] border-b border-r border-slate-900 font-bold text-[9.5px] sm:text-[10px] text-center p-1 text-slate-900 align-middle">
-                    {{ $isGol4Up ? 'Atasan Langsung 直属の上司' : 'Section Head' }}
+                    @if($subFormVariant === 'karyawan_gol4')
+                        Department Head
+                    @else
+                        {{ $isGol4Up ? 'Atasan Langsung 直属の上司' : 'Section Head' }}
+                    @endif
                 </td>
                 @endif
 
@@ -825,7 +855,11 @@
                 <td class="w-[8%] bg-[#bfbfbf] border-b border-slate-900"></td>
                 @else
                 <td class="w-[8%] bg-[#d9d9d9] border-b border-slate-900 font-bold text-[9.5px] sm:text-[10px] text-center p-1 text-slate-900 align-middle">
-                    {{ $isGol4Up ? 'Penilai Final 最終審査員' : 'Department Head' }}
+                    @if($subFormVariant === 'karyawan_gol4')
+                        Division Head
+                    @else
+                        {{ $isGol4Up ? 'Penilai Final 最終審査員' : 'Department Head' }}
+                    @endif
                 </td>
                 @endif
             </tr>
@@ -853,16 +887,19 @@
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
                         @php
-                            $foremanImg = $ttdByLevel['foreman']['ttd_base64'] ?? $ttdByLevel['foreman']['ttd_image'] ?? null;
-                            if (empty($foremanImg) && $subFormVariant === 'div_head') {
+                            if ($subFormVariant === 'karyawan_gol4') {
+                                $foremanImg = $ttdByLevel['section_head']['ttd_base64'] ?? $ttdByLevel['section_head']['ttd_image'] ?? null;
+                            } elseif ($subFormVariant === 'div_head') {
                                 $foremanImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                            } else {
+                                $foremanImg = $ttdByLevel['foreman']['ttd_base64'] ?? $ttdByLevel['foreman']['ttd_image'] ?? null;
                             }
                         @endphp
-                        @if($isTanpaForemanStd)
+                        @if($isTanpaForemanStd && $subFormVariant !== 'karyawan_gol4')
                             <span class="text-[11px] text-slate-300 italic font-medium">-</span>
                         @elseif(!empty($foremanImg))
                             <div class="p-1 flex items-center justify-center w-full h-full">
-                                <img src="{{ $foremanImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Kary. Ybs' : 'Foreman' }}" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
+                                <img src="{{ $foremanImg }}" alt="Barcode TTD {{ $subFormVariant === 'karyawan_gol4' ? 'Section Head' : ($isGol4Up ? 'Kary. Ybs' : 'Foreman') }}" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
                             </div>
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
@@ -877,11 +914,15 @@
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
                         @php
-                            $shImg = $ttdByLevel['section_head']['ttd_base64'] ?? $ttdByLevel['section_head']['ttd_image'] ?? null;
+                            if ($subFormVariant === 'karyawan_gol4') {
+                                $shImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                            } else {
+                                $shImg = $ttdByLevel['section_head']['ttd_base64'] ?? $ttdByLevel['section_head']['ttd_image'] ?? null;
+                            }
                         @endphp
                         @if(!empty($shImg))
                             <div class="p-0.5 flex items-center justify-center w-full h-full">
-                                <img src="{{ $shImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Atasan Langsung' : 'Section Head' }}" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
+                                <img src="{{ $shImg }}" alt="Barcode TTD {{ $subFormVariant === 'karyawan_gol4' ? 'Department Head' : ($isGol4Up ? 'Atasan Langsung' : 'Section Head') }}" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
                             </div>
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
@@ -897,11 +938,15 @@
                 <td rowspan="2" class="p-1 border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
                         @php
-                            $dhImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                            if ($subFormVariant === 'karyawan_gol4') {
+                                $dhImg = $ttdByLevel['div_head']['ttd_base64'] ?? $ttdByLevel['div_head']['ttd_image'] ?? null;
+                            } else {
+                                $dhImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                            }
                         @endphp
                         @if(!empty($dhImg))
                             <div class="p-0.5 flex items-center justify-center w-full h-full">
-                                <img src="{{ $dhImg }}" alt="Barcode TTD {{ $isGol4Up ? 'Penilai Final' : 'Dept Head' }}" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
+                                <img src="{{ $dhImg }}" alt="Barcode TTD {{ $subFormVariant === 'karyawan_gol4' ? 'Division Head' : ($isGol4Up ? 'Penilai Final' : 'Dept Head') }}" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
                             </div>
                         @else
                             <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
@@ -991,19 +1036,25 @@
                 </td>
                 @endif
 
-                <!-- Col 6: Foreman / Kary Ybs Name (rowspan 2 for rows 4 & 5) -->
+                <!-- Col 6: Foreman / Kary Ybs / Section Head Name (rowspan 2 for rows 4 & 5) -->
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 text-center align-middle bg-white">
                     @php
-                        $rawSignForeman = $ttdByLevel['foreman']['user']['nama'] ?? '';
-                        $karyName = !empty($rawSignForeman) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignForeman)) : ($isGol4Up ? $karyawan['nama_lengkap'] : ($isTanpaForemanStd ? '' : $foremanNama));
+                        if ($subFormVariant === 'karyawan_gol4') {
+                            $rawSignCol6 = $ttdByLevel['section_head']['user']['nama'] ?? '';
+                            $karyName = !empty($rawSignCol6) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignCol6)) : $shNama;
+                        } else {
+                            $rawSignForeman = $ttdByLevel['foreman']['user']['nama'] ?? '';
+                            $karyName = !empty($rawSignForeman) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignForeman)) : ($isGol4Up ? $karyawan['nama_lengkap'] : ($isTanpaForemanStd ? '' : $foremanNama));
+                        }
                     @endphp
-                    @if($isTanpaForemanStd && empty($rawSignForeman))
+                    @if($isTanpaForemanStd && $subFormVariant !== 'karyawan_gol4' && empty($rawSignForeman))
                         &nbsp;
                     @elseif(!empty($karyName))
                         <span class="text-[10px] sm:text-[11px] text-slate-900 font-bold block leading-tight">{{ $karyName }}</span>
                     @else
                         <span class="text-[10px] text-slate-400 italic font-medium">-</span>
                     @endif
+                    @if($subFormVariant === 'karyawan_gol4')<span class="text-[8.5px] text-slate-500 font-medium block">Section Head</span>@endif
                 </td>
 
                 <!-- Col 7: Section Head / Dept Head Name (rowspan 2 for rows 4 & 5) -->
@@ -1012,15 +1063,20 @@
                 @else
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 text-center align-middle bg-white">
                     @php
-                        $rawSignSh = $ttdByLevel['section_head']['user']['nama'] ?? '';
-                        $col7Name = !empty($rawSignSh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignSh)) : ($isGol4Up ? ($dhNama ?: $shNama) : $shNama);
+                        if ($subFormVariant === 'karyawan_gol4') {
+                            $rawSignSh = $ttdByLevel['dept_head']['user']['nama'] ?? '';
+                            $col7Name = !empty($rawSignSh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignSh)) : $dhNama;
+                        } else {
+                            $rawSignSh = $ttdByLevel['section_head']['user']['nama'] ?? '';
+                            $col7Name = !empty($rawSignSh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignSh)) : ($isGol4Up ? ($dhNama ?: $shNama) : $shNama);
+                        }
                     @endphp
                     @if(!empty($col7Name))
                         <span class="text-[10px] sm:text-[11px] text-slate-900 font-bold block leading-tight">{{ $col7Name }}</span>
                     @else
                         <span class="text-[10px] text-slate-400 italic font-medium">-</span>
                     @endif
-                    @if($isGol4Up)<span class="text-[8.5px] text-slate-500 font-medium block">Dept. Head</span>@endif
+                    @if($isGol4Up || $subFormVariant === 'karyawan_gol4')<span class="text-[8.5px] text-slate-500 font-medium block">Dept. Head</span>@endif
                 </td>
                 @endif
 
@@ -1030,15 +1086,20 @@
                 @else
                 <td rowspan="2" class="px-1 py-1 border-b-2 border-slate-900 text-center align-middle bg-white">
                     @php
-                        $rawSignDh = $ttdByLevel['dept_head']['user']['nama'] ?? '';
-                        $col8Name = !empty($rawSignDh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDh)) : ($isGol4Up ? '' : $dhNama);
+                        if ($subFormVariant === 'karyawan_gol4') {
+                            $rawSignDh = $ttdByLevel['div_head']['user']['nama'] ?? '';
+                            $col8Name = !empty($rawSignDh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDh)) : $divHeadNama;
+                        } else {
+                            $rawSignDh = $ttdByLevel['dept_head']['user']['nama'] ?? '';
+                            $col8Name = !empty($rawSignDh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDh)) : ($isGol4Up ? '' : $dhNama);
+                        }
                     @endphp
                     @if(!empty($col8Name))
                         <span class="text-[10px] sm:text-[11px] text-slate-900 font-bold block leading-tight">{{ $col8Name }}</span>
                     @else
                         <span class="text-[10px] text-slate-400 italic font-medium">-</span>
                     @endif
-                    @if($isGol4Up)<span class="text-[8.5px] text-slate-500 font-medium block">Div. Head</span>@endif
+                    @if($isGol4Up || $subFormVariant === 'karyawan_gol4')<span class="text-[8.5px] text-slate-500 font-medium block">Div. Head</span>@endif
                 </td>
                 @endif
             </tr>
@@ -1082,7 +1143,17 @@
                                 </th>
                             </tr>
                             <tr class="bg-slate-100 border-b border-slate-900 font-bold text-slate-800 text-[10px] text-center">
-                                @if($subFormVariant === 'div_head')
+                                @if($subFormVariant === 'karyawan_gol4')
+                                <th class="border-r border-slate-900 p-1.5 w-1/12 {{ $canEditSectionHead ? 'bg-emerald-100 text-emerald-950 font-black' : '' }}">
+                                    {{ $col1Title }}
+                                </th>
+                                <th class="border-r border-slate-900 p-1.5 w-2/12 {{ $canEditDeptHead ? 'bg-emerald-100 text-emerald-950 font-black' : '' }}">
+                                    {{ $col2Title }}
+                                </th>
+                                <th class="p-1.5 w-2/12 {{ $canEditDivHead ? 'bg-emerald-100 text-emerald-950 font-black' : '' }}">
+                                    {{ $col3Title }}
+                                </th>
+                                @elseif($subFormVariant === 'div_head')
                                 <th class="border-r border-slate-900 p-1.5 w-1/12 bg-[#bfbfbf]"></th>
                                 <th class="border-r border-slate-900 p-1.5 w-2/12 bg-[#bfbfbf]"></th>
                                 <th class="p-1.5 w-2/12 {{ $canEditDeptHead ? 'bg-emerald-100 text-emerald-950 font-black' : '' }}">
@@ -1137,8 +1208,60 @@
                                         </template>
                                     </td>
 
-                                    <!-- Foreman Score Column (Col 3): Clickable Excel-style cell -->
-                                    @if($subFormVariant === 'div_head')
+                                    <!-- Foreman / Section Head Score Column (Col 3): Clickable Excel-style cell -->
+                                    @if($subFormVariant === 'karyawan_gol4')
+                                    <td class="border-r border-slate-900 p-1 text-center align-middle {{ $canEditSectionHead ? 'bg-[#e2efda] hover:bg-[#d5ebd0] cursor-pointer' : 'bg-white' }}"
+                                        @if($canEditSectionHead)
+                                        @click.stop="openRubrikModal('{{ $aspectCode }}', '{{ addslashes($aspectName) }}', 'section_head')"
+                                        title="Klik untuk memilih dari 5 kalimat kriteria Musashi"
+                                        @endif>
+                                        @if($canEditSectionHead)
+                                            <input type="hidden" 
+                                                   name="scores[{{ $aspectCode }}]" 
+                                                   :value="scoresSectionHead['{{ $aspectCode }}'] || ''">
+                                            
+                                            <!-- Unified Single Click-Selector Box -->
+                                            <div class="py-1 px-1 flex items-center justify-center">
+                                                <button type="button" 
+                                                        @click.stop="openRubrikModal('{{ $aspectCode }}', '{{ addslashes($aspectName) }}', 'section_head')"
+                                                        class="w-full min-h-[34px] px-2.5 py-1 rounded-lg border flex items-center justify-between gap-1.5 transition-all shadow-xs group cursor-pointer"
+                                                        :class="scoresSectionHead['{{ $aspectCode }}'] 
+                                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 shadow-emerald-200' 
+                                                            : 'bg-white hover:bg-emerald-50 text-slate-800 border-emerald-500 hover:border-emerald-600'"
+                                                        title="Klik untuk memilih dari 5 kalimat kriteria (Skor 1-5)">
+                                                    <div class="flex items-center gap-1.5 font-mono">
+                                                        <span x-show="scoresSectionHead['{{ $aspectCode }}']" 
+                                                              x-text="scoresSectionHead['{{ $aspectCode }}']" 
+                                                              class="font-black text-base text-white leading-none"></span>
+                                                        <span x-show="!scoresSectionHead['{{ $aspectCode }}']" 
+                                                              class="text-xs font-bold text-slate-400 leading-none">-</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-1">
+                                                        <span x-show="!scoresSectionHead['{{ $aspectCode }}']" 
+                                                              class="text-[10.5px] font-semibold text-emerald-800 group-hover:text-emerald-950">
+                                                            Pilih Kriteria
+                                                        </span>
+                                                        <span x-show="scoresSectionHead['{{ $aspectCode }}']" 
+                                                              class="text-[10px] text-emerald-100 font-medium">
+                                                            Ubah
+                                                        </span>
+                                                        <svg class="w-3.5 h-3.5 opacity-80 group-hover:opacity-100 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                        </svg>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        @else
+                                            @if(!$canViewSectionHead)
+                                                <span class="font-bold font-mono text-sm text-slate-400">-</span>
+                                            @else
+                                                <span class="font-bold font-mono text-sm text-slate-900">
+                                                    {{ isset($scoresByLevel['section_head'][$aspectCode]) ? number_format($scoresByLevel['section_head'][$aspectCode], 0) : '-' }}
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                    @elseif($subFormVariant === 'div_head')
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     @else
                                     <td class="border-r border-slate-900 p-1 text-center align-middle {{ $canEditForeman ? 'bg-[#e2efda] hover:bg-[#d5ebd0] cursor-pointer' : 'bg-white' }}"
@@ -1198,8 +1321,60 @@
                                     </td>
                                     @endif
 
-                                    <!-- Section Head Score Column (Col 4): Clickable Excel-style cell -->
-                                    @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_head')
+                                    <!-- Section Head / Dept Head Score Column (Col 4): Clickable Excel-style cell -->
+                                    @if($subFormVariant === 'karyawan_gol4')
+                                    <td class="border-r border-slate-900 p-1 text-center align-middle {{ $canEditDeptHead ? 'bg-[#e2efda] hover:bg-[#d5ebd0] cursor-pointer' : 'bg-white' }}"
+                                        @if($canEditDeptHead)
+                                        @click.stop="openRubrikModal('{{ $aspectCode }}', '{{ addslashes($aspectName) }}', 'dept_head')"
+                                        title="Klik untuk memilih dari 5 kalimat kriteria Musashi"
+                                        @endif>
+                                        @if($canEditDeptHead)
+                                            <input type="hidden" 
+                                                   name="scores[{{ $aspectCode }}]" 
+                                                   :value="scoresDeptHead['{{ $aspectCode }}'] || ''">
+                                            
+                                            <!-- Unified Single Click-Selector Box -->
+                                            <div class="py-1 px-1 flex items-center justify-center">
+                                                <button type="button" 
+                                                        @click.stop="openRubrikModal('{{ $aspectCode }}', '{{ addslashes($aspectName) }}', 'dept_head')"
+                                                        class="w-full min-h-[34px] px-2.5 py-1 rounded-lg border flex items-center justify-between gap-1.5 transition-all shadow-xs group cursor-pointer"
+                                                        :class="scoresDeptHead['{{ $aspectCode }}'] 
+                                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 shadow-emerald-200' 
+                                                            : 'bg-white hover:bg-emerald-50 text-slate-800 border-emerald-500 hover:border-emerald-600'"
+                                                        title="Klik untuk memilih dari 5 kalimat kriteria (Skor 1-5)">
+                                                    <div class="flex items-center gap-1.5 font-mono">
+                                                        <span x-show="scoresDeptHead['{{ $aspectCode }}']" 
+                                                              x-text="scoresDeptHead['{{ $aspectCode }}']" 
+                                                              class="font-black text-base text-white leading-none"></span>
+                                                        <span x-show="!scoresDeptHead['{{ $aspectCode }}']" 
+                                                              class="text-xs font-bold text-slate-400 leading-none">-</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-1">
+                                                        <span x-show="!scoresDeptHead['{{ $aspectCode }}']" 
+                                                              class="text-[10.5px] font-semibold text-emerald-800 group-hover:text-emerald-950">
+                                                            Pilih Kriteria
+                                                        </span>
+                                                        <span x-show="scoresDeptHead['{{ $aspectCode }}']" 
+                                                              class="text-[10px] text-emerald-100 font-medium">
+                                                            Ubah
+                                                        </span>
+                                                        <svg class="w-3.5 h-3.5 opacity-80 group-hover:opacity-100 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                        </svg>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        @else
+                                            @if(!$canViewDeptHead)
+                                                <span class="font-bold font-mono text-sm text-slate-400">-</span>
+                                            @else
+                                                <span class="font-bold font-mono text-sm text-slate-900">
+                                                    {{ isset($scoresByLevel['dept_head'][$aspectCode]) ? number_format($scoresByLevel['dept_head'][$aspectCode], 0) : '-' }}
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                    @elseif($subFormVariant === 'div_head' || $subFormVariant === 'dept_head')
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     @else
                                     <td class="border-r border-slate-900 p-1 text-center align-middle {{ $canEditSectionHead ? 'bg-[#e2efda] hover:bg-[#d5ebd0] cursor-pointer' : 'bg-white' }}"
@@ -1259,7 +1434,60 @@
                                     </td>
                                     @endif
 
-                                    <!-- Dept Head Score Column (Col 5): Clickable Excel-style cell -->
+                                    <!-- Dept Head / Div Head Score Column (Col 5): Clickable Excel-style cell -->
+                                    @if($subFormVariant === 'karyawan_gol4')
+                                    <td class="p-1 text-center align-middle {{ $canEditDivHead ? 'bg-[#e2efda] hover:bg-[#d5ebd0] cursor-pointer' : 'bg-white' }}"
+                                        @if($canEditDivHead)
+                                        @click.stop="openRubrikModal('{{ $aspectCode }}', '{{ addslashes($aspectName) }}', 'div_head')"
+                                        title="Klik untuk memilih dari 5 kalimat kriteria Musashi"
+                                        @endif>
+                                        @if($canEditDivHead)
+                                            <input type="hidden" 
+                                                   name="scores[{{ $aspectCode }}]" 
+                                                   :value="scoresDivHead['{{ $aspectCode }}'] || ''">
+                                            
+                                            <!-- Unified Single Click-Selector Box -->
+                                            <div class="py-1 px-1 flex items-center justify-center">
+                                                <button type="button" 
+                                                        @click.stop="openRubrikModal('{{ $aspectCode }}', '{{ addslashes($aspectName) }}', 'div_head')"
+                                                        class="w-full min-h-[34px] px-2.5 py-1 rounded-lg border flex items-center justify-between gap-1.5 transition-all shadow-xs group cursor-pointer"
+                                                        :class="scoresDivHead['{{ $aspectCode }}'] 
+                                                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800 shadow-emerald-200' 
+                                                            : 'bg-white hover:bg-emerald-50 text-slate-800 border-emerald-500 hover:border-emerald-600'"
+                                                        title="Klik untuk memilih dari 5 kalimat kriteria (Skor 1-5)">
+                                                    <div class="flex items-center gap-1.5 font-mono">
+                                                        <span x-show="scoresDivHead['{{ $aspectCode }}']" 
+                                                              x-text="scoresDivHead['{{ $aspectCode }}']" 
+                                                              class="font-black text-base text-white leading-none"></span>
+                                                        <span x-show="!scoresDivHead['{{ $aspectCode }}']" 
+                                                              class="text-xs font-bold text-slate-400 leading-none">-</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-1">
+                                                        <span x-show="!scoresDivHead['{{ $aspectCode }}']" 
+                                                              class="text-[10.5px] font-semibold text-emerald-800 group-hover:text-emerald-950">
+                                                            Pilih Kriteria
+                                                        </span>
+                                                        <span x-show="scoresDivHead['{{ $aspectCode }}']" 
+                                                              class="text-[10px] text-emerald-100 font-medium">
+                                                            Ubah
+                                                        </span>
+                                                        <svg class="w-3.5 h-3.5 opacity-80 group-hover:opacity-100 transition-transform group-hover:translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                                        </svg>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        @else
+                                            @if(!$canViewDeptHead)
+                                                <span class="font-bold font-mono text-sm text-slate-400">-</span>
+                                            @else
+                                                <span class="font-bold font-mono text-sm text-slate-900">
+                                                    {{ isset($scoresByLevel['div_head'][$aspectCode]) ? number_format($scoresByLevel['div_head'][$aspectCode], 0) : '-' }}
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                    @else
                                     <td class="p-1 text-center align-middle {{ $canEditDeptHead ? 'bg-[#e2efda] hover:bg-[#d5ebd0] cursor-pointer' : 'bg-white' }}"
                                         @if($canEditDeptHead)
                                         @click.stop="openRubrikModal('{{ $aspectCode }}', '{{ addslashes($aspectName) }}', 'dept_head')"
@@ -1315,6 +1543,7 @@
                                             @endif
                                         @endif
                                     </td>
+                                    @endif
 
                                 </tr>
                                 @endforeach
@@ -1324,7 +1553,29 @@
                                     <td colspan="2" class="border-r border-slate-900 p-1.5 text-right uppercase text-[11px] text-slate-800">
                                         {{ $isGol4Up ? 'TOTAL 合計' : 'TOTAL' }}
                                     </td>
-                                    @if($subFormVariant === 'div_head')
+                                    @if($subFormVariant === 'karyawan_gol4')
+                                    <td class="border-r border-slate-900 p-1 text-center font-mono font-bold text-slate-900">
+                                        @if(!$canViewSectionHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsSectionHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @endif
+                                    </td>
+                                    <td class="border-r border-slate-900 p-1 text-center font-mono font-bold text-slate-900">
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @endif
+                                    </td>
+                                    <td class="p-1 text-center font-mono font-bold text-slate-900">
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDivHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                        @endif
+                                    </td>
+                                    @elseif($subFormVariant === 'div_head')
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono font-bold text-slate-900">
@@ -1397,7 +1648,29 @@
                                     <td colspan="2" class="border-r border-slate-900 p-1.5 text-slate-700 text-[10.5px]">
                                         {{ $rataTitle }}
                                     </td>
-                                    @if($subFormVariant === 'div_head')
+                                    @if($subFormVariant === 'karyawan_gol4')
+                                    <td class="border-r border-slate-900 p-1 text-center font-mono text-slate-900">
+                                        @if(!$canViewSectionHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsSectionHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @endif
+                                    </td>
+                                    <td class="border-r border-slate-900 p-1 text-center font-mono text-slate-900">
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @endif
+                                    </td>
+                                    <td class="p-1 text-center font-mono text-slate-900">
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDivHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                        @endif
+                                    </td>
+                                    @elseif($subFormVariant === 'div_head')
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono text-slate-900">
@@ -1453,7 +1726,29 @@
                                     <td colspan="2" class="border-r border-slate-900 p-1.5 text-slate-900 text-[10.5px]">
                                         {{ $nilaiAkhirTitle }}
                                     </td>
-                                    @if($subFormVariant === 'div_head')
+                                    @if($subFormVariant === 'karyawan_gol4')
+                                    <td class="border-r border-slate-900 p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
+                                        @if(!$canViewSectionHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsSectionHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @endif
+                                    </td>
+                                    <td class="border-r border-slate-900 p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @endif
+                                    </td>
+                                    <td class="p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
+                                        @if(!$canViewDeptHead)
+                                            <span class="text-slate-400 font-normal">-</span>
+                                        @else
+                                            <span x-text="totalsDivHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                        @endif
+                                    </td>
+                                    @elseif($subFormVariant === 'div_head')
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
@@ -2074,7 +2369,7 @@
                         <input type="hidden" 
                                name="scores[{{ $aspectCode }}]" 
                                id="modal_score_{{ $aspectCode }}"
-                               :value="(activeScores['{{ $aspectCode }}'] || (subFormVariant === 'div_head' ? scoresDeptHead['{{ $aspectCode }}'] : (signLevel === 'foreman' ? scoresForeman['{{ $aspectCode }}'] : (signLevel === 'section_head' ? scoresSectionHead['{{ $aspectCode }}'] : scoresDeptHead['{{ $aspectCode }}'])))) || ''">
+                               :value="(activeScores['{{ $aspectCode }}'] || (subFormVariant === 'div_head' ? scoresDeptHead['{{ $aspectCode }}'] : (subFormVariant === 'karyawan_gol4' ? (signLevel === 'section_head' ? scoresSectionHead['{{ $aspectCode }}'] : (signLevel === 'dept_head' ? scoresDeptHead['{{ $aspectCode }}'] : scoresDivHead['{{ $aspectCode }}'])) : (signLevel === 'foreman' ? scoresForeman['{{ $aspectCode }}'] : (signLevel === 'section_head' ? scoresSectionHead['{{ $aspectCode }}'] : scoresDeptHead['{{ $aspectCode }}']))))) || ''">
                     @endforeach
                 @endforeach
 
@@ -2181,7 +2476,14 @@
                     <div class="mb-3">
                         <label class="block text-xs font-bold text-slate-800 mb-1">Kembalikan ke:</label>
                         <select name="target_level" class="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:ring-2 focus:ring-rose-500 outline-none bg-white font-medium">
-                            @if($isGol4Up)
+                            @if($subFormVariant === 'karyawan_gol4')
+                                @if($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))
+                                    <option value="dept_head">Department Head (Penilai 2)</option>
+                                    <option value="section_head">Section Head (Penilai 1)</option>
+                                @elseif($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']))
+                                    <option value="section_head">Section Head (Penilai 1)</option>
+                                @endif
+                            @elseif($isGol4Up)
                                 <option value="dept_head">Department Head (Penilai 1 / Atasan Langsung)</option>
                                 <option value="section_head">Karyawan Ybs (Penilaian Mandiri)</option>
                             @else
@@ -2282,6 +2584,7 @@ function penilaianApp() {
         scoresForeman: @json((object)($scoresByLevel['foreman'] ?? [])),
         scoresSectionHead: @json((object)($scoresByLevel['section_head'] ?? [])),
         scoresDeptHead: @json((object)($scoresByLevel['dept_head'] ?? [])),
+        scoresDivHead: @json((object)($scoresByLevel['div_head'] ?? [])),
 
         // Groups definitions for calculation
         groupsDef: @json($formStructure['groups']),
@@ -2296,9 +2599,11 @@ function penilaianApp() {
         totalsForeman: {},
         totalsSectionHead: {},
         totalsDeptHead: {},
+        totalsDivHead: {},
         grandTotalForeman: '{{ number_format($calcForeman['grand_total'] ?? 0, 2) }}',
         grandTotalSectionHead: '{{ number_format($calcSectionHead['grand_total'] ?? 0, 2) }}',
         grandTotalDeptHead: '{{ number_format($calcDeptHead['grand_total'] ?? 0, 2) }}',
+        grandTotalDivHead: '{{ number_format($calcDivHead['grand_total'] ?? 0, 2) }}',
 
         // Target & Usage Quota for Division Head
         divTargetQuota: @json($divTargetQuota),
@@ -2646,9 +2951,12 @@ function penilaianApp() {
             if (Array.isArray(this.scoresDeptHead) || typeof this.scoresDeptHead !== 'object' || this.scoresDeptHead === null) {
                 this.scoresDeptHead = {};
             }
+            if (Array.isArray(this.scoresDivHead) || typeof this.scoresDivHead !== 'object' || this.scoresDivHead === null) {
+                this.scoresDivHead = {};
+            }
 
             // Preload descriptions for existing scores
-            let initialScores = Object.assign({}, this.scoresDeptHead, this.scoresSectionHead, this.scoresForeman);
+            let initialScores = Object.assign({}, this.scoresDivHead, this.scoresDeptHead, this.scoresSectionHead, this.scoresForeman);
             for (let aCode in initialScores) {
                 let score = initialScores[aCode];
                 if (score && this.kriteriaMap[aCode] && this.kriteriaMap[aCode][score]) {
@@ -2710,6 +3018,11 @@ function penilaianApp() {
                 if (numScore) updated[aspectCode] = numScore;
                 else delete updated[aspectCode];
                 this.scoresDeptHead = updated;
+            } else if (level === 'div_head') {
+                let updated = Object.assign({}, this.scoresDivHead);
+                if (numScore) updated[aspectCode] = numScore;
+                else delete updated[aspectCode];
+                this.scoresDivHead = updated;
             }
 
             if (numScore && this.kriteriaMap[aspectCode] && this.kriteriaMap[aspectCode][numScore]) {
@@ -2767,12 +3080,30 @@ function penilaianApp() {
             this.recalculate();
         },
 
+        copyDeptHeadScores() {
+            if (!this.scoresDeptHead || Object.keys(this.scoresDeptHead).length === 0) {
+                alert('Belum ada nilai yang diinput oleh Department Head pada formulir ini.');
+                return;
+            }
+            this.scoresDivHead = Object.assign({}, this.scoresDeptHead);
+            let updatedDesc = Object.assign({}, this.kriteriaDescriptions);
+            for (let aCode in this.scoresDivHead) {
+                let score = this.scoresDivHead[aCode];
+                if (score && this.kriteriaMap[aCode] && this.kriteriaMap[aCode][score]) {
+                    updatedDesc[aCode] = this.kriteriaMap[aCode][score];
+                }
+            }
+            this.kriteriaDescriptions = updatedDesc;
+            this.recalculate();
+        },
+
         getActiveScore(aspectCode) {
             let lvl = this.activeAspectLevel || '{{ $activeLevel }}';
             if (lvl === 'foreman') return this.scoresForeman[aspectCode] || '';
             if (lvl === 'section_head') return this.scoresSectionHead[aspectCode] || '';
             if (lvl === 'dept_head') return this.scoresDeptHead[aspectCode] || '';
-            return this.scoresDeptHead[aspectCode] || this.scoresSectionHead[aspectCode] || this.scoresForeman[aspectCode] || '';
+            if (lvl === 'div_head') return this.scoresDivHead[aspectCode] || '';
+            return this.scoresDivHead[aspectCode] || this.scoresDeptHead[aspectCode] || this.scoresSectionHead[aspectCode] || this.scoresForeman[aspectCode] || '';
         },
 
         onCriteriaSelectChanged(aspectCode, score) {
@@ -2781,6 +3112,7 @@ function penilaianApp() {
                 @if($canEditForeman) lvl = 'foreman';
                 @elseif($canEditSectionHead) lvl = 'section_head';
                 @elseif($canEditDeptHead) lvl = 'dept_head';
+                @elseif($canEditDivHead) lvl = 'div_head';
                 @endif
             }
             this.setScore(lvl, aspectCode, score);
@@ -2806,6 +3138,7 @@ function penilaianApp() {
             if (activeLvl === 'foreman') curScore = this.scoresForeman[this.activeAspectCode];
             else if (activeLvl === 'section_head') curScore = this.scoresSectionHead[this.activeAspectCode];
             else if (activeLvl === 'dept_head') curScore = this.scoresDeptHead[this.activeAspectCode];
+            else if (activeLvl === 'div_head') curScore = this.scoresDivHead[this.activeAspectCode];
             return parseInt(curScore) === parseInt(score);
         },
 
@@ -2831,6 +3164,20 @@ function penilaianApp() {
         getActiveWeighted(groupKey) {
             let lvl = '{{ $activeLevel }}';
             let val = null;
+            if (this.subFormVariant === 'karyawan_gol4') {
+                if (lvl === 'div_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) val = this.totalsDivHead[groupKey]?.weighted;
+                else if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) val = this.totalsDeptHead[groupKey]?.weighted;
+                else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) val = this.totalsSectionHead[groupKey]?.weighted;
+
+                if (val !== undefined && val !== null && val !== '' && val !== '0.00') {
+                    return val;
+                }
+                if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.totalsDivHead[groupKey]?.weighted || 0) > 0) return this.totalsDivHead[groupKey].weighted;
+                if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.totalsDeptHead[groupKey]?.weighted || 0) > 0) return this.totalsDeptHead[groupKey].weighted;
+                if ({{ $canViewSectionHead ? 'true' : 'false' }} && parseFloat(this.totalsSectionHead[groupKey]?.weighted || 0) > 0) return this.totalsSectionHead[groupKey].weighted;
+                return '0.00';
+            }
+
             if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) val = this.totalsDeptHead[groupKey]?.weighted;
             else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) val = this.totalsSectionHead[groupKey]?.weighted;
             else if (lvl === 'foreman' && {{ $canViewForeman ? 'true' : 'false' }}) val = this.totalsForeman[groupKey]?.weighted;
@@ -2849,6 +3196,20 @@ function penilaianApp() {
         getActiveGrandTotal() {
             let lvl = '{{ $activeLevel }}';
             let grand = null;
+            if (this.subFormVariant === 'karyawan_gol4') {
+                if (lvl === 'div_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) grand = this.grandTotalDivHead;
+                else if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) grand = this.grandTotalDeptHead;
+                else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) grand = this.grandTotalSectionHead;
+
+                if (grand !== undefined && grand !== null && grand !== '' && grand !== '0.00') {
+                    return grand;
+                }
+                if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.grandTotalDivHead || 0) > 0) return this.grandTotalDivHead;
+                if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.grandTotalDeptHead || 0) > 0) return this.grandTotalDeptHead;
+                if ({{ $canViewSectionHead ? 'true' : 'false' }} && parseFloat(this.grandTotalSectionHead || 0) > 0) return this.grandTotalSectionHead;
+                return '0.00';
+            }
+
             if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) grand = this.grandTotalDeptHead;
             else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) grand = this.grandTotalSectionHead;
             else if (lvl === 'foreman' && {{ $canViewForeman ? 'true' : 'false' }}) grand = this.grandTotalForeman;
@@ -2874,6 +3235,7 @@ function penilaianApp() {
             this.grandTotalForeman = this.calcLevel(this.scoresForeman, this.totalsForeman);
             this.grandTotalSectionHead = this.calcLevel(this.scoresSectionHead, this.totalsSectionHead);
             this.grandTotalDeptHead = this.calcLevel(this.scoresDeptHead, this.totalsDeptHead);
+            this.grandTotalDivHead = this.calcLevel(this.scoresDivHead, this.totalsDivHead);
             let grandTotal = parseFloat(this.getActiveGrandTotal() || 0);
             let calculatedGrade = grandTotal > 0 ? this.calcScoreToGrade(grandTotal) : '';
             if (!this.hasDockingChanged || !this.dockingGrade || this.dockingGrade === '') {
@@ -2918,8 +3280,10 @@ function penilaianApp() {
 
             let curScores = (this.subFormVariant === 'div_head' && level === 'foreman') 
                 ? this.scoresDeptHead 
-                : ((level === 'foreman') ? this.scoresForeman : 
-                   ((level === 'section_head') ? this.scoresSectionHead : this.scoresDeptHead));
+                : ((this.subFormVariant === 'karyawan_gol4')
+                    ? (level === 'section_head' ? this.scoresSectionHead : (level === 'dept_head' ? this.scoresDeptHead : this.scoresDivHead))
+                    : ((level === 'foreman') ? this.scoresForeman : 
+                       ((level === 'section_head') ? this.scoresSectionHead : this.scoresDeptHead)));
 
             // Validate that all aspects have been filled with scores 1 to 5
             let missingAspects = [];
@@ -2984,7 +3348,15 @@ function penilaianApp() {
         },
 
         getFlowNoticeText() {
-            if (this.subFormVariant === 'div_head') {
+            if (this.subFormVariant === 'karyawan_gol4') {
+                if (this.signLevel === 'section_head') {
+                    return 'Setelah Anda menandatangani formulir ini, status akan otomatis berpindah ke "Menunggu Dept Head" dan langsung masuk ke dashboard Department Head.';
+                } else if (this.signLevel === 'dept_head') {
+                    return 'Setelah Anda menandatangani formulir ini, status akan otomatis berpindah ke "Menunggu Div Head" dan langsung masuk ke dashboard Division Head.';
+                } else {
+                    return 'Setelah Anda menandatangani formulir ini, dokumen akan diselesaikan (Status: Selesai), nilai akhir dan Grade dihitung otomatis, serta diarsip ke Google Drive.';
+                }
+            } else if (this.subFormVariant === 'div_head') {
                 return 'Setelah Anda menandatangani formulir evaluasi mandiri ini, dokumen akan diselesaikan (Status: Selesai) dan nilai akhir dihitung otomatis.';
             } else if (this.subFormVariant === 'dept_head' && this.signLevel === 'foreman') {
                 return 'Setelah Anda menandatangani formulir evaluasi mandiri ini, status akan otomatis berpindah ke "Menunggu Div Head" dan langsung masuk ke dashboard Division Head.';
@@ -3135,8 +3507,10 @@ function penilaianApp() {
             // Explicitly sync score inputs in modal to guarantee all scores are submitted
             let curScores = (this.subFormVariant === 'div_head' && this.signLevel === 'foreman') 
                 ? this.scoresDeptHead 
-                : ((this.signLevel === 'foreman') ? this.scoresForeman : 
-                   ((this.signLevel === 'section_head') ? this.scoresSectionHead : this.scoresDeptHead));
+                : ((this.subFormVariant === 'karyawan_gol4')
+                    ? (this.signLevel === 'section_head' ? this.scoresSectionHead : (this.signLevel === 'dept_head' ? this.scoresDeptHead : this.scoresDivHead))
+                    : ((this.signLevel === 'foreman') ? this.scoresForeman : 
+                       ((this.signLevel === 'section_head') ? this.scoresSectionHead : this.scoresDeptHead)));
             
             for (let aCode in curScores) {
                 let el = document.getElementById('modal_score_' + aCode) || document.querySelector(`input[name="scores[${aCode}]"]`);
