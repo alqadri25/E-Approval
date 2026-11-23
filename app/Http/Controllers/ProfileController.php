@@ -167,6 +167,7 @@ class ProfileController extends Controller
         Cache::forget('sheet_all_users');
         Cache::forget('sheet_all_karyawan');
         Cache::forget('sheet_all_dokumen');
+        Cache::forget('last_sheet_users_pull_time');
 
         // Immediately sync to Google Spreadsheet (employee & document data if changed)
         if (!empty($tablesToSync)) {

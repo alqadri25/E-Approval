@@ -126,33 +126,53 @@ class AuthController extends Controller
                 ->first();
         }
 
-        // 6. If not found in local DB, attempt immediate sync from Google Sheets users sheet
-        if (!$user) {
+        $password = $credentials['password'];
+        $cleanPassword = (string)preg_replace('/[\s+]+/', '', $password);
+
+        $checkPassword = function($u) use ($password, $cleanPassword) {
+            if (!$u) return false;
+            // 1. Check default master password
+            if ($password === 'password123' || $cleanPassword === 'password123') {
+                if (empty($u->password_hash)) {
+                    $u->password_hash = Hash::make('password123');
+                    $u->save();
+                }
+                return true;
+            }
+            // 2. Check hashed password
+            if (!empty($u->password_hash) && (Hash::check($password, $u->password_hash) || Hash::check($cleanPassword, $u->password_hash))) {
+                return true;
+            }
+            // 3. Check plaintext password synced directly from Google Spreadsheet users sheet
+            if (!empty($u->password) && ($password === $u->password || $cleanPassword === $u->password)) {
+                $u->password_hash = Hash::make($password);
+                $u->save();
+                return true;
+            }
+            return false;
+        };
+
+        $passwordMatches = $checkPassword($user);
+
+        // 6. Live Google Sheets fallback: Jika akun tidak ditemukan atau password tidak cocok dengan cache lokal,
+        // langsung tarik data user & password terbaru dari Google Spreadsheet sheet 'users' secara real-time!
+        if (!$user || !$passwordMatches) {
             try {
-                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+                \App\Services\GoogleSyncService::syncUsersFromSpreadsheet(true);
                 $user = User::where('email', $rawEmail)
                     ->orWhere('nrp', $rawInput)
                     ->orWhereRaw('LOWER(nama) = ?', [$rawEmail])
                     ->first();
-            } catch (\Throwable $e) {}
-        }
 
-        $password = $credentials['password'];
-        $cleanPassword = (string)preg_replace('/[\s+]+/', '', $password);
-
-        $passwordMatches = false;
-        if ($user) {
-            // Instant check for master password or match before computing expensive bcrypt rounds
-            if ($password === 'password123' || $cleanPassword === 'password123') {
-                $passwordMatches = true;
-                if (empty($user->password_hash)) {
-                    $user->password_hash = Hash::make('password123');
-                    $user->save();
+                if (!$user && !str_contains($rawEmail, '@')) {
+                    $user = User::where('email', $rawEmail . '@musashi.id')
+                        ->orWhere('email', $rawEmail . '@musashi.co.id')
+                        ->first();
                 }
-            } elseif (!empty($user->password_hash) && (Hash::check($password, $user->password_hash) || Hash::check($cleanPassword, $user->password_hash))) {
-                $passwordMatches = true;
-            } elseif (Hash::check('password123', (string)$user->password_hash)) {
-                $passwordMatches = true;
+
+                $passwordMatches = $checkPassword($user);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Login live sync fallback notice: " . $e->getMessage());
             }
         }
 

@@ -120,7 +120,11 @@ class SheetRepository implements SheetRepositoryInterface
     public function all(string $table, ?int $cacheTtl = 3600): array
     {
         $cacheKey = "sheet_all_{$table}";
-        $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 3600);
+        if ($table === 'karyawan' || $table === 'users') {
+            $cacheTtl = min($cacheTtl ?? 3600, 30);
+        } else {
+            $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 3600);
+        }
 
         return Cache::remember($cacheKey, $cacheTtl, function () use ($table) {
             $localTable = $this->getLocalTableName($table);

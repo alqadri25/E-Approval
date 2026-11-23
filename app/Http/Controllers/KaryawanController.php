@@ -31,6 +31,24 @@ class KaryawanController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        // 1. Manual / Explicit sync request (?sync=1 or ?refresh=1)
+        if ($request->boolean('sync') || $request->boolean('refresh')) {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+                \App\Services\GoogleSyncService::syncUsersFromSpreadsheet(true);
+                \App\Services\AccountSyncService::syncLeadershipAccountsFromKaryawan();
+                $this->repository->clearCache('karyawan');
+                $this->repository->clearCache('dokumen');
+                $this->repository->clearCache('users');
+                \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
+                \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
+                \Illuminate\Support\Facades\Cache::forget('sheet_all_users');
+                \Illuminate\Support\Facades\Cache::forget('last_google_operational_sync');
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Manual sync on karyawan index notice: " . $e->getMessage());
+            }
+        }
+
         $allKaryawan = $this->repository->all('karyawan');
         $allDocs = $this->repository->all('dokumen');
         $docsByNrp = [];

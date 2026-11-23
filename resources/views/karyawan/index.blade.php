@@ -66,6 +66,16 @@
             </button>
             @endif
 
+            <!-- Refresh & Sinkron Sheet -->
+            <a href="{{ route('karyawan.index', array_merge(request()->query(), ['sync' => 1])) }}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-500 text-xs font-bold shadow-sm transition cursor-pointer"
+               title="Tarik data terbaru dari Google Spreadsheet & selaraskan karyawan yang dihapus/ditambah">
+                <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span>Sinkron Sheet</span>
+            </a>
+
             <!-- Export -->
             <a href="{{ route('karyawan.export', request()->query()) }}"
                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-none bg-white/15 hover:bg-white/25 text-white border border-white/30 text-xs font-bold shadow-sm transition">
