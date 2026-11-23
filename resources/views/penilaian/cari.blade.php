@@ -569,55 +569,95 @@
                             <td class="py-2.5 px-3 border-b border-r border-slate-200 whitespace-nowrap">
                                 <div class="space-y-1">
                                     @if($isSelf)
-                                        <span class="px-2 py-0.5 font-bold text-[10px] bg-rose-100 text-rose-900 border border-rose-300 rounded-none inline-flex items-center whitespace-nowrap">
-                                            Evaluasi Mandiri
-                                        </span>
+                                        @if($sub['status'] === 'selesai')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">
+                                                ✓ Selesai
+                                            </span>
+                                        @elseif($sub['status'] === 'menunggu_div_head')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-teal-50 text-teal-800 border border-teal-300 rounded-none inline-flex items-center whitespace-nowrap">
+                                                ✓ Terkirim ke Div Head
+                                            </span>
+                                        @elseif($sub['status'] === 'menunggu_dept_head')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-teal-50 text-teal-800 border border-teal-300 rounded-none inline-flex items-center whitespace-nowrap">
+                                                ✓ Terkirim ke Dept Head
+                                            </span>
+                                        @else
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-rose-100 text-rose-900 border border-rose-300 rounded-none inline-flex items-center whitespace-nowrap">
+                                                ✍️ Evaluasi Mandiri (Belum Dinilai)
+                                            </span>
+                                        @endif
                                     @elseif($user->isAdmin())
                                         @if($sub['status'] === 'selesai' || $sub['has_dept_head_sign'])
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Sudah Dinilai Dept Head (Selesai)</span>
-                                        @elseif($sub['section_head_evaluated'] || in_array($sub['status'], ['menunggu_dept_head', 'menunggu_div_head']))
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-teal-50 text-teal-800 border border-teal-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Sudah Dinilai Section Head</span>
-                                        @elseif($sub['foreman_evaluated'] || $sub['status'] === 'menunggu_section_head')
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-blue-50 text-blue-800 border border-blue-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Sudah Dinilai Foreman</span>
+                                        @elseif($sub['status'] === 'revisi')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-rose-50 text-rose-800 border border-rose-300 rounded-none inline-flex items-center whitespace-nowrap">↩️ Perlu Revisi</span>
+                                        @elseif($sub['status'] === 'menunggu_div_head')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-900 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Menunggu Div Head</span>
+                                        @elseif($sub['status'] === 'menunggu_dept_head')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] {{ ($sub['section_head_evaluated'] || $sub['has_section_head_sign']) ? 'bg-teal-50 text-teal-800 border-teal-300' : 'bg-amber-50 text-amber-900 border-amber-300' }} rounded-none inline-flex items-center whitespace-nowrap">
+                                                {{ ($sub['section_head_evaluated'] || $sub['has_section_head_sign']) ? '🔔 Menunggu Dept Head (✓ SH Dinilai)' : '🔔 Menunggu Dept Head' }}
+                                            </span>
+                                        @elseif($sub['status'] === 'menunggu_section_head')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] {{ (!empty($sub['nrp_foreman']) && ($sub['foreman_evaluated'] || $sub['has_foreman_sign'])) ? 'bg-blue-50 text-blue-800 border-blue-300' : 'bg-amber-50 text-amber-800 border-amber-300' }} rounded-none inline-flex items-center whitespace-nowrap">
+                                                {{ (!empty($sub['nrp_foreman']) && ($sub['foreman_evaluated'] || $sub['has_foreman_sign'])) ? '⏳ Menunggu Section Head (✓ Foreman Dinilai)' : '⏳ Menunggu Section Head' }}
+                                            </span>
+                                        @elseif($sub['status'] === 'menunggu_foreman')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Menunggu Foreman</span>
                                         @else
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Belum Dinilai</span>
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Belum Dinilai</span>
                                         @endif
                                         <div class="text-[10px] text-slate-600 leading-tight whitespace-nowrap">
-                                            F: {{ $sub['foreman_evaluated'] ? ($sub['foreman_grade'] ?? '✓') : '-' }} &bull;
-                                            SH: {{ $sub['section_head_evaluated'] ? ($sub['section_head_grade'] ?? '✓') : '-' }} &bull;
+                                            @if(!empty($sub['nrp_foreman']))
+                                                F: {{ $sub['foreman_evaluated'] ? ($sub['foreman_grade'] ?? '✓') : '-' }} &bull;
+                                            @endif
+                                            @if(!empty($sub['nrp_section_head']) || in_array($sub['level_form'] ?? '', ['KARYAWAN_GOL4', 'KASIE']))
+                                                SH: {{ $sub['section_head_evaluated'] ? ($sub['section_head_grade'] ?? '✓') : '-' }} &bull;
+                                            @endif
                                             DH: {{ ($sub['has_dept_head_sign'] || $sub['status'] === 'selesai') ? ($sub['dept_grade'] ?? '✓') : '-' }}
                                         </div>
                                     @elseif($user->isDepartmentHead())
-                                        @if($sub['status'] === 'menunggu_dept_head')
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-900 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Menunggu Dept Head</span>
-                                        @elseif(in_array($sub['status'], ['selesai', 'menunggu_div_head']) || $sub['has_dept_head_sign'])
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">{{ $sub['status'] === 'selesai' ? '✓ Selesai Dept Head' : '✓ Menunggu Approval Div Head' }}</span>
-                                        @elseif(!empty($sub['is_waiting_foreman']))
+                                        @if($sub['status'] === 'selesai')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Selesai Dept Head</span>
+                                        @elseif($sub['status'] === 'menunggu_div_head' || $sub['has_dept_head_sign'])
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Menunggu Approval Div Head</span>
+                                        @elseif($sub['status'] === 'menunggu_dept_head')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-900 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Perlu Dinilai Dept Head</span>
+                                        @elseif($sub['status'] === 'revisi')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-rose-50 text-rose-800 border border-rose-300 rounded-none inline-flex items-center whitespace-nowrap">↩️ Perlu Revisi</span>
+                                        @elseif(!empty($sub['is_waiting_foreman']) || $sub['status'] === 'menunggu_foreman')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-600 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Menunggu Penilaian Foreman</span>
-                                        @elseif(!empty($sub['is_waiting_section']))
+                                        @elseif(!empty($sub['is_waiting_section']) || $sub['status'] === 'menunggu_section_head')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-600 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Menunggu Penilaian Section Head</span>
-                                        @elseif($sub['section_head_evaluated'])
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Dinilai Section Head (Grade {{ $sub['section_head_grade'] ?? 'A' }})</span>
                                         @else
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-600 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Menunggu Penilaian Section Head</span>
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-600 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Belum Dinilai</span>
                                         @endif
                                     @elseif($user->isSectionHead())
-                                        @if(in_array($sub['status'], ['menunggu_dept_head', 'menunggu_div_head', 'selesai']))
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Selesai Section Head</span>
+                                        @if($sub['status'] === 'selesai')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Selesai</span>
                                         @elseif($sub['status'] === 'revisi')
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-rose-50 text-rose-800 border border-rose-300 rounded-none inline-flex items-center whitespace-nowrap">↩️ Revisi</span>
-                                        @elseif(empty($sub['nrp_foreman']) || $sub['status'] === 'menunggu_section_head' || ($sub['foreman_evaluated'] && in_array($sub['status'], ['menunggu_foreman', 'draft'])))
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">
-                                                {{ empty($sub['nrp_foreman']) ? 'Section Head' : '✓ Dinilai Foreman (Grade ' . ($sub['foreman_grade'] ?? 'A') . ')' }}
-                                            </span>
-                                        @else
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-rose-50 text-rose-800 border border-rose-300 rounded-none inline-flex items-center whitespace-nowrap">↩️ Perlu Revisi</span>
+                                        @elseif(in_array($sub['status'], ['menunggu_dept_head', 'menunggu_div_head']))
+                                            @if($sub['section_head_evaluated'] || $sub['has_section_head_sign'])
+                                                <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Selesai Section Head (Proses Dept Head)</span>
+                                            @else
+                                                <span class="px-2 py-0.5 font-bold text-[10px] bg-blue-50 text-blue-800 border border-blue-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Proses Dept Head</span>
+                                            @endif
+                                        @elseif($sub['status'] === 'menunggu_section_head')
+                                            @if(!empty($sub['nrp_foreman']) && ($sub['foreman_evaluated'] || $sub['has_foreman_sign']))
+                                                <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Perlu Dinilai Section Head (✓ Foreman Grade {{ $sub['foreman_grade'] ?? '✓' }})</span>
+                                            @else
+                                                <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Perlu Dinilai Section Head</span>
+                                            @endif
+                                        @elseif(!empty($sub['is_waiting_foreman']) || $sub['status'] === 'menunggu_foreman')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Menunggu Foreman</span>
+                                        @else
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-600 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Belum Dinilai</span>
                                         @endif
                                     @elseif($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))
-                                        @if($sub['status'] === 'menunggu_div_head')
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-900 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Menunggu Div Head</span>
-                                        @elseif($sub['status'] === 'selesai' || $sub['has_dept_head_sign'])
+                                        @if($sub['status'] === 'selesai')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Disahkan Final (Selesai)</span>
+                                        @elseif($sub['status'] === 'menunggu_div_head')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-900 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Menunggu Div Head</span>
                                         @elseif($sub['status'] === 'menunggu_dept_head')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-blue-50 text-blue-800 border border-blue-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Proses Dept Head</span>
                                         @elseif($sub['status'] === 'menunggu_section_head')
@@ -625,13 +665,18 @@
                                         @elseif($sub['status'] === 'menunggu_foreman')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Proses Foreman</span>
                                         @else
-                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-600 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Menunggu Review</span>
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-600 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Belum Dinilai</span>
                                         @endif
                                     @else
-                                        <span class="px-2 py-0.5 font-bold text-[10px] rounded-none border inline-flex items-center whitespace-nowrap
-                                            {{ in_array($sub['status'], ['selesai', 'menunggu_section_head', 'menunggu_dept_head']) ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-800 border-amber-300' }}">
-                                            {{ in_array($sub['status'], ['selesai', 'menunggu_section_head', 'menunggu_dept_head']) ? '✓ Sudah Dinilai' : '⏳ Belum Dinilai' }}
-                                        </span>
+                                        @if($sub['status'] === 'selesai')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Selesai</span>
+                                        @elseif($sub['foreman_evaluated'] || $sub['has_foreman_sign'])
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Selesai Dinilai Foreman</span>
+                                        @elseif($sub['status'] === 'revisi')
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-rose-50 text-rose-800 border border-rose-300 rounded-none inline-flex items-center whitespace-nowrap">↩️ Perlu Revisi</span>
+                                        @else
+                                            <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Perlu Dinilai Foreman</span>
+                                        @endif
                                     @endif
 
                                     @if(!empty($sub['is_kj_locked']) && !$isSelf && $sub['status'] !== 'selesai')
@@ -659,11 +704,11 @@
                                             @elseif($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))
                                                 {{ ($isSelf || in_array($sub['status'], ['menunggu_div_head', 'selesai'])) ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
                                             @elseif($user->isSectionHead())
-                                                {{ in_array($sub['status'], ['menunggu_section_head', 'draft', 'revisi']) || empty($sub['nrp_foreman']) ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
+                                                {{ in_array($sub['status'], ['menunggu_section_head', 'draft', 'revisi']) ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
                                             @elseif($user->isAdmin())
                                                 bg-[#92302e] hover:bg-[#7e2524] text-white
                                             @else
-                                                {{ in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_dinilai']) ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
+                                                {{ (!$sub['foreman_evaluated'] && in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_dinilai'])) ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
                                             @endif">
                                             @if($isSelf)
                                                 <span>Nilai Mandiri</span>
@@ -674,15 +719,19 @@
                                             @elseif($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))
                                                 <span>{{ $sub['status'] === 'menunggu_div_head' ? '✍️ Tinjau & Final Approval' : ($sub['status'] === 'selesai' ? '👁️ Lihat Form Selesai' : ($sub['status'] === 'menunggu_dept_head' ? '🔒 Buka Form (Menunggu Dept Head)' : ($sub['status'] === 'menunggu_section_head' ? '🔒 Buka Form (Menunggu Section)' : ($sub['status'] === 'menunggu_foreman' ? '🔒 Buka Form (Menunggu Foreman)' : '👁️ Buka Form Penilaian')))) }}</span>
                                             @elseif($user->isSectionHead())
-                                                @if(empty($sub['nrp_foreman']))
-                                                    <span>Nilai</span>
+                                                @if(in_array($sub['status'], ['menunggu_section_head', 'draft', 'revisi']))
+                                                    <span>✍️ Nilai Section Head</span>
+                                                @elseif(!empty($sub['is_waiting_foreman']) || $sub['status'] === 'menunggu_foreman')
+                                                    <span>🔒 Buka Form (Menunggu Foreman)</span>
+                                                @elseif($sub['status'] === 'selesai')
+                                                    <span>👁️ Lihat Form Selesai</span>
                                                 @else
-                                                    <span>{{ $sub['status'] === 'menunggu_section_head' ? '✍️ Tinjau & Nilai Section Head' : (!empty($sub['is_waiting_foreman']) ? '🔒 Buka Form (Menunggu Foreman)' : '👁️ Buka Formulir') }}</span>
+                                                    <span>👁️ Buka Formulir</span>
                                                 @endif
                                             @elseif($user->isAdmin())
                                                 <span>👁️ Buka Form Penilaian</span>
                                             @else
-                                                <span>{{ in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_dinilai']) ? '✍️ Nilai Karyawan' : '👁️ Buka Formulir' }}</span>
+                                                <span>{{ (!$sub['foreman_evaluated'] && in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_dinilai'])) ? '✍️ Nilai Karyawan' : '👁️ Buka Formulir' }}</span>
                                             @endif
                                         </button>
                                     </form>

@@ -1744,9 +1744,6 @@ class PenilaianController extends Controller
                     if (isset($ttdByDocAndLevel[$docId]['section_head'])) {
                         $hasSectionHeadSign = true;
                         $ttdSectionHeadDate = substr($ttdByDocAndLevel[$docId]['section_head']->tgl_ttd, 0, 10);
-                    } elseif ($isGol4UpForm && empty($foremanNrp) && isset($ttdByDocAndLevel[$docId]['foreman'])) {
-                        $hasSectionHeadSign = true;
-                        $ttdSectionHeadDate = substr($ttdByDocAndLevel[$docId]['foreman']->tgl_ttd, 0, 10);
                     }
 
                     if (isset($allScoresByDocAndLevel[$docId]['section_head']) && count($allScoresByDocAndLevel[$docId]['section_head']) > 0) {
@@ -1755,18 +1752,6 @@ class PenilaianController extends Controller
                         $calcSH = $this->calcService->calculate($kodeForm, $scoresArrSH);
                         $sectionHeadScore = number_format($calcSH['grand_total'], 2);
                         $sectionHeadGrade = $this->calcService->scoreToGrade($calcSH['grand_total']);
-                    } elseif ($isGol4UpForm && empty($foremanNrp) && isset($allScoresByDocAndLevel[$docId]['foreman']) && count($allScoresByDocAndLevel[$docId]['foreman']) > 0) {
-                        $sectionHeadEvaluated = true;
-                        $scoresArrSH = $allScoresByDocAndLevel[$docId]['foreman']->pluck('skor', 'aspek_kode')->toArray();
-                        $calcSH = $this->calcService->calculate($kodeForm, $scoresArrSH);
-                        $sectionHeadScore = number_format($calcSH['grand_total'], 2);
-                        $sectionHeadGrade = $this->calcService->scoreToGrade($calcSH['grand_total']);
-                    } elseif (in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']) && !empty($doc['total_nilai'])) {
-                        $sectionHeadEvaluated = true;
-                        $hasSectionHeadSign = true;
-                        $sectionHeadScore = number_format((float)$doc['total_nilai'], 2);
-                        $sectionHeadGrade = $doc['grade_original'] ?? $this->calcService->scoreToGrade((float)$doc['total_nilai']);
-                        $ttdSectionHeadDate = substr($doc['updated_at'] ?? now(), 0, 10);
                     }
                 }
 
@@ -1785,15 +1770,15 @@ class PenilaianController extends Controller
             }
 
             $isWaitingForeman = !empty($foremanNrp) && !$isGol4UpForm && ($docStatus === 'menunggu_foreman' || !$hasForemanSign);
-            $isWaitingSection = ($docStatus === 'menunggu_section_head' || (!$hasSectionHeadSign && !$isWaitingForeman && !$isSelf));
+            $isWaitingSection = ($docStatus === 'menunggu_section_head') || (!empty($sectionHeadNrp) && !$hasSectionHeadSign && !$isWaitingForeman && !$isSelf && !in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']));
             $canEvaluateDept = ($docStatus === 'menunggu_dept_head') || $user->isSuperadmin();
 
             $adminStatusCategory = 'belum';
             if ($docStatus === 'selesai' || $hasDeptHeadSign) {
                 $adminStatusCategory = 'selesai';
-            } elseif ($sectionHeadEvaluated || in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head'])) {
+            } elseif ($sectionHeadEvaluated || $hasSectionHeadSign) {
                 $adminStatusCategory = 'section_head';
-            } elseif ($hasForeman && ($foremanEvaluated || $docStatus === 'menunggu_section_head')) {
+            } elseif ($hasForeman && ($foremanEvaluated || $hasForemanSign)) {
                 $adminStatusCategory = 'foreman';
             }
 
@@ -1869,6 +1854,7 @@ class PenilaianController extends Controller
                 'form_name' => $formName,
                 'doc_id' => $docId,
                 'status' => $docStatus,
+                'admin_status_category' => $adminStatusCategory,
                 'is_waiting_foreman' => $isWaitingForeman,
                 'is_waiting_section' => $isWaitingSection,
                 'can_evaluate_dept' => $canEvaluateDept,
