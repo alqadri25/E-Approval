@@ -616,6 +616,32 @@
             </p>
         </div>
     </div>
+    @elseif(Auth::user()?->isSectionHead() && !$isSelfDoc && !empty($ttdByLevel['section_head']))
+    <!-- Informasi untuk Section Head yang Sudah Menandatangani Subordinat -->
+    <div class="no-print bg-sky-50 border border-sky-300 rounded-none p-3.5 flex items-center gap-2.5 shadow-2xs mb-3">
+        <span class="text-lg">📋</span>
+        <div>
+            <h4 class="text-xs font-bold text-sky-950 uppercase tracking-wide">
+                Penilaian Section Head Telah Diserahkan
+            </h4>
+            <p class="text-[11px] text-sky-800 mt-0.5">
+                Penilaian telah berhasil Anda tanda tangani dan diteruskan ke Department Head (Read-Only). Untuk perbaikan nilai, silakan hubungi Administrator.
+            </p>
+        </div>
+    </div>
+    @elseif(Auth::user()?->isDepartmentHead() && !$isSelfDoc && !empty($ttdByLevel['dept_head']))
+    <!-- Informasi untuk Department Head yang Sudah Menandatangani Subordinat -->
+    <div class="no-print bg-sky-50 border border-sky-300 rounded-none p-3.5 flex items-center gap-2.5 shadow-2xs mb-3">
+        <span class="text-lg">📋</span>
+        <div>
+            <h4 class="text-xs font-bold text-sky-950 uppercase tracking-wide">
+                Penilaian Department Head Telah Diserahkan
+            </h4>
+            <p class="text-[11px] text-sky-800 mt-0.5">
+                Penilaian telah berhasil Anda tanda tangani dan diteruskan ke Division Head (Read-Only). Untuk perbaikan nilai, silakan hubungi Administrator.
+            </p>
+        </div>
+    </div>
     @endif
 
     <!-- Stage Gate Warning Alert (If waiting for prior evaluator) -->
@@ -629,7 +655,7 @@
                 @if($waitingForLevel === 'foreman')
                     Form Penilaian Terkunci: Masih Menunggu Penilaian Foreman
                 @elseif($waitingForLevel === 'section_head')
-                    Form Penilaian Terkunci: {{ $isGol4Up ? 'Masih Menunggu Evaluasi Mandiri Karyawan' : 'Masih Menunggu Penilaian Section Head' }}
+                    Form Penilaian Terkunci: {{ ($isGol4Up && $subFormVariant !== 'karyawan_gol4') ? 'Masih Menunggu Evaluasi Mandiri Karyawan' : 'Masih Menunggu Penilaian Section Head' }}
                 @elseif($waitingForLevel === 'dept_head')
                     Form Penilaian Terkunci: Masih Menunggu Penilaian Department Head
                 @else
@@ -640,10 +666,10 @@
                 @if($waitingForLevel === 'foreman')
                     Karyawan ini berada di bawah supervisi Foreman (<strong>{{ $karyawan['foreman_nama'] ?? 'Foreman' }}</strong>). Seluruh kolom penilaian, komentar, dan Indikator Evaluasi Potensi Karyawan saat ini terkunci (Read-Only). Kolom Section Head baru akan aktif setelah Foreman menyelesaikan dan menandatangani penilaian secara digital.
                 @elseif($waitingForLevel === 'section_head')
-                    @if($isGol4Up)
+                    @if($isGol4Up && $subFormVariant !== 'karyawan_gol4')
                         Dokumen penilaian ini sedang dalam tahap evaluasi mandiri oleh karyawan yang bersangkutan (<strong>{{ $karyawan['nama_lengkap'] ?? ($karyawan['nama'] ?? 'Karyawan') }}</strong>). Seluruh kolom penilaian saat ini terkunci (Read-Only) dan baru dapat diisi oleh Department Head setelah evaluasi mandiri selesai ditandatangani.
                     @else
-                        Dokumen penilaian ini sedang dalam tahap evaluasi oleh Section Head. Seluruh kolom penilaian, komentar, dan Indikator Evaluasi Potensi Karyawan saat ini terkunci (Read-Only) dan baru dapat diisi oleh Department Head setelah Section Head menandatangani penilaian.
+                        Dokumen penilaian ini sedang dalam tahap evaluasi oleh Section Head (<strong>{{ $karyawan['section_head_nama'] ?? 'Section Head' }}</strong>). Seluruh kolom penilaian, komentar, dan Indikator Evaluasi Potensi Karyawan saat ini terkunci (Read-Only) dan baru dapat diisi oleh Department Head setelah Section Head menandatangani penilaian.
                     @endif
                 @elseif($waitingForLevel === 'dept_head')
                     Dokumen penilaian ini sedang dalam tahap review dan penilaian oleh Department Head. Seluruh kolom penilaian dan indikator terkunci (Read-Only) hingga giliran Division Head tiba.

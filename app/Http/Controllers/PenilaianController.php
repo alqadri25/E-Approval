@@ -2476,14 +2476,16 @@ class PenilaianController extends Controller
             // Periksa tanda tangan Section Head
             $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', 'section_head')->exists();
             if (!$hasShTtd) {
-                if (in_array($dokumen['status'] ?? '', ['menunggu_dept_head', 'menunggu_foreman', 'draft', 'belum_ada'])) {
-                    DB::table('dokumen')->where('id', $id)->update([
-                        'status' => 'menunggu_section_head',
-                        'updated_at' => now()->toDateTimeString()
-                    ]);
-                    $dokumen['status'] = 'menunggu_section_head';
-                    if ($dokumenRow) {
-                        $dokumenRow->status = 'menunggu_section_head';
+                if (!in_array($dokumen['status'] ?? '', ['menunggu_div_head', 'selesai'])) {
+                    if (in_array($dokumen['status'] ?? '', ['menunggu_dept_head', 'menunggu_foreman', 'draft', 'belum_ada'])) {
+                        DB::table('dokumen')->where('id', $id)->update([
+                            'status' => 'menunggu_section_head',
+                            'updated_at' => now()->toDateTimeString()
+                        ]);
+                        $dokumen['status'] = 'menunggu_section_head';
+                        if ($dokumenRow) {
+                            $dokumenRow->status = 'menunggu_section_head';
+                        }
                     }
                 }
             }
@@ -2718,9 +2720,7 @@ class PenilaianController extends Controller
         } elseif ($status === 'menunggu_dept_head') {
             DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
         } elseif ($status === 'menunggu_div_head') {
-            if ($isGol4Up) {
-                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
-            }
+            DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', 'div_head')->delete();
         } elseif ($status === 'revisi') {
             DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
         }
