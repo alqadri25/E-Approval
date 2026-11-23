@@ -254,23 +254,7 @@
                             </div>
                         </div>
 
-                        <!-- Sheet Users Integration Box -->
-                        <div class="p-3 bg-blue-50/80 border border-blue-200 text-blue-950 text-xs space-y-1">
-                            <div class="font-bold flex items-center justify-between text-[11px]">
-                                <span class="flex items-center gap-1.5 text-blue-900">
-                                    <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/>
-                                    </svg>
-                                    Sinkronisasi Sheet users:
-                                </span>
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-100 text-blue-800 font-bold">
-                                    kolom: barcodettd
-                                </span>
-                            </div>
-                            <p class="text-[10.5px] text-blue-800 leading-tight">
-                                Saat akun kepemimpinan dibuat atau disinkronkan dari Master Karyawan, barcode identitas ini otomatis tersimpan di sheet <code>users</code> dan langsung aktif untuk proses PerformanceAppraisal.
-                            </p>
-                        </div>
+
 
                     </div>
                 </div>

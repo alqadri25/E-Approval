@@ -146,7 +146,13 @@ class SuperAdminController extends Controller
             abort(403, 'Akses terbatas untuk Admin dan Super Admin.');
         }
 
-        // Sync dengan Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1 atau database user masih kosong
+        // Selalu sinkronkan data user & password terbaru dari sheet 'users' Google Spreadsheet
+        // (menggunakan cache 15 detik agar tidak membebani network saat navigasi cepat)
+        try {
+            \App\Services\GoogleSyncService::syncUsersFromSpreadsheet(false);
+        } catch (\Throwable $e) {}
+
+        // Sinkronisasi penuh & cleanup hanya jika diminta via ?sync=1 atau database user masih kosong
         $shouldSync = $request->boolean('sync') || User::count() === 0;
         if ($shouldSync) {
             try {
@@ -469,6 +475,7 @@ class SuperAdminController extends Controller
             app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('users');
         } catch (\Throwable $e) {}
         Cache::forget('sheet_all_users');
+        Cache::forget('last_sheet_users_pull_time');
 
         return redirect()->back()->with('success', "User '{$request->input('nama')}' berhasil ditambahkan ke dalam sistem!");
     }
@@ -567,6 +574,7 @@ class SuperAdminController extends Controller
         Cache::forget('sheet_all_users');
         Cache::forget('sheet_all_karyawan');
         Cache::forget('sheet_all_dokumen');
+        Cache::forget('last_sheet_users_pull_time');
 
         if (!empty($tablesToSync)) {
             \App\Services\GoogleSyncService::syncTablesAsync(array_unique($tablesToSync));
@@ -644,6 +652,7 @@ class SuperAdminController extends Controller
             app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('users');
         } catch (\Throwable $e) {}
         Cache::forget('sheet_all_users');
+        Cache::forget('last_sheet_users_pull_time');
 
         return redirect()->back()->with('success', "Password untuk user '{$targetUser->nama}' berhasil direset menjadi '{$defaultPassword}'.");
     }
