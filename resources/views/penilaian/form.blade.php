@@ -275,22 +275,12 @@
     </div>
     @endif
 
-    <!-- Dedicated Banner / Panel Kuota: Form 07-006 Bebas Kuota (Untuk Semua Level) & Panel Penyesuaian Kuota -->
+    <!-- Dedicated Panel Kuota: Form 07-006 Bebas Kuota (Hidden Inputs for Div Head) & Panel Penyesuaian Kuota -->
     @if(empty($waitingForLevel) && !empty($isQuotaExempt ?? $isGol4Up))
-        <div class="no-print bg-sky-50/80 border border-sky-300 rounded-none p-3 sm:p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div class="flex items-center gap-2.5">
-                <span class="px-2 py-0.5 bg-sky-700 text-white text-[10.5px] font-black uppercase tracking-wider rounded-none">
-                    Form 07-006 &bull; Bebas Target Kuota
-                </span>
-                <span class="text-xs text-sky-950 font-medium">
-                    Penilaian menggunakan Form <strong>{{ $kodeForm }}</strong> (Section Head / Department Head / Division Head) tidak terikat target kuota Admin/Superadmin dan kunci finalisasi selalu terbuka.
-                </span>
-            </div>
-            @if(!empty($isDivHeadViewer))
-            <input type="hidden" name="docking_final" :value="dockingGrade" form="formPenilaian">
-            <input type="hidden" name="docking_final" :value="dockingGrade" form="signSubmitForm">
-            @endif
-        </div>
+        @if(!empty($isDivHeadViewer))
+        <input type="hidden" name="docking_final" :value="dockingGrade" form="formPenilaian">
+        <input type="hidden" name="docking_final" :value="dockingGrade" form="signSubmitForm">
+        @endif
     @elseif(!empty($isDivHeadViewer) && empty($waitingForLevel))
     <div class="no-print bg-white border-2 border-[#92302e] rounded-none p-3.5 sm:p-4 shadow-sm space-y-3">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 border-b border-slate-200 pb-2.5">
