@@ -1778,6 +1778,39 @@ class DashboardController extends Controller
 
         // Dynamic Foremen breakdown from real Karyawan data
         $foremenMap = [];
+
+        // 1. Ambil semua Foreman dari Master Karyawan (jabatan mengandung FOREMAN atau KETUA, atau role foreman di users)
+        foreach ($allKaryawan as $k) {
+            $jabUpper = strtoupper(trim((string)($k['jabatan'] ?? '')));
+            $uObj = $userMap[$k['nrp']] ?? null;
+            $uRole = strtolower(trim((string)($uObj->role ?? '')));
+            $isForemanEmp = (str_contains($jabUpper, 'FOREMAN') || str_contains($jabUpper, 'KETUA') || $uRole === 'foreman') && !str_contains($jabUpper, 'SECTION');
+
+            if ($isForemanEmp) {
+                $fNrp = trim((string)$k['nrp']);
+                if ($fNrp !== '' && !isset($foremenMap[$fNrp])) {
+                    $nama = $uObj ? $uObj->nama : ($k['nama_lengkap'] ?? ($k['nama'] ?? "Foreman {$fNrp}"));
+                    $div = trim((string)($k['division'] ?? ''));
+                    if (empty($div) || $div === '-') {
+                        $div = 'PRODUCTION A DIV';
+                    }
+                    $dept = $k['departemen'] ?? 'PROD 2';
+                    $seksi = $k['seksi'] ?? '';
+                    $foremenMap[$fNrp] = [
+                        'level' => 'Foreman',
+                        'nrp' => $fNrp,
+                        'nama' => $nama,
+                        'division' => $div,
+                        'departemen' => $dept,
+                        'seksi' => $seksi,
+                        'count' => 0,
+                    ];
+                }
+            }
+        }
+
+        // 2. Hitung binaan eksplisit yang terdaftar di nrp_foreman
+        $assignedSubNrps = [];
         foreach ($allKaryawan as $k) {
             $fNrp = trim((string)($k['nrp_foreman'] ?? ''));
             if ($fNrp !== '') {
@@ -1802,9 +1835,48 @@ class DashboardController extends Controller
                     ];
                 }
                 $foremenMap[$fNrp]['count']++;
+                $assignedSubNrps[] = $k['nrp'];
             }
         }
+
+        // 3. Jika nrp_foreman belum diisi di database, petakan subordinat non-struktural ke Foreman di seksi/dept yang sama
+        $foremenByDeptSeksi = [];
+        $foremenByDept = [];
+        foreach ($foremenMap as $fNrp => $fData) {
+            $deptKey = strtoupper(trim($fData['departemen']));
+            $seksiKey = strtoupper(trim($fData['seksi']));
+            if ($seksiKey !== '' && $seksiKey !== '-') {
+                $foremenByDeptSeksi["{$deptKey}|{$seksiKey}"][] = $fNrp;
+            }
+            $foremenByDept[$deptKey][] = $fNrp;
+        }
+
+        foreach ($allKaryawan as $k) {
+            if (in_array($k['nrp'], $assignedSubNrps)) continue;
+            $j = strtoupper(trim((string)($k['jabatan'] ?? '')));
+            // Hanya bawahan non-manajerial (bukan Foreman, Section Head, Dept Head, Div Head)
+            if (str_contains($j, 'SECTION') || str_contains($j, 'DEPT') || str_contains($j, 'DIV') || str_contains($j, 'MANAGER') || str_contains($j, 'FOREMAN') || str_contains($j, 'KETUA')) {
+                continue;
+            }
+
+            $kDept = strtoupper(trim((string)($k['departemen'] ?? '')));
+            $kSeksi = strtoupper(trim((string)($k['seksi'] ?? '')));
+
+            // Cocokkan dengan Foreman pada Seksi & Dept yang sama
+            if ($kSeksi !== '' && $kSeksi !== '-' && isset($foremenByDeptSeksi["{$kDept}|{$kSeksi}"])) {
+                $targetFNrp = $foremenByDeptSeksi["{$kDept}|{$kSeksi}"][0];
+                $foremenMap[$targetFNrp]['count']++;
+                $assignedSubNrps[] = $k['nrp'];
+            } elseif (isset($foremenByDept[$kDept]) && count($foremenByDept[$kDept]) === 1) {
+                // Jika di departemen tersebut hanya ada 1 foreman
+                $targetFNrp = $foremenByDept[$kDept][0];
+                $foremenMap[$targetFNrp]['count']++;
+                $assignedSubNrps[] = $k['nrp'];
+            }
+        }
+
         $foremenList = array_values($foremenMap);
+        usort($foremenList, fn($a, $b) => strcmp($a['nrp'], $b['nrp']));
 
         // Dynamic Section Heads breakdown from real Karyawan data
         $shMap = [];
