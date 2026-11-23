@@ -1740,19 +1740,27 @@ class PenilaianController extends Controller
                 }
 
                 // 2. Section Head Signature & Scores
-                if (!$isSelf) {
-                    if (isset($ttdByDocAndLevel[$docId]['section_head'])) {
-                        $hasSectionHeadSign = true;
-                        $ttdSectionHeadDate = substr($ttdByDocAndLevel[$docId]['section_head']->tgl_ttd, 0, 10);
-                    }
+                if (isset($ttdByDocAndLevel[$docId]['section_head'])) {
+                    $hasSectionHeadSign = true;
+                    $ttdSectionHeadDate = substr($ttdByDocAndLevel[$docId]['section_head']->tgl_ttd, 0, 10);
+                } elseif ($isSelf && isset($ttdByDocAndLevel[$docId]['foreman'])) {
+                    // Penilaian mandiri Section Head kadang disimpan pada level pertama (foreman/mandiri)
+                    $hasSectionHeadSign = true;
+                    $ttdSectionHeadDate = substr($ttdByDocAndLevel[$docId]['foreman']->tgl_ttd, 0, 10);
+                }
 
-                    if (isset($allScoresByDocAndLevel[$docId]['section_head']) && count($allScoresByDocAndLevel[$docId]['section_head']) > 0) {
-                        $sectionHeadEvaluated = true;
-                        $scoresArrSH = $allScoresByDocAndLevel[$docId]['section_head']->pluck('skor', 'aspek_kode')->toArray();
-                        $calcSH = $this->calcService->calculate($kodeForm, $scoresArrSH);
-                        $sectionHeadScore = number_format($calcSH['grand_total'], 2);
-                        $sectionHeadGrade = $this->calcService->scoreToGrade($calcSH['grand_total']);
-                    }
+                if (isset($allScoresByDocAndLevel[$docId]['section_head']) && count($allScoresByDocAndLevel[$docId]['section_head']) > 0) {
+                    $sectionHeadEvaluated = true;
+                    $scoresArrSH = $allScoresByDocAndLevel[$docId]['section_head']->pluck('skor', 'aspek_kode')->toArray();
+                    $calcSH = $this->calcService->calculate($kodeForm, $scoresArrSH);
+                    $sectionHeadScore = number_format($calcSH['grand_total'], 2);
+                    $sectionHeadGrade = $this->calcService->scoreToGrade($calcSH['grand_total']);
+                } elseif ($isSelf && isset($allScoresByDocAndLevel[$docId]['foreman']) && count($allScoresByDocAndLevel[$docId]['foreman']) > 0) {
+                    $sectionHeadEvaluated = true;
+                    $scoresArrSH = $allScoresByDocAndLevel[$docId]['foreman']->pluck('skor', 'aspek_kode')->toArray();
+                    $calcSH = $this->calcService->calculate($kodeForm, $scoresArrSH);
+                    $sectionHeadScore = number_format($calcSH['grand_total'], 2);
+                    $sectionHeadGrade = $this->calcService->scoreToGrade($calcSH['grand_total']);
                 }
 
                 // 3. Dept Head Signature & Scores
@@ -1766,6 +1774,18 @@ class PenilaianController extends Controller
                     $deptGrade = $this->calcService->scoreToGrade($calcDH['grand_total']);
                 } elseif (!empty($doc['docking_final'])) {
                     $deptGrade = $doc['docking_final'];
+                }
+
+                // Self-healing workflow status: Jika Section Head belum bertanda tangan dan belum menilai,
+                // status dokumen yang masih berada di bawah kendali Section Head dipastikan 'menunggu_section_head'
+                if (!$hasSectionHeadSign && !$sectionHeadEvaluated && !in_array($docStatus, ['selesai', 'menunggu_div_head'])) {
+                    if ($isSelf && in_array($kodeForm, ['07-006-SH', '07-006-KARYAWAN'])) {
+                        $docStatus = 'menunggu_section_head';
+                    } elseif ($kodeForm === '07-006-KARYAWAN' || !$hasForeman || $hasForemanSign || $foremanEvaluated) {
+                        $docStatus = 'menunggu_section_head';
+                    } elseif ($hasForeman && !$hasForemanSign) {
+                        $docStatus = 'menunggu_foreman';
+                    }
                 }
             }
 

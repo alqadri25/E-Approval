@@ -144,9 +144,9 @@ class DatabaseSyncService
             if ($isDiv) {
                 $status = 'menunggu_div_head';
             } elseif ($isDept) {
-                $status = 'menunggu_div_head';
-            } elseif ($isActualSH) {
                 $status = 'menunggu_dept_head';
+            } elseif ($isActualSH) {
+                $status = 'menunggu_section_head';
             } elseif ($kodeForm === '07-006-KARYAWAN') {
                 // Form 07-006-KARYAWAN (KJ 5+ non-Section Head): Dinilai pertama oleh Section Head!
                 $status = 'menunggu_section_head';

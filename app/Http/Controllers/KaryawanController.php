@@ -91,7 +91,17 @@ class KaryawanController extends Controller
                     $empKj >= 5 ||
                     in_array($empGol, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
                 );
-                $expectedStatus = ($isSelf || $isSub07006) ? 'menunggu_dept_head' : 'menunggu_section_head';
+
+                // Dokumen di bawah Section Head dimulai dari tahap Section Head (menunggu_section_head),
+                // dan hanya beralih ke menunggu_dept_head jika Section Head sudah menandatangani!
+                $hasShSign = false;
+                if (!empty($docsByNrp[$nrpK]['id'])) {
+                    $hasShSign = DB::table('tanda_tangan')
+                        ->where('dokumen_id', $docsByNrp[$nrpK]['id'])
+                        ->where('level', 'section_head')
+                        ->exists();
+                }
+                $expectedStatus = $hasShSign ? 'menunggu_dept_head' : 'menunggu_section_head';
 
                 if (empty($docsByNrp[$nrpK])) {
                     $newDocId = DB::table('dokumen')->insertGetId([

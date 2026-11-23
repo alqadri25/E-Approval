@@ -1174,6 +1174,12 @@ function lembarPenilaianPkHandler() {
                 if (colNum === 3) return this.currentEmployee.div_nama && this.currentEmployee.div_nama !== '-' ? this.currentEmployee.div_nama : 'ATASAN PROD A';
                 return '-';
             }
+            if (this.selectedKode === '07-006-KARYAWAN') {
+                if (colNum === 1) return this.currentEmployee.sh_nama && this.currentEmployee.sh_nama !== '-' ? this.currentEmployee.sh_nama : 'IRFAN NUDIN NAWAWI';
+                if (colNum === 2) return this.currentEmployee.dh_nama && this.currentEmployee.dh_nama !== '-' ? this.currentEmployee.dh_nama : 'IQBAL PRASETYA';
+                if (colNum === 3) return this.currentEmployee.div_nama && this.currentEmployee.div_nama !== '-' ? this.currentEmployee.div_nama : 'BURHANUDDIN';
+                return '-';
+            }
             if (this.selectedKode === '07-006-SH') {
                 if (colNum === 1) return this.currentEmployee.nama || 'KRISTIYANTO';
                 if (colNum === 2) return this.currentEmployee.dh_nama && this.currentEmployee.dh_nama !== '-' ? this.currentEmployee.dh_nama : 'SUPARDI';
@@ -1222,7 +1228,7 @@ function lembarPenilaianPkHandler() {
             if (this.selectedKode === '07-006-DIV') {
                 return colNum === 3;
             }
-            if (this.selectedKode === '07-006-DH' || this.selectedKode === '07-006-SH') {
+            if (this.selectedKode === '07-006-DH' || this.selectedKode === '07-006-SH' || this.selectedKode === '07-006-KARYAWAN') {
                 return colNum === 1;
             }
             // For 07-001, 07-002, 07-003, 07-004: Col 1 is direct evaluator

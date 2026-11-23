@@ -1217,6 +1217,7 @@
                                                 elseif ($aspectCode === 'PK_ACTION') $dispAspect = 'Action';
                                                 elseif ($aspectCode === 'MM_KEPUTUSAN') $dispAspect = 'Pengambil Keputusan / 決まる能力';
                                                 elseif ($aspectCode === 'MM_PENGEMBANGAN') $dispAspect = 'Pengembangan Bawahan (Counching & Counseling) / 部下の発展の能力';
+                                                elseif ($aspectCode === 'SK_KOMUNIKASI') $dispAspect = 'Komunikasi & kerjasama / コミュニケーション';
                                             }
                                         @endphp
                                         <span class="font-medium text-slate-900 leading-tight block">{{ $dispAspect }}</span>

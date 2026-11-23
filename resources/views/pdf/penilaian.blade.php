@@ -632,6 +632,8 @@
                                     elseif ($aspectCode === 'PK_CHECK') $displayAspectName = 'Check';
                                     elseif ($aspectCode === 'PK_ACTION') $displayAspectName = 'Action';
                                     elseif ($aspectCode === 'MM_KEPUTUSAN') $displayAspectName = 'Pengambil Keputusan / 決まる能力';
+                                    elseif ($aspectCode === 'MM_PENGEMBANGAN') $displayAspectName = 'Pengembangan Bawahan (Counching & Counseling) / 部下の発展の能力';
+                                    elseif ($aspectCode === 'SK_KOMUNIKASI') $displayAspectName = 'Komunikasi & kerjasama / コミュニケーション';
                                 }
                             @endphp
                             <tr>
