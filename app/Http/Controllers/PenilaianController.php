@@ -2752,12 +2752,15 @@ class PenilaianController extends Controller
 
         if (!$canViewForeman) {
             $scoresByLevel['foreman'] = [];
+            unset($ttdByLevel['foreman']);
         }
         if (!$canViewSectionHead) {
             $scoresByLevel['section_head'] = [];
+            unset($ttdByLevel['section_head']);
         }
         if (!$canViewDeptHead) {
             $scoresByLevel['dept_head'] = [];
+            unset($ttdByLevel['dept_head'], $ttdByLevel['div_head']);
         }
 
         // Recalculate level totals strictly for permitted visible scores
@@ -5209,6 +5212,18 @@ class PenilaianController extends Controller
 
         // Fetch Complete Signatures & prepare base64 images for DomPDF (guaranteed valid Data URIs)
         $ttdByLevel = $this->buildCompleteTtdByLevel($id, $dokumen, $karyawan, $calcForeman, $calcSectionHead, $calcDeptHead);
+
+        if ($user && isset($visibility)) {
+            if (!$visibility['can_view_foreman']) {
+                unset($ttdByLevel['foreman']);
+            }
+            if (!$visibility['can_view_section_head']) {
+                unset($ttdByLevel['section_head']);
+            }
+            if (!$visibility['can_view_dept_head']) {
+                unset($ttdByLevel['dept_head'], $ttdByLevel['div_head']);
+            }
+        }
 
         if (empty($karyawan['div_head_nama']) && !empty($karyawan['nrp_div_head'])) {
             $divUser = $this->repository->find('users', 'nrp', $karyawan['nrp_div_head']);
