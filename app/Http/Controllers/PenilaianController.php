@@ -2712,7 +2712,7 @@ class PenilaianController extends Controller
         } elseif ($status === 'menunggu_dept_head') {
             DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
         } elseif ($status === 'menunggu_div_head') {
-            DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', 'div_head')->delete();
+            DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['div_head', 'division_head'])->delete();
         } elseif ($status === 'revisi') {
             DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head'])->delete();
         }
@@ -4445,9 +4445,17 @@ class PenilaianController extends Controller
         }
 
         if ($isGol4UpRevisi) {
+            $isKaryawan07006Revisi = ($dokumen['kode_form'] ?? '') === '07-006-KARYAWAN' 
+                || self::isSubordinateForm07006($karyawanRevisi, $dokumen['kode_form'] ?? '');
+
             if ($targetLevel === 'dept_head') {
                 $newStatus = 'menunggu_dept_head';
-                $levelsToInvalidate = ['section_head', 'dept_head', 'div_head', 'division_head'];
+                if ($isKaryawan07006Revisi) {
+                    // On 07-006-KARYAWAN: Section Head already completed; only invalidate Dept Head and Div Head
+                    $levelsToInvalidate = ['dept_head', 'div_head', 'division_head'];
+                } else {
+                    $levelsToInvalidate = ['section_head', 'dept_head', 'div_head', 'division_head'];
+                }
             } else {
                 // Return to Karyawan Ybs (Section Head self-evaluation)
                 $newStatus = 'menunggu_section_head';
@@ -4611,14 +4619,39 @@ class PenilaianController extends Controller
             }
         } else {
             // Dokumen Bawahan yang telah difinalisasi
+            $isKaryawanGol4 = ($dokumen['kode_form'] ?? '') === '07-006-KARYAWAN' 
+                || self::isSubordinateForm07006($karyawan, $dokumen['kode_form'] ?? '');
+
             if ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
-                $oldTtds = DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'division_head'])->get();
+                if ($isKaryawanGol4) {
+                    // Form 07-006-KARYAWAN:
+                    // section_head = Section Head (Penilai 1)
+                    // dept_head = Department Head (Penilai 2)
+                    // div_head = Division Head (Penilai Final)
+                    // Hanya tanda tangan & nilai Division Head yang dihapus/direset!
+                    // Tanda tangan barcode Department Head dan Section Head TETAP UTUH!
+                    $levelsToInvalidate = ['div_head', 'division_head'];
+                } else {
+                    // Pada Form 07-006-SH / 07-006-DH:
+                    // Division Head berada di slot dept_head (Penilai Final)
+                    $levelsToInvalidate = ['dept_head', 'div_head', 'division_head'];
+                }
+
+                $oldTtds = DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->get();
                 foreach ($oldTtds as $ttd) {
                     if (!empty($ttd->ttd_image) && Storage::disk('public')->exists($ttd->ttd_image)) {
                         try { Storage::disk('public')->delete($ttd->ttd_image); } catch (\Throwable $e) {}
                     }
                 }
-                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'division_head'])->delete();
+                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $levelsToInvalidate)->delete();
+
+                // Bersihkan nilai downstream Division Head agar saat dibuka kembali, form siap diisi ulang atau klik 'Sama dg Dept Head'
+                if ($isKaryawanGol4) {
+                    DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', ['div_head', 'division_head'])->delete();
+                } else {
+                    DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head', 'division_head'])->delete();
+                }
+
                 if ($dokumen['kode_form'] === '07-006-DIV') {
                     $foremanTtd = DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', 'foreman')->first();
                     if ($foremanTtd && !empty($foremanTtd->ttd_image) && Storage::disk('public')->exists($foremanTtd->ttd_image)) {
@@ -4628,7 +4661,15 @@ class PenilaianController extends Controller
                 }
                 $newStatus = $isGol4Up ? 'menunggu_div_head' : 'menunggu_dept_head';
             } elseif ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
-                $targetLevels = $isGol4Up ? ['dept_head', 'section_head'] : ['dept_head'];
+                if ($isKaryawanGol4) {
+                    // Form 07-006-KARYAWAN: Section Head sudah selesai, Dept Head hanya merevisi tingkatannya sendiri
+                    $targetLevels = ['dept_head', 'div_head', 'division_head'];
+                    $newStatus = 'menunggu_dept_head';
+                } else {
+                    $targetLevels = $isGol4Up ? ['dept_head', 'section_head'] : ['dept_head'];
+                    $newStatus = $isGol4Up ? 'menunggu_section_head' : 'menunggu_dept_head';
+                }
+
                 $oldTtds = DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $targetLevels)->get();
                 foreach ($oldTtds as $ttd) {
                     if (!empty($ttd->ttd_image) && Storage::disk('public')->exists($ttd->ttd_image)) {
@@ -4636,16 +4677,31 @@ class PenilaianController extends Controller
                     }
                 }
                 DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $targetLevels)->delete();
-                $newStatus = $isGol4Up ? 'menunggu_section_head' : 'menunggu_dept_head';
+
+                if ($isKaryawanGol4) {
+                    DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'div_head', 'division_head'])->delete();
+                }
             } else {
-                $oldTtds = DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', ['dept_head', 'section_head'])->get();
+                // Admin / Superadmin
+                if ($isKaryawanGol4) {
+                    $targetLevels = ['div_head', 'division_head'];
+                    $newStatus = 'menunggu_div_head';
+                } else {
+                    $targetLevels = ['dept_head', 'div_head', 'division_head'];
+                    $newStatus = $isGol4Up ? 'menunggu_div_head' : 'menunggu_dept_head';
+                }
+
+                $oldTtds = DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $targetLevels)->get();
                 foreach ($oldTtds as $ttd) {
                     if (!empty($ttd->ttd_image) && Storage::disk('public')->exists($ttd->ttd_image)) {
                         try { Storage::disk('public')->delete($ttd->ttd_image); } catch (\Throwable $e) {}
                     }
                 }
-                DB::table('tanda_tangan')->where('dokumen_id', $id)->where('level', 'dept_head')->delete();
-                $newStatus = $isGol4Up ? 'menunggu_div_head' : 'menunggu_dept_head';
+                DB::table('tanda_tangan')->where('dokumen_id', $id)->whereIn('level', $targetLevels)->delete();
+
+                if ($isKaryawanGol4) {
+                    DB::table('nilai')->where('dokumen_id', $id)->whereIn('level', ['div_head', 'division_head'])->delete();
+                }
             }
         }
 

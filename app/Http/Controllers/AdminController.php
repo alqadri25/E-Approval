@@ -3754,7 +3754,9 @@ class AdminController extends Controller
             return back()->with('error', 'Tidak dapat merevisi ke Division Head karena Division Head belum menandatangani dokumen ini.');
         }
 
-        $isGol4Up = in_array($dokumen->kode_form ?? '', ['07-006-SH', '07-006-DH', '07-006-DIV']);
+        $kodeFormDoc = $dokumen->kode_form ?? '';
+        $isKaryawan07006 = ($kodeFormDoc === '07-006-KARYAWAN');
+        $isGol4Up = in_array($kodeFormDoc, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
 
         // Tentukan status dokumen baru berdasarkan level paling awal yang dipilih
         $newStatus = match($primaryTarget) {
@@ -3765,7 +3767,13 @@ class AdminController extends Controller
         };
 
         // Level tanda tangan yang harus diinvalidasi
-        if ($isGol4Up) {
+        if ($isKaryawan07006) {
+            $levelsToInvalidate = match($primaryTarget) {
+                'foreman', 'section_head' => ['section_head', 'dept_head', 'div_head', 'division_head'],
+                'dept_head' => ['dept_head', 'div_head', 'division_head'],
+                'div_head' => ['div_head', 'division_head'],
+            };
+        } elseif ($isGol4Up) {
             $levelsToInvalidate = match($primaryTarget) {
                 'foreman', 'section_head' => ['foreman', 'section_head', 'dept_head', 'div_head', 'division_head'],
                 'dept_head' => ['section_head', 'dept_head', 'div_head', 'division_head'],
@@ -3801,7 +3809,15 @@ class AdminController extends Controller
         // - Revisi ke Dept Head: Nilai Division Head WAJIB DIHAPUS dari DB!
         // - Jika opsi $resetNilai dicentang: Nilai pada level target itu sendiri JUGA dihapus bersih!
         $scoresToWipe = [];
-        if ($isGol4Up) {
+        if ($isKaryawan07006) {
+            if (in_array($primaryTarget, ['foreman', 'section_head'])) {
+                $scoresToWipe = ['section_head', 'dept_head', 'div_head', 'division_head'];
+            } elseif ($primaryTarget === 'dept_head') {
+                $scoresToWipe = ['dept_head', 'div_head', 'division_head'];
+            } elseif ($primaryTarget === 'div_head') {
+                $scoresToWipe = ['div_head', 'division_head'];
+            }
+        } elseif ($isGol4Up) {
             // Form 07-006:
             // Slot 'foreman' = Mandiri (Section Head)
             // Slot 'section_head' = Dept Head
