@@ -1262,7 +1262,19 @@ class PenilaianController extends Controller
         // "DEPARTEMEN HEAD BISA MENIAI BAWAHNNYA, KALAU MASIH SATU OPENILAI DAN DIRINYA SENDIRI MAKA HANYA ITU NILAI YANG BISA DILIHAT"
         if ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
             if ($isGol4Up) {
-                // Di Form 07-006: slot foreman = Mandiri, slot section_head = Dept Head, slot dept_head = Div Head
+                // Di Form 07-006 Varian Karyawan (karyawan_gol4):
+                // Section Head di slot section_head, Dept Head di slot dept_head, Div Head di slot div_head.
+                // Dept Head harus dapat melihat nilai Section Head dan nilai Dept Head itu sendiri!
+                if ($subFormVariant === 'karyawan_gol4') {
+                    return [
+                        'can_view_foreman' => true,
+                        'can_view_section_head' => true,
+                        'can_view_dept_head' => true,
+                    ];
+                }
+                // Di Form 07-006 Varian Section Head (07-006-SH):
+                // slot foreman = Mandiri, slot section_head = Dept Head, slot dept_head = Div Head
+                // Dept Head menilai di slot section_head, dan atasan (Div Head) di slot dept_head.
                 return [
                     'can_view_foreman' => true,
                     'can_view_section_head' => true,
