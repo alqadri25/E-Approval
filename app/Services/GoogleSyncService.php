@@ -1621,7 +1621,11 @@ class GoogleSyncService
                 ? ($doc->docking_div ?? $doc->docking_final ?? ($isSecretaryEmp ? ($pkMandiri !== '-' ? $pkMandiri : '-') : $pkDept))
                 : '-';
 
-            $pkFinal = $doc->docking_final ?? ($status === 'selesai' ? ($pkDiv !== '-' ? $pkDiv : ($isSecretaryEmp ? $pkMandiri : $pkDept)) : ($isSecretaryEmp ? ($status === 'selesai' ? $pkMandiri : '-') : ($pkDept !== '-' ? $pkDept : ($pkSect !== '-' ? $pkSect : ($pkMandiri !== '-' ? $pkMandiri : ($pkForeman !== '-' ? $pkForeman : '-'))))));
+            if ($isSecretaryEmp) {
+                $pkFinal = $doc->docking_final ?? ($pkMandiri !== '-' ? $pkMandiri : ($doc->grade_original ?? '-'));
+            } else {
+                $pkFinal = $doc->docking_final ?? ($status === 'selesai' ? ($pkDiv !== '-' ? $pkDiv : $pkDept) : ($pkDept !== '-' ? $pkDept : ($pkSect !== '-' ? $pkSect : ($pkMandiri !== '-' ? $pkMandiri : ($pkForeman !== '-' ? $pkForeman : '-')))));
+            }
             if (empty($pkFinal)) {
                 $pkFinal = '-';
             }

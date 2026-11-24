@@ -10,7 +10,7 @@
     $rowsByDocId = [];
     foreach ($evaluatedRows as $rowItem) {
         $kode = trim((string)($rowItem['kode_form'] ?? ''));
-        $label = $kode !== '' ? \App\Http\Controllers\PenilaianController::getFormName($kode) : 'Form Penilaian Karya';
+        $label = $kode !== '' ? \App\Http\Controllers\PenilaianController::getFormName($kode, $rowItem) : 'Form Penilaian Karya';
         $pdfFormCounts[$label] = ($pdfFormCounts[$label] ?? 0) + 1;
         if (!empty($rowItem['doc_id'])) {
             $rowsByDocId[(string)$rowItem['doc_id']] = [

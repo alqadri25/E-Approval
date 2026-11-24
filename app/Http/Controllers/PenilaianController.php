@@ -1492,8 +1492,16 @@ class PenilaianController extends Controller
     /**
      * Get Human-Readable Form Name for a Form Code.
      */
-    public static function getFormName(string $kodeForm): string
+    public static function getFormName(string $kodeForm, ?array $karyawan = null): string
     {
+        if ($karyawan) {
+            $seksi = strtoupper(trim((string)($karyawan['seksi'] ?? ($karyawan['nama_sect'] ?? ''))));
+            $pos = strtoupper(trim((string)($karyawan['jabatan'] ?? '')));
+            $nrp = (string)($karyawan['nrp'] ?? '');
+            if (str_contains($seksi, 'SECRETARY') || str_contains($pos, 'SECRETARY') || in_array($nrp, ['268', '1237'])) {
+                return 'Form Secretary';
+            }
+        }
         return match ($kodeForm) {
             '07-001' => 'Form KJ 1-3 (07-001)',
             '07-002' => 'Form KJ 4-5 Non Jabatan (07-002)',
@@ -1659,7 +1667,10 @@ class PenilaianController extends Controller
         if ($selfKaryawan) {
             $selfDoc = DB::table('dokumen')->where('nrp', $user->nrp)->orderByDesc('id')->first();
             $selfKodeForm = self::determineKodeForm($selfKaryawan);
-            $selfFormName = self::getFormName($selfKodeForm);
+            $selfFormName = self::getFormName($selfKodeForm, $selfKaryawan);
+            if ($user->isSecretary()) {
+                $selfFormName = 'Form Secretary';
+            }
         }
 
         // Filter subordinates for current user (including self if applicable)
@@ -1717,7 +1728,7 @@ class PenilaianController extends Controller
             $doc = $docsByNrp[$nrp] ?? null;
 
             $kodeForm = self::determineKodeForm($k);
-            $formName = self::getFormName($kodeForm);
+            $formName = self::getFormName($kodeForm, $k);
 
             $docId = $doc['id'] ?? null;
             $docStatus = $doc['status'] ?? 'belum_dinilai';
@@ -6242,6 +6253,7 @@ class PenilaianController extends Controller
                 'golongan' => $k['golongan'] ?? $k['sub_gol'] ?? '-',
                 'seksi' => $k['seksi'] ?? '-',
                 'is_self' => $isSelf,
+                'is_secretary' => $isSecretary || str_contains(strtoupper((string)($k['seksi'] ?? '')), 'SECRETARY') || in_array((string)$nrp, ['268', '1237']),
                 'doc_id' => $docId,
                 'kode_form' => $kodeForm,
                 'status_raw' => $statusRaw,
@@ -8999,8 +9011,11 @@ class PenilaianController extends Controller
 
             // 5. NILAI PK FINAL
             $pkFinal = '-';
-            if ($status === 'selesai') {
-                $pkFinal = $doc['docking_final'] ?? ($pkDiv !== '-' ? $pkDiv : ($isSecretaryEmp ? $pkMandiri : ($pkDept !== '-' ? $pkDept : '-')));
+            if ($isSecretaryEmp) {
+                $pkFinal = $doc['docking_final'] ?? ($pkMandiri !== '-' ? $pkMandiri : ($doc['grade_original'] ?? $grade));
+                if (empty($pkFinal)) $pkFinal = '-';
+            } elseif ($status === 'selesai') {
+                $pkFinal = $doc['docking_final'] ?? ($pkDiv !== '-' ? $pkDiv : ($pkDept !== '-' ? $pkDept : '-'));
             }
 
             // PK Original (dipertahankan untuk backward compatibility)

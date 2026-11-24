@@ -566,6 +566,9 @@
                             <td class="py-2.5 px-3 border-b border-r border-slate-200 whitespace-nowrap">
                                 @php
                                     $displayFormName = preg_replace('/\s*\(07-\d+\)\s*$/', '', trim((string)($sub['form_name'] ?? '')));
+                                    if (!empty($sub['is_secretary']) || str_contains(strtoupper($sub['seksi'] ?? ''), 'SECRETARY') || in_array((string)($sub['nrp'] ?? ''), ['268', '1237'])) {
+                                        $displayFormName = 'Form Secretary';
+                                    }
                                 @endphp
                                 <span class="inline-block text-[10.5px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-none">
                                     {{ $displayFormName }}

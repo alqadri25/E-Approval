@@ -274,7 +274,7 @@
                         <th class="py-3 px-3 border-t border-b border-l border-r border-slate-300 text-center w-12">NO</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-24">NRP</th>
                         <th class="py-3 px-4 border-t border-b border-r border-slate-300">NAMA LENGKAP &amp; POSITION</th>
-                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">FORM</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">{{ $user->isSecretary() ? 'FORMULIR' : 'FORM' }}</th>
                         @if(!$user->isSecretary())
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL FOREMAN</th>
                         @endif
@@ -329,8 +329,12 @@
                         </td>
 
                         <!-- 4. Kode Form -->
-                        <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center font-mono font-bold text-indigo-700">
-                            {{ str_starts_with($row['kode_form'] ?? '', '07-006') ? '07-006' : ($row['kode_form'] ?? '07-001') }}
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center {{ ($user->isSecretary() || !empty($row['is_secretary'])) ? 'font-bold text-slate-800' : 'font-mono font-bold text-indigo-700' }}">
+                            @if($user->isSecretary() || !empty($row['is_secretary']))
+                                Form Secretary
+                            @else
+                                {{ str_starts_with($row['kode_form'] ?? '', '07-006') ? '07-006' : ($row['kode_form'] ?? '07-001') }}
+                            @endif
                         </td>
 
                         @if(!$user->isSecretary())
