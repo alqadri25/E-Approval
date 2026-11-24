@@ -99,21 +99,21 @@
             </div>
         </div>
 
-        <!-- Card 3: Proses Foreman / Mandiri -->
+        <!-- Card 3: Proses Foreman -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Foreman / Mandiri</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ ($countProsesForeman ?? 0) + ($countProsesMandiri ?? 0) }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Awal</span>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Foreman</span>
+                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countProsesForeman ?? 0 }}</div>
+                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Foreman</span>
                 </div>
                 <div class="w-9 h-9 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-xs border border-blue-200 shrink-0">
                     ⏳
                 </div>
             </div>
             <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ ($countForemanSudah ?? 0) + ($countMandiriSudah ?? 0) }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ ($countProsesForeman ?? 0) + ($countProsesMandiri ?? 0) }}</span>
+                <span class="font-bold text-emerald-700">Sudah: {{ $countForemanSudah ?? 0 }}</span>
+                <span class="font-bold text-slate-500">Belum: {{ $countProsesForeman ?? 0 }}</span>
             </div>
         </div>
 
@@ -454,7 +454,7 @@
 
                         <!-- 10. Status Alur -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
-                            @if($row['status_raw'] === 'selesai')
+                            @if($row['status_raw'] === 'selesai' || (!empty($row['is_done']) && empty($row['is_self'])))
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                                     ✓ Selesai
                                 </span>
@@ -462,11 +462,11 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
                                     Review Div Head
                                 </span>
-                            @elseif(!empty($row['has_mandiri_col']) && empty($row['has_mandiri_sign']))
+                            @elseif(!empty($row['is_self']))
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
-                                    Proses Penilaian Mandiri
+                                    Penilaian Mandiri
                                 </span>
-                            @elseif($row['status_raw'] === 'menunggu_dept_head')
+                            @elseif($row['status_raw'] === 'menunggu_dept_head' || !empty($row['can_evaluate_dept']))
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Perlu tindakan Anda">
                                     🔔 Siap Dinilai
                                 </span>
@@ -478,9 +478,13 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
                                     Proses Foreman
                                 </span>
+                            @elseif($row['status_raw'] === 'revisi')
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                                    Revisi
+                                </span>
                             @else
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                                    Draft
+                                    {{ !empty($row['has_foreman_col']) ? 'Proses Foreman' : 'Proses Sect Head' }}
                                 </span>
                             @endif
                         </td>
