@@ -184,6 +184,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/database/clear-cache', [SuperAdminController::class, 'clearSystemCache'])->name('admin.database.clearCache');
 
     // Role-specific appraisal form routes (Clean URLs & Access Control: /penilaian/{role}/dokumen/{id})
+    Route::get('/penilaian/secretary/dokumen/{id}', [PenilaianController::class, 'showSecretary'])->name('penilaian.show.secretary');
     Route::get('/penilaian/sechead/dokumen/{id}', [PenilaianController::class, 'showSecHead'])->name('penilaian.show.sechead');
     Route::get('/penilaian/sectionhead/dokumen/{id}', fn($id) => redirect()->route('penilaian.show.sechead', $id));
     Route::get('/penilaian/sectthead/dokumen/{id}', fn($id) => redirect()->route('penilaian.show.sechead', $id));

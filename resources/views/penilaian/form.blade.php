@@ -149,12 +149,19 @@
                     <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $dokumen['status'] === 'selesai' ? 'bg-emerald-500' : ($dokumen['status'] === 'revisi' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse') }}"></span>
                     @php
                         $isSelfDoc = (strcasecmp($dokumen['nrp'] ?? '', Auth::user()?->nrp ?? '') === 0);
-                        $isMandiriStage = $isGol4Up && in_array($dokumen['status'] ?? '', ['menunggu_section_head', 'menunggu_foreman', 'draft', 'belum_ada']) && empty($ttdByLevel['foreman']);
-                        $isViewerSelfOrAuthorized = $isSelfDoc || in_array($rolePrefix ?? '', ['foreman', 'sechead']) || (Auth::user()?->isAdmin() || Auth::user()?->isSuperadmin());
+                        $isSecretaryDoc = ($dokumen['kode_form'] ?? '') === '07-006-DH' && (
+                            str_contains(strtoupper($karyawan['seksi'] ?? ''), 'SECRETARY') || in_array($dokumen['nrp'] ?? '', ['268', '1237'])
+                        );
+                        $isMandiriStage = ($isGol4Up || $isSecretaryDoc) 
+                            && in_array($dokumen['status'] ?? '', ['menunggu_dept_head', 'menunggu_section_head', 'menunggu_foreman', 'draft', 'belum_ada']) 
+                            && empty($ttdByLevel['foreman']);
+                        $isViewerSelfOrAuthorized = $isSelfDoc || (Auth::user()?->isSecretary() ?? false) || in_array($rolePrefix ?? '', ['foreman', 'sechead', 'secretary']) || (Auth::user()?->isAdmin() || Auth::user()?->isSuperadmin());
                         
                         $statusBadgeText = match($dokumen['status'] ?? '') {
                             'menunggu_div_head' => 'MENUNGGU DIVISION HEAD',
-                            'menunggu_dept_head' => 'MENUNGGU DEPARTMENT HEAD',
+                            'menunggu_dept_head' => ($isMandiriStage || $isSecretaryDoc || $isSelfDoc) && empty($ttdByLevel['foreman'])
+                                ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
+                                : 'MENUNGGU DEPARTMENT HEAD',
                             'menunggu_section_head' => $isMandiriStage 
                                 ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
                                 : 'MENUNGGU SECTION HEAD',
@@ -216,7 +223,7 @@
                     <span>Finalisasi</span>
                 </button>
                 @elseif($subFormVariant === 'dept_head')
-                <button type="button" @click="openSignModal('foreman', 'Department Head (Mandiri)')" class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 transition-all whitespace-nowrap flex-shrink-0">
+                <button type="button" @click="openSignModal('foreman', '{{ (Auth::user()?->isSecretary() || $isSecretaryDoc) ? 'Secretary (Mandiri)' : 'Department Head (Mandiri)' }}')" class="min-btn inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#92302e] hover:bg-[#7e2524] shadow-md shadow-red-200 transition-all whitespace-nowrap flex-shrink-0">
                     <span>🔏</span> Kirim
                 </button>
                 @elseif($subFormVariant === 'section_head')

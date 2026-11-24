@@ -1579,6 +1579,10 @@ class PenilaianController extends Controller
             return url("/dokumen/{$id}/penilaian");
         }
 
+        if ($user->isSecretary()) {
+            return url("/penilaian/secretary/dokumen/{$id}");
+        }
+
         if ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
             return url("/penilaian/divhead/dokumen/{$id}");
         }
@@ -2136,12 +2140,29 @@ class PenilaianController extends Controller
     }
 
     /**
+     * Role-specific form viewer for Secretary (/penilaian/secretary/dokumen/{id}).
+     */
+    public function showSecretary($id)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isSecretary() && !$user->isAdmin()) {
+            abort(403, 'Akses ditolak. Formulir penilaian pada rute ini khusus untuk Secretary.');
+        }
+
+        return $this->show($id, 'secretary');
+    }
+
+    /**
      * Role-specific form viewer for Department Head (/penilaian/depthead/dokumen/{id}).
      */
     public function showDeptHead($id)
     {
         /** @var User $user */
         $user = Auth::user();
+        if ($user && $user->isSecretary()) {
+            return redirect(url("/penilaian/secretary/dokumen/{$id}"));
+        }
         if (!$user->isDepartmentHead() && !in_array($user->role, ['dept_head', 'department_head']) && !$user->isAdmin()) {
             abort(403, 'Akses ditolak. Formulir penilaian pada rute ini khusus untuk Department Head.');
         }
@@ -2521,7 +2542,9 @@ class PenilaianController extends Controller
         $user = Auth::user();
 
         if (!$roleSlug) {
-            if ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
+            if ($user->isSecretary()) {
+                $roleSlug = 'secretary';
+            } elseif ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
                 $roleSlug = 'divhead';
             } elseif ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
                 $roleSlug = 'depthead';
@@ -8230,6 +8253,10 @@ class PenilaianController extends Controller
                 $totalKaryawanSubtitle = 'Seluruh karyawan terdaftar';
                 return true;
             }
+            if ($user->isSecretary()) {
+                $totalKaryawanSubtitle = 'Anggota Secretary';
+                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0 || str_contains(strtoupper((string)($k['seksi'] ?? ($k['nama_sect'] ?? ''))), 'SECRETARY');
+            }
             if ($user->isDivisionHead()) {
                 $totalKaryawanSubtitle = 'Anggota Division Head';
                 return $user->matchesDivisionHeadScope($k);
@@ -8268,7 +8295,7 @@ class PenilaianController extends Controller
             $rawDept = $request->input('departemen');
             $filterDept = ($rawDept === null || $rawDept === '' || strtoupper($rawDept) === 'SEMUA') ? '' : trim($rawDept);
         } else {
-            if ($user->isAdmin() || $user->isSuperadmin() || $user->isHr() || $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
+            if ($user->isAdmin() || $user->isSuperadmin() || $user->isHr() || $user->isDivisionHead() || $user->isSecretary() || in_array($user->role, ['div_head', 'division_head'])) {
                 $filterDept = '';
             } else {
                 $filterDept = $user->departemen ?: 'PROD 2';
@@ -8738,9 +8765,18 @@ class PenilaianController extends Controller
                 $hasDocGrade = (!empty($doc['docking_final']) && $doc['docking_final'] !== '-') || (!empty($doc['grade_original']) && $doc['grade_original'] !== '-');
                 $hasAnyScores = $hasCalcScore || $hasStoredScore || $hasDocGrade;
 
+                $isSecretaryEmp = str_contains(strtoupper((string)($k['seksi'] ?? ($k['nama_sect'] ?? ''))), 'SECRETARY') 
+                    || in_array((string)$nrp, ['268', '1237']);
+
                 // Seseorang HANYA dianggap "Sudah Dinilai" jika benar-benar telah memiliki nilai/skor riil dari penilai
                 if (!$hasAnyScores) {
                     $isDinilai = false;
+                } elseif ($user->isSecretary() || $isSecretaryEmp) {
+                    $isDinilai = !empty($doc) && (
+                        in_array($status, ['menunggu_div_head', 'selesai'])
+                        || (!empty($scores) && ($calc['grand_total'] > 0))
+                        || (($doc['total_nilai'] ?? 0) > 0)
+                    );
                 } elseif ($user->isAdmin() || $user->isSuperadmin() || $user->isHr()) {
                     $isDinilai = !empty($doc) && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
                 } elseif ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
@@ -8776,7 +8812,12 @@ class PenilaianController extends Controller
                     // Only assign a grade when there is actual score data — never fallback to 'B'
                     $hasCalcScore = ($calc['grand_total'] ?? 0) > 0;
                     $hasDocGrade = !empty($doc['docking_final']) || !empty($doc['grade_original']);
-                    if ($filterAtasan === 'foreman') {
+                    if ($isSecretaryEmp) {
+                        $grade = ($hasCalcScore ? $this->calcService->scoreToGrade($calc['grand_total']) : null)
+                            ?? $doc['docking_final']
+                            ?? $doc['grade_original']
+                            ?? '-';
+                    } elseif ($filterAtasan === 'foreman') {
                         $grade = $doc['grade_original']
                             ?? ($hasCalcScore ? $this->calcService->scoreToGrade($calc['grand_total']) : '-');
                     } else {
@@ -8869,10 +8910,12 @@ class PenilaianController extends Controller
 
             $isGol4UpForm = self::isForm07006($kodeForm);
             $hasForemanStructure = !empty($k['nrp_foreman']) && !$isGol4UpForm;
+            $isSecretaryEmp = str_contains(strtoupper((string)($k['seksi'] ?? ($k['nama_sect'] ?? ''))), 'SECRETARY') 
+                || in_array((string)$nrp, ['268', '1237']);
 
             // 1. NILAI PK FOREMAN (JIKA ADA)
             $pkForeman = '-';
-            if ($hasForemanStructure) {
+            if ($hasForemanStructure && !$isSecretaryEmp) {
                 $fScores = ($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : [];
                 if (!empty($fScores)) {
                     $calcFM = $this->calcService->calculate($kodeForm, $fScores);
@@ -8884,7 +8927,7 @@ class PenilaianController extends Controller
 
             // 1B. NILAI PK MANDIRI (Khusus Form 07-006 / KJ > 5 yang mengisi evaluasi mandiri)
             $pkMandiri = '-';
-            if ($isGol4UpForm) {
+            if ($isGol4UpForm || $isSecretaryEmp) {
                 $mandiriScores = ($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : [];
                 if (!empty($mandiriScores)) {
                     $calcMandiri = $this->calcService->calculate($kodeForm, $mandiriScores);
@@ -8896,7 +8939,9 @@ class PenilaianController extends Controller
 
             // 2. NILAI PK SECT (Section Head)
             $pkSection = '-';
-            if ($isGol4UpForm) {
+            if ($isSecretaryEmp) {
+                $pkSection = '-';
+            } elseif ($isGol4UpForm) {
                 $shScores = ($docId && isset($nilaiByDoc[$docId]['section_head'])) ? $nilaiByDoc[$docId]['section_head'] : (($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : []);
                 if (!empty($shScores) && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head'])) {
                     $calcSH = $this->calcService->calculate($kodeForm, $shScores);
@@ -8919,7 +8964,9 @@ class PenilaianController extends Controller
 
             // 3. NILAI PK DEPT (Department Head)
             $pkDept = '-';
-            if (in_array($status, ['menunggu_div_head', 'selesai'])) {
+            if ($isSecretaryEmp) {
+                $pkDept = '-';
+            } elseif (in_array($status, ['menunggu_div_head', 'selesai'])) {
                 $dhScores = ($docId && isset($nilaiByDoc[$docId]['dept_head'])) ? $nilaiByDoc[$docId]['dept_head'] : [];
                 if (!empty($dhScores)) {
                     $calcDH = $this->calcService->calculate($kodeForm, $dhScores);
@@ -8940,13 +8987,13 @@ class PenilaianController extends Controller
                 } else {
                     $calcDivGrade = null;
                 }
-                $pkDiv = $doc['docking_div'] ?? $doc['docking_final'] ?? $calcDivGrade ?? $doc['grade_original'] ?? ($pkDept !== '-' ? $pkDept : '-');
+                $pkDiv = $doc['docking_div'] ?? $doc['docking_final'] ?? $calcDivGrade ?? $doc['grade_original'] ?? ($isSecretaryEmp ? ($pkMandiri !== '-' ? $pkMandiri : '-') : ($pkDept !== '-' ? $pkDept : '-'));
             }
 
             // 5. NILAI PK FINAL
             $pkFinal = '-';
             if ($status === 'selesai') {
-                $pkFinal = $doc['docking_final'] ?? ($pkDiv !== '-' ? $pkDiv : ($pkDept !== '-' ? $pkDept : '-'));
+                $pkFinal = $doc['docking_final'] ?? ($pkDiv !== '-' ? $pkDiv : ($isSecretaryEmp ? $pkMandiri : ($pkDept !== '-' ? $pkDept : '-')));
             }
 
             // PK Original (dipertahankan untuk backward compatibility)

@@ -549,12 +549,12 @@
                         </td>
                         <td class="py-3 px-4 text-center border border-slate-200">
                             @if(!empty($sub['doc_id']))
-                                <a href="{{ route('penilaian.show.depthead', $sub['doc_id']) }}" 
+                                <a href="{{ route($user->isSecretary() ? 'penilaian.show.secretary' : 'penilaian.show.depthead', $sub['doc_id']) }}" 
                                    class="inline-block px-2.5 py-1 rounded-none text-xs font-bold transition-colors {{ in_array($sub['status'], ['menunggu_dept_head', 'draft']) ? 'bg-[#92302e] text-white hover:bg-[#7e2524]' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' }}">
                                     {{ in_array($sub['status'], ['menunggu_dept_head', 'draft']) ? 'Tinjau / Sahkan' : 'Lihat' }}
                                 </a>
                             @else
-                                <a href="{{ route('penilaian.dept') }}" 
+                                <a href="{{ $user->isSecretary() ? url('/secretary') : route('penilaian.dept') }}" 
                                    class="inline-block px-2.5 py-1 rounded-none text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 transition-colors">
                                     Lihat
                                 </a>

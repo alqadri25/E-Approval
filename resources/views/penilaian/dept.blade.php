@@ -174,7 +174,7 @@
             </span>
         </div>
         @if(!empty($latestPending['doc_id']))
-        <a href="{{ route('penilaian.show.depthead', $latestPending['doc_id']) }}" 
+        <a href="{{ route($user->isSecretary() ? 'penilaian.show.secretary' : 'penilaian.show.depthead', $latestPending['doc_id']) }}" 
            class="px-3.5 py-1.5 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white font-bold text-xs transition shadow-xs whitespace-nowrap self-start sm:self-auto">
             Tinjau Berkas Pertama &rarr;
         </a>
@@ -301,7 +301,7 @@
                         <!-- 2. NRP -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center font-mono font-bold text-slate-800">
                             @if(!empty($row['doc_id']))
-                            <a href="{{ route('penilaian.show.depthead', $row['doc_id']) }}" 
+                            <a href="{{ route($user->isSecretary() ? 'penilaian.show.secretary' : 'penilaian.show.depthead', $row['doc_id']) }}" 
                                class="hover:text-[#92302e] hover:underline transition-colors"
                                title="Buka form penilaian lengkap">
                                 {{ $row['nrp'] }}
@@ -511,12 +511,12 @@
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
                             @if(!empty($row['doc_id']))
                                 @if(!empty($row['can_evaluate_dept']))
-                                <a href="{{ route('penilaian.show.depthead', $row['doc_id']) }}" 
+                                <a href="{{ route($user->isSecretary() ? 'penilaian.show.secretary' : 'penilaian.show.depthead', $row['doc_id']) }}" 
                                    class="inline-flex items-center gap-1 px-3 py-1 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white text-xs font-bold transition shadow-xs">
                                     <span>Form &rarr;</span>
                                 </a>
                                 @else
-                                <a href="{{ route('penilaian.show.depthead', $row['doc_id']) }}" 
+                                <a href="{{ route($user->isSecretary() ? 'penilaian.show.secretary' : 'penilaian.show.depthead', $row['doc_id']) }}" 
                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-none bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200 text-xs font-semibold transition shadow-xs">
                                     <span>Lihat</span>
                                 </a>
