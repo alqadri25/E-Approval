@@ -1133,6 +1133,10 @@ class GoogleSyncService
                                     $existing->aktif = $aktif;
                                     $dirty = true;
                                 }
+                                if ($email !== '' && $existing->email !== $email) {
+                                    $existing->email = $email;
+                                    $dirty = true;
+                                }
                                 if (!empty($barcode) && empty($existing->barcodettd)) {
                                     $existing->barcodettd = $barcode;
                                     $existing->ttdbarcode = $barcode;

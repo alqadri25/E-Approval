@@ -57,7 +57,7 @@ var CONFIG_TABLES = {
     'nrp', 'nama_lengkap', 'golongan', 'sub_gol', 'kj', 'jabatan', 'tgl_masuk',
     'seksi', 'departemen', 'level_form', 'nrp_foreman', 'nrp_section_head',
     'nrp_dept_head', 'nrp_div_head', 'code_bagian', 'nama_bagian', 'nama_sect',
-    'line_category', 'division'
+    'line_category', 'division', 'email', 'keterangan'
   ],
   'dokumen': [
     'id', 'periode_id', 'nrp', 'kode_form', 'status', 'total_nilai',

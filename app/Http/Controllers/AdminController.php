@@ -498,6 +498,8 @@ class AdminController extends Controller
                 'sub_gol' => $subGol,
                 'tgl_masuk' => $tglMasuk,
                 'start_work' => $startWork,
+                'email' => $k['email'] ?? '',
+                'keterangan' => $k['keterangan'] ?? '',
                 'doc_id' => $doc['id'] ?? null,
                 'status' => $doc['status'] ?? 'belum_ada',
                 'nrp_foreman' => $nrpForeman,
@@ -3262,6 +3264,8 @@ class AdminController extends Controller
             'nama_bagian' => 'nullable|string',
             'nama_sect' => 'nullable|string',
             'division' => 'nullable|string',
+            'email' => 'nullable|string|max:150',
+            'keterangan' => 'nullable|string|max:500',
         ]);
 
         $subGol = strtoupper(trim($validated['sub_gol'] ?? $karyawan['sub_gol'] ?? ''));
@@ -3318,23 +3322,30 @@ class AdminController extends Controller
             'code_bagian' => trim($validated['code_bagian'] ?? ($karyawan['code_bagian'] ?? '')),
             'nama_bagian' => strtoupper(trim($validated['nama_bagian'] ?? ($karyawan['nama_bagian'] ?? ''))),
             'nama_sect' => $namaSect,
+            'email' => strtolower(trim((string)($validated['email'] ?? ($karyawan['email'] ?? '')))),
+            'keterangan' => trim((string)($validated['keterangan'] ?? ($karyawan['keterangan'] ?? ''))) ?: null,
         ];
 
         $this->repository->update('karyawan', 'nrp', $nrp, $updateData);
         $this->repository->clearCache('karyawan');
 
-        // Cascade updated employee name to app_users, supervisor fields in dokumen, and signatures
+        // Cascade updated employee name and email to app_users, supervisor fields in dokumen, and signatures
         $empName = $updateData['nama_lengkap'];
+        $empEmail = $updateData['email'];
         $linkedUser = DB::table('app_users')->where('nrp', $nrp)->first();
         if ($linkedUser) {
             $bc = User::generateBarcodeDataUri($nrp, $empName, $linkedUser->role);
-            DB::table('app_users')->where('id', $linkedUser->id)->update([
+            $userUpdates = [
                 'nama' => $empName,
                 'departemen' => $updateData['departemen'] !== 'ALL' ? $updateData['departemen'] : DB::raw('departemen'),
                 'barcodettd' => $bc,
                 'ttdbarcode' => $bc,
                 'updated_at' => now(),
-            ]);
+            ];
+            if (!empty($empEmail)) {
+                $userUpdates['email'] = $empEmail;
+            }
+            DB::table('app_users')->where('id', $linkedUser->id)->update($userUpdates);
         }
 
         DB::table('dokumen')->where('nrp_foreman', $nrp)->update(['nama_foreman' => $empName]);

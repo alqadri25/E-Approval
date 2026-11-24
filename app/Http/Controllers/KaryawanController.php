@@ -696,6 +696,9 @@ class KaryawanController extends Controller
             'departemen' => 'nullable|string|max:100',
             'division' => 'nullable|string|max:100',
             'line_category' => 'nullable|string|max:100',
+            'email' => 'nullable|string|max:150',
+            'keterangan' => 'nullable|string|max:500',
+            'employment_type' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -797,6 +800,9 @@ class KaryawanController extends Controller
             'nrp_section_head' => $nrpSectionVal,
             'nrp_dept_head' => $nrpDeptVal,
             'nrp_div_head' => $nrpDivVal,
+            'email' => strtolower(trim((string)$request->input('email', ''))),
+            'keterangan' => trim((string)$request->input('keterangan', '')) ?: null,
+            'employment_type' => trim((string)$request->input('employment_type', '')) ?: null,
         ];
         $levelForm = PenilaianController::determineLevelForm($tempKaryawan);
 
@@ -820,6 +826,9 @@ class KaryawanController extends Controller
             'nrp_section_head' => $nrpSectionVal,
             'nrp_dept_head' => $nrpDeptVal,
             'nrp_div_head' => $nrpDivVal,
+            'email' => strtolower(trim((string)$request->input('email', ''))),
+            'keterangan' => trim((string)$request->input('keterangan', '')) ?: null,
+            'employment_type' => trim((string)$request->input('employment_type', '')) ?: null,
         ];
 
         // Bersihkan data dokumen/nilai/ttd residual lama untuk NRP ini agar karyawan baru mulai bersih total
@@ -1057,61 +1066,77 @@ class KaryawanController extends Controller
             $handle = fopen('php://output', 'w');
             fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF)); // UTF-8 BOM
 
-            // Exact 11 headers (semicolon delimiter for neat Excel columns)
+            // Exact 15 headers matching company master template (semicolon delimiter for neat Excel columns)
             fputcsv($handle, [
-                'NO',
                 'NRP',
-                'NAMA',
-                'CODE BAGIAN',
-                'NAMA BAGIAN',
-                'NAMA SECT.',
-                'NAMA DEPT.',
-                'JABATAN',
-                'START WORK',
-                'KJ',
-                'Sub Gol',
+                'FULLNAME',
+                'ORGSTRUCTURECODE',
+                'ORGSTRUCTURENAME',
+                'LINE CATEGORY',
+                'POSITION',
+                'DIVISION',
+                'DEPT',
+                'SECTION',
+                'EMPLOYMENTTYPE',
+                'JOBCLASSCODE',
+                'JOBLEVELCODE',
+                'JOINDATE',
+                'Email',
+                'Keterangan',
             ], ';');
 
             fputcsv($handle, [
-                '1',
                 '9001',
                 'BUDI SANTOSO',
                 '1141600000',
                 'FACTORY 1 SEC.',
-                'FACTORY 1',
-                'PROD 2',
+                '-',
                 'OPERATOR MACHINING',
-                '2022-01-10',
-                'KJ 2',
+                'PRODUCTION A DIV',
+                'PROD 2',
+                'FACTORY 1',
+                'PERMANENT',
                 'IIB',
+                'KJ 2',
+                '2022-01-10',
+                'budi.santoso@musashi.co.id',
+                '-',
             ], ';');
 
             fputcsv($handle, [
-                '2',
                 '9002',
                 'SITI RAHMAWATI',
                 '1141600000',
                 'FACTORY 1 SEC.',
-                'FACTORY 1',
-                'PROD 2',
+                '-',
                 'OPERATOR QC',
-                '2023-03-15',
-                'KJ 2',
+                'PRODUCTION A DIV',
+                'PROD 2',
+                'FACTORY 1',
+                'PERMANENT',
                 'IIA',
+                'KJ 2',
+                '2023-03-15',
+                'siti.rahmawati@musashi.co.id',
+                '-',
             ], ';');
 
             fputcsv($handle, [
-                '3',
                 '9003',
                 'HENDRA WIJAYA',
                 '1141600000',
                 'FACTORY 1 SEC.',
-                'FACTORY 1',
-                'PROD 2',
+                '-',
                 'LEADER MACHINING',
-                '2019-07-01',
-                'KJ 3',
+                'PRODUCTION A DIV',
+                'PROD 2',
+                'FACTORY 1',
+                'PERMANENT',
                 'IIIA',
+                'KJ 3',
+                '2019-07-01',
+                'hendra.wijaya@musashi.co.id',
+                '-',
             ], ';');
 
             fclose($handle);
@@ -1315,6 +1340,9 @@ class KaryawanController extends Controller
                 'tgl_masuk' => $get(['startwork', 'joindate', 'tglmasuk', 'tanggalmasuk', 'masuk']),
                 'golongan' => $get(['golongan', 'gol', 'subgol', 'jobclasscode']),
                 'nrp_foreman' => $get(['nrpforeman', 'foreman']),
+                'email' => strtolower(trim($get(['email', 'surel', 'useremail', 'alamatemail']))),
+                'keterangan' => $get(['keterangan', 'ket', 'notes', 'note', 'description']),
+                'employment_type' => $get(['employmenttype', 'tipekerja', 'statuskerja']),
             ];
         };
 
@@ -1619,6 +1647,9 @@ class KaryawanController extends Controller
                 'nrp_section_head' => $nrpSectionVal,
                 'nrp_dept_head' => $nrpDeptVal,
                 'nrp_div_head' => $nrpDivVal,
+                'email' => strtolower(trim((string)($rawItem['email'] ?? ''))),
+                'keterangan' => trim((string)($rawItem['keterangan'] ?? '')) ?: null,
+                'employment_type' => trim((string)($rawItem['employment_type'] ?? '')) ?: null,
             ];
 
             if ($isDuplicate && $syncExisting) {

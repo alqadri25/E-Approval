@@ -21,7 +21,9 @@
         seksi: '',
         code_bagian: '',
         nama_bagian: '',
-        nama_sect: ''
+        nama_sect: '',
+        email: '',
+        keterangan: ''
     }
 }">
 
@@ -249,6 +251,7 @@
                         <th class="py-3 px-2 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-12 min-w-[48px] max-w-[48px] whitespace-nowrap sticky left-0 z-30">NO</th>
                         <th class="py-3 px-2.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-28 min-w-[100px] max-w-[100px] whitespace-nowrap sticky left-[48px] z-30">NRP</th>
                         <th class="py-3 px-3.5 border-b border-r-2 border-r-slate-500 border-slate-300 bg-slate-100 font-bold text-slate-700 w-52 min-w-[200px] max-w-[200px] whitespace-nowrap sticky left-[148px] z-30 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)]">NAMA LENGKAP</th>
+                        <th class="py-3 px-3 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center min-w-[150px] whitespace-nowrap">EMAIL</th>
                         <th class="py-3 px-2.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-28 whitespace-nowrap">CODE BAGIAN</th>
                         <th class="py-3 px-3 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 min-w-[120px]">NAMA BAGIAN</th>
                         <th class="py-3 px-2.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-28 whitespace-nowrap">SECTION</th>
@@ -278,6 +281,11 @@
                         <!-- NAMA LENGKAP (Sticky Left, 100% Solid, Divider Tebal) -->
                         <td class="py-2.5 px-3.5 border-b border-r-2 border-r-slate-500 border-slate-300 font-normal text-slate-800 bg-white group-hover:bg-slate-100 whitespace-nowrap w-52 min-w-[200px] max-w-[200px] sticky left-[148px] z-20 shadow-[4px_0_8px_-2px_rgba(0,0,0,0.15)]">
                             <div>{{ $k['nama_lengkap'] }}</div>
+                        </td>
+
+                        <!-- EMAIL -->
+                        <td class="py-2.5 px-3 border-b border-r border-slate-300 text-slate-700 font-mono text-xs text-center whitespace-nowrap">
+                            {{ !empty($k['email']) ? $k['email'] : '-' }}
                         </td>
 
                         <!-- CODE BAGIAN -->
@@ -364,6 +372,8 @@
                                             editKaryawan.code_bagian = '{{ addslashes($k['code_bagian'] ?? '') }}';
                                             editKaryawan.nama_bagian = '{{ addslashes($k['nama_bagian'] ?? '') }}';
                                             editKaryawan.nama_sect = '{{ addslashes($k['nama_sect'] ?? '') }}';
+                                            editKaryawan.email = '{{ addslashes($k['email'] ?? '') }}';
+                                            editKaryawan.keterangan = '{{ addslashes($k['keterangan'] ?? '') }}';
                                             showEditModal = true;
                                         "
                                         class="p-1.5 border-b border-r border-slate-300 bg-white hover:bg-blue-50 hover:border-blue-400 text-slate-600 hover:text-blue-600 transition shadow-2xs inline-flex items-center justify-center cursor-pointer"
@@ -395,7 +405,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="13" class="py-8 text-center text-slate-400 border-b border-r border-slate-300">
+                        <td colspan="14" class="py-8 text-center text-slate-400 border-b border-r border-slate-300">
                             Tidak ada data karyawan yang cocok dengan kriteria pencarian.
                         </td>
                     </tr>
@@ -564,6 +574,21 @@
                         </select>
                     </div>
 
+                    <!-- Email -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Email <span class="text-rose-500">*</span></label>
+                        <input type="email" name="email" required placeholder="Contoh: user@musashi.id"
+                               class="w-full text-xs font-semibold border border-slate-400 bg-white py-2 px-3 text-slate-900 rounded-none shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
+                        <p class="text-[10px] text-slate-500 mt-1">Email ini akan otomatis terhubung ke Manajemen Akun & Spreadsheet sheet 'users'.</p>
+                    </div>
+
+                    <!-- Keterangan -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Keterangan</label>
+                        <input type="text" name="keterangan" placeholder="Keterangan tambahan (opsional)"
+                               class="w-full text-xs border border-slate-400 bg-white py-2 px-3 text-slate-900 rounded-none shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
+                    </div>
+
                 </div>
 
                 <div class="pt-4 border-t border-slate-200 flex items-center justify-end gap-2">
@@ -730,6 +755,21 @@
                         </select>
                     </div>
 
+                    <!-- Email -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                        <input type="email" name="email" x-model="editKaryawan.email" placeholder="Contoh: user@musashi.id"
+                               class="w-full text-xs font-semibold border border-slate-400 bg-white py-2 px-3 text-slate-900 shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
+                        <p class="text-[10px] text-slate-500 mt-1">Email ini tersinkronisasi otomatis dengan akun di Manajemen Akun & Spreadsheet sheet 'users'.</p>
+                    </div>
+
+                    <!-- Keterangan -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Keterangan</label>
+                        <input type="text" name="keterangan" x-model="editKaryawan.keterangan" placeholder="Keterangan tambahan (opsional)"
+                               class="w-full text-xs border border-slate-400 bg-white py-2 px-3 text-slate-900 shadow-2xs focus:border-[#92302e] focus:outline-none focus:ring-1 focus:ring-[#92302e]">
+                    </div>
+
                 </div>
 
                 <div class="pt-4 border-t border-slate-200 flex items-center justify-end gap-2">
@@ -769,10 +809,10 @@
                     </span>
                 </label>
                 <div class="p-3 bg-slate-50 border border-slate-300 text-[11px] text-slate-600 space-y-1">
-                    <p class="font-bold text-slate-800">Format Kolom Excel / CSV yang Didukung:</p>
-                    <p class="font-mono text-[10px] text-slate-700 font-semibold bg-white p-1.5 border border-slate-200 overflow-x-auto whitespace-nowrap">NRP &bull; NAMA LENGKAP &bull; CODE BAGIAN &bull; NAMA BAGIAN &bull; SECTION &bull; DEPARTMENT &bull; DIVISION &bull; POSITION &bull; START WORK &bull; KJ &bull; GOLONGAN &bull; AKSI</p>
-                    <p class="text-[10px] text-slate-500 font-mono">Format standar sistem juga didukung: EMPLOYEENO, FULLNAME, ORGSTRUCTURECODE, ORGSTRUCTURENAME, LINE CATEGORY, POSITION, DIVISION, DEPT, SECTION, EMPLOYMENTTYPE, JOBCLASSCODE, JOBLEVELCODE, JOINDATE.</p>
-                    <p class="text-[10px] text-emerald-700 font-bold mt-1">&check; Otomatis membuat/memperbarui akun login di Manajemen Akun untuk posisi FOREMAN, SECTION HEAD, DEPT HEAD, DIV HEAD (Email: NRPPOSITION@musashi.id, Password: NRP@Musashi{TahunMasuk}, misal 9@Musashi96).</p>
+                    <p class="font-bold text-slate-800">Format Kolom Excel / CSV Resmi Perusahaan:</p>
+                    <p class="font-mono text-[9.5px] text-slate-700 font-semibold bg-white p-1.5 border border-slate-200 overflow-x-auto whitespace-nowrap">NRP &bull; FULLNAME &bull; ORGSTRUCTURECODE &bull; ORGSTRUCTURENAME &bull; LINE CATEGORY &bull; POSITION &bull; DIVISION &bull; DEPT &bull; SECTION &bull; EMPLOYMENTTYPE &bull; JOBCLASSCODE &bull; JOBLEVELCODE &bull; JOINDATE &bull; Email &bull; Keterangan</p>
+                    <p class="text-[10px] text-emerald-700 font-bold mt-1">&check; Kolom Email yang diupload langsung otomatis menjadi email akun login di Manajemen Akun &amp; Spreadsheet sheet 'users'.</p>
+                    <p class="text-[10px] text-slate-500">Password akun otomatis digenerate: {NRP}@Musashi{2 Digit Tahun Masuk} (Contoh: 9@Musashi96).</p>
                 </div>
                 <div class="pt-3 border-t border-slate-200 flex items-center justify-between">
                     <a href="{{ route('karyawan.template') }}" class="text-xs font-bold text-emerald-700 hover:underline">

@@ -172,7 +172,8 @@ class AccountSyncService
         $nama = trim((string)($emp->nama_lengkap ?? '')) ?: ('User ' . $cleanNrp);
         $role = $leadership ? $leadership['role'] : 'foreman';
         $posLabel = $leadership ? $leadership['label'] : 'FOREMAN';
-        $email = self::generateAccountEmail($cleanNrp, $posLabel);
+        $empEmail = !empty($emp->email) ? strtolower(trim((string)$emp->email)) : '';
+        $email = $empEmail !== '' ? $empEmail : self::generateAccountEmail($cleanNrp, $posLabel);
         $passwordPlain = self::generateAccountPassword($cleanNrp, (string)($emp->tgl_masuk ?? ''));
 
         $rawDept = trim((string)($emp->departemen ?? ''));
@@ -373,7 +374,8 @@ class AccountSyncService
                 $nama = trim((string)($emp->nama_lengkap ?? '')) ?: ('User ' . $nrp);
                 $role = $leadership['role'];
                 $posLabel = $leadership['label'];
-                $email = self::generateAccountEmail($nrp, $posLabel);
+                $empEmail = !empty($emp->email) ? strtolower(trim((string)$emp->email)) : '';
+                $email = $empEmail !== '' ? $empEmail : self::generateAccountEmail($nrp, $posLabel);
                 $passwordPlain = self::generateAccountPassword($nrp, (string)($emp->tgl_masuk ?? ''));
 
                 $rawDept = trim((string)($emp->departemen ?? ''));

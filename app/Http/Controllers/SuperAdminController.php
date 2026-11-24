@@ -549,6 +549,9 @@ class SuperAdminController extends Controller
                 if ($newDivisi !== '' && $newDivisi !== 'ALL') {
                     $karyawanUpdates['division'] = $newDivisi;
                 }
+                if (!empty($targetUser->email)) {
+                    $karyawanUpdates['email'] = $targetUser->email;
+                }
                 DB::table('karyawan')->where('nrp', $cleanNrp)->update($karyawanUpdates);
                 $tablesToSync[] = 'karyawan';
 
@@ -729,7 +732,7 @@ class SuperAdminController extends Controller
         $posInfo = \App\Services\AccountSyncService::resolveLeadershipRole($k->jabatan ?? '', $k->kj ?? '', $k->sub_gol ?? '', $k->golongan ?? '');
         $role = $posInfo['role'] ?? ($k->jabatan ?? 'STAFF');
         $posLabel = $posInfo['label'] ?? 'STAFF';
-        $email = \App\Services\AccountSyncService::generateAccountEmail($cleanNrp, $posLabel);
+        $email = !empty($k->email) ? strtolower(trim((string)$k->email)) : \App\Services\AccountSyncService::generateAccountEmail($cleanNrp, $posLabel);
         $password = \App\Services\AccountSyncService::generateAccountPassword($cleanNrp, $k->tgl_masuk ?? null);
 
         $existingUser = User::where('nrp', $cleanNrp)->first();
