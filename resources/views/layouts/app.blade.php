@@ -419,6 +419,7 @@
                 <span>Data Penilaian</span>
               </a>
 
+              @if(!$user->isSecretary())
               <a href="{{ route('penilaian.dept.penyesuaian') }}" 
                 class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('penilaian.dept.penyesuaian*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
                 <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('penilaian.dept.penyesuaian*') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -426,6 +427,7 @@
                 </svg>
                 <span>Penyesuaian Penilaian</span>
               </a>
+              @endif
 
               <a href="{{ route('penilaian.cari') }}" 
                 class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('penilaian.cari') || request()->routeIs('penilaian.show*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
@@ -851,7 +853,9 @@
               <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('dashboard') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Dashboard</a>
               <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">PENILAIAN DEPARTEMEN</div>
               <a href="{{ route('penilaian.dept') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('penilaian.dept') || request()->routeIs('penilaian.dept.saveDraft') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Data Penilaian</a>
+              @if(!$user->isSecretary())
               <a href="{{ route('penilaian.dept.penyesuaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('penilaian.dept.penyesuaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Penyesuaian Penilaian</a>
+              @endif
               <a href="{{ route('penilaian.cari') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('penilaian.cari') || request()->routeIs('penilaian.show*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Form Penilaian</a>
               <a href="{{ route('penilaian.riwayat') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('penilaian.riwayat') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Riwayat Penilaian</a>
               <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">LAPORAN &amp; REKAP</div>

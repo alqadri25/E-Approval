@@ -60,14 +60,14 @@
     </div>
 
     <!-- 2. Informative Assessment Stat Cards (5 Card Sejajar 1 Baris) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-3.5 items-stretch">
+    <div class="grid grid-cols-1 sm:grid-cols-2 {{ !$user->isSecretary() ? 'lg:grid-cols-5' : 'lg:grid-cols-3' }} gap-3 sm:gap-3.5 items-stretch">
         <!-- Card 1: Total Anggota -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                     <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Total Karyawan</span>
                     <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countAll ?? count($rows) }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Anggota {{ ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) ? 'Dept. Head' : ($user->departemen ?? 'Departemen') }}</span>
+                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Anggota {{ $user->isSecretary() ? 'Secretary' : (($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) ? 'Dept. Head' : ($user->departemen ?? 'Departemen')) }}</span>
                 </div>
                 <div class="w-9 h-9 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-xs border border-[#92302e]/20 shrink-0">
                     K
@@ -95,10 +95,11 @@
             </div>
             <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
                 <span class="font-bold {{ ($countSiap ?? 0) > 0 ? 'text-amber-700' : 'text-slate-500' }}">Siap Review: {{ $countSiap ?? 0 }}</span>
-                <span class="font-semibold text-slate-400">Dept Head</span>
+                <span class="font-semibold text-slate-400">{{ $user->isSecretary() ? 'Secretary' : 'Dept Head' }}</span>
             </div>
         </div>
 
+        @if(!$user->isSecretary())
         <!-- Card 3: Proses Foreman -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
             <div class="flex items-start justify-between gap-2">
@@ -134,6 +135,7 @@
                 <span class="font-bold text-slate-500">Belum: {{ $countProsesSection ?? 0 }}</span>
             </div>
         </div>
+        @endif
 
         <!-- Card 5: Diteruskan / Selesai -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
@@ -141,7 +143,7 @@
                 <div class="min-w-0">
                     <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Diteruskan / Selesai</span>
                     <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countSelesai ?? 0 }}</div>
-                    <span class="text-[11px] text-emerald-700 font-bold mt-1.5 block truncate">Verifikasi Dept Head</span>
+                    <span class="text-[11px] text-emerald-700 font-bold mt-1.5 block truncate">Verifikasi {{ $user->isSecretary() ? 'Secretary' : 'Dept Head' }}</span>
                 </div>
                 <div class="w-9 h-9 rounded-none bg-emerald-50 text-emerald-700 font-black flex items-center justify-center text-xs border border-emerald-200 shrink-0">
                     ✓
@@ -265,9 +267,13 @@
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-24">NRP</th>
                         <th class="py-3 px-4 border-t border-b border-r border-slate-300">NAMA LENGKAP &amp; POSITION</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">FORM</th>
+                        @if(!$user->isSecretary())
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL FOREMAN</th>
+                        @endif
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL PENILAIAN MANDIRI</th>
+                        @if(!$user->isSecretary())
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL SECTION HEAD</th>
+                        @endif
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">NILAI AKHIR DEPT</th>
                         <th class="py-3 px-3.5 border-t border-b border-r border-slate-300 min-w-[180px]">CATATAN DEPT HEAD</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">STATUS ALUR</th>
@@ -319,6 +325,7 @@
                             {{ str_starts_with($row['kode_form'] ?? '', '07-006') ? '07-006' : ($row['kode_form'] ?? '07-001') }}
                         </td>
 
+                        @if(!$user->isSecretary())
                         <!-- 5. HASIL FOREMAN -->
                         @php
                             $showForeman = !empty($row['has_foreman_col']);
@@ -350,6 +357,7 @@
                             </div>
                             @endif
                         </td>
+                        @endif
 
                         <!-- 6. HASIL PENILAIAN MANDIRI -->
                         @php
@@ -383,6 +391,7 @@
                             @endif
                         </td>
 
+                        @if(!$user->isSecretary())
                         <!-- 7. HASIL SECTION HEAD -->
                         @php
                             $showSection = !empty($row['has_section_col']);
@@ -414,6 +423,7 @@
                             </div>
                             @endif
                         </td>
+                        @endif
 
                         <!-- 8. Nilai Akhir Dept Head (Dropdown Docking) -->
                         <td class="py-2 px-3 border-b border-r border-slate-200 text-center">
@@ -514,7 +524,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="11" class="py-8 text-center text-slate-400 italic">
+                        <td colspan="{{ $user->isSecretary() ? 9 : 11 }}" class="py-8 text-center text-slate-400 italic">
                             Tidak ada data penilaian untuk ditampilkan di departemen ini.
                         </td>
                     </tr>

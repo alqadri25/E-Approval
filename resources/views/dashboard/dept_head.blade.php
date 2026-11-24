@@ -95,7 +95,7 @@
                 Tinjau Dokumen Masuk &rarr;
             </a>
         </div>
-    @elseif(($deptWaitingSectionCount ?? 0) > 0 || ($deptStageCounts['tahap1_foreman'] ?? 0) > 0)
+    @elseif((($deptWaitingSectionCount ?? 0) > 0 || ($deptStageCounts['tahap1_foreman'] ?? 0) > 0) && !$user->isSecretary())
         <!-- Info Banner: Sedang Diproses Foreman / Section Head -->
         <div class="bg-blue-50/70 border-l-4 border-blue-500 p-4 border-y border-r border-blue-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-start gap-3.5">
@@ -182,7 +182,7 @@
     @endphp
 
     <!-- 3. Key Stat Cards in a Row (4 Columns - Desain Identik dengan Section Head) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 {{ !$user->isSecretary() ? 'lg:grid-cols-4' : '' }} gap-4">
         <!-- 1. Total Karyawan (Klik: Scroll ke tabel filter semua) -->
         <div @click="scrollToSection('dept-data-karyawan', 'all')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
@@ -194,7 +194,7 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Karyawan</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $deptTotalKaryawan }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota Department Head</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota {{ $user->isSecretary() ? 'Secretary' : 'Department Head' }}</p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-none border border-slate-200">
@@ -221,6 +221,7 @@
             </span>
         </div>
 
+        @if(!$user->isSecretary())
         <!-- 3. Dinilai Foreman (Klik: Scroll ke tabel filter foreman selesai / sudah dinilai) -->
         <div @click="scrollToSection('dept-data-karyawan', '{{ ($hasAnyForeman ?? false) ? 'foreman_done' : 'evaluated' }}')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-emerald-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
@@ -264,6 +265,7 @@
                 Nilai SH
             </span>
         </div>
+        @endif
     </div>
 
     @php
@@ -291,7 +293,8 @@
         </div>
 
         <!-- Alur 4 Tahap Terpadu: Foreman -> Section Head -> Approval Dept Head -> Approval Division Head -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 {{ !$user->isSecretary() ? 'lg:grid-cols-4' : 'lg:grid-cols-2' }} gap-3 mt-4">
+            @if(!$user->isSecretary())
             <!-- Tahap 1: Penilaian Foreman -->
             <div @click="scrollToSection('dept-data-karyawan', 'foreman')" 
                  class="p-3.5 border {{ $deptForemanPendingCount > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
@@ -339,6 +342,7 @@
                     <span class="font-mono text-slate-400 text-[10px]">Alur SH-DH</span>
                 </div>
             </div>
+            @endif
 
             <!-- Tahap 3: Approval Department Head -->
             <div @click="scrollToSection('dept-data-karyawan', 'todo')" 
@@ -445,12 +449,16 @@
                         <select x-model="activeTab" 
                                 class="w-full py-1.5 px-3 text-xs font-semibold text-slate-700 rounded-none border border-slate-300 hover:border-slate-400 bg-white focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] transition shadow-xs cursor-pointer">
                             <option value="all">Semua ({{ count($deptSubordinateRows) }})</option>
+                            @if(!$user->isSecretary())
                             <option value="foreman">Foreman ({{ $deptForemanPendingCount }})</option>
                             <option value="foreman_done">Sudah Dinilai Foreman ({{ $deptForemanTotalDinilai ?? 0 }})</option>
                             <option value="section">Section Head ({{ $deptSectionPendingCount }})</option>
-                            <option value="todo">Department Head ({{ $deptNeedActionCount ?? 0 }})</option>
+                            @endif
+                            <option value="todo">{{ $user->isSecretary() ? 'Penilaian Mandiri' : 'Department Head' }} ({{ $deptNeedActionCount ?? 0 }})</option>
                             <option value="done">Division Head ({{ $deptDivDoneStageCount }})</option>
+                            @if(!$user->isSecretary())
                             <option value="evaluated">Sudah Dinilai Section Head ({{ $deptSectionTotalDinilai ?? 0 }})</option>
+                            @endif
                         </select>
                     </div>
 

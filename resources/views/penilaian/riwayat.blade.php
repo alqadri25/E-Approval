@@ -97,10 +97,10 @@
         </div>
     </div>
 
-    <!-- ============================================================== -->
-    <!-- PERBANDINGAN: TARGET VS REALISASI PENILAIAN                    -->
-    <!-- ============================================================== -->
-    @if(!$isDivHeadRiwayat)
+    @if(!$isDivHeadRiwayat && !$user->isSecretary())
+    {{-- ============================================================== --}}
+    {{-- PERBANDINGAN: TARGET VS REALISASI PENILAIAN                    --}}
+    {{-- ============================================================== --}}
     @if($user->isForeman() || $user->isSectionHead() || in_array($user->role, ['section_head', 'sechead']) || $isDeptHeadRiwayat)
     @include('penilaian.partials.target_actual_matrix_table', [
         'evaluatorRoleLabel' => $evaluatorRoleLabel,

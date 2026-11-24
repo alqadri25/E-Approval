@@ -346,6 +346,27 @@ class User extends Authenticatable
         return $this->role === 'department_head';
     }
 
+    public function isSecretary(): bool
+    {
+        if (strcasecmp((string)$this->role, 'secretary') === 0) {
+            return true;
+        }
+        $seksiUpper = strtoupper(trim((string)($this->posisi ?? '')));
+        $jabUpper = strtoupper(trim((string)($this->jabatan ?? '')));
+        $k = $this->karyawan;
+        if ($k) {
+            $seksiUpper .= ' ' . strtoupper(trim((string)($k->seksi ?? ($k->nama_sect ?? ''))));
+            $jabUpper .= ' ' . strtoupper(trim((string)($k->jabatan ?? '')));
+        }
+        if (str_contains($seksiUpper, 'SECRETARY') || str_contains($jabUpper, 'SECRETARY')) {
+            return true;
+        }
+        if (in_array((string)$this->nrp, ['268', '1237'], true)) {
+            return true;
+        }
+        return false;
+    }
+
     public function isDivisionHead(): bool
     {
         return $this->role === 'division_head';

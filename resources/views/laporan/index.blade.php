@@ -588,13 +588,13 @@
     </div>
     @endif
 
-    <!-- Grafik Batang / Tabel Terpadu Target vs Actual Nilai S, A, B, C, K -->
     @php
         $isForemanLaporan = $user->isForeman();
         $isDeptHeadLaporan = $user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']);
         $isDivHeadLaporan = $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']);
     @endphp
-    @if(!$isDivHeadLaporan)
+    @if(!$isDivHeadLaporan && !$user->isSecretary())
+    {{-- Grafik Batang / Tabel Terpadu Target vs Actual Nilai S, A, B, C, K --}}
     @if($isForemanLaporan || $user->isSectionHead() || in_array($user->role, ['section_head', 'sechead']) || $isDeptHeadLaporan)
     @include('penilaian.partials.target_actual_matrix_table', [
         'evaluatorRoleLabel' => $isDeptHeadLaporan ? 'Department Head' : ($isForemanLaporan ? 'Foreman' : 'Section Head'),
