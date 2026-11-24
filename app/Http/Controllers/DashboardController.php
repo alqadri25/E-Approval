@@ -379,6 +379,8 @@ class DashboardController extends Controller
         $totalTargetDept = 0;
         $totalTargetDiv = 0;
         $sectionSubordinates = [];
+        $sectionMandiriCount = 0;
+        $sectionBawahanCount = 0;
         $rekapForeman = [];
         $sectionTargetCounts = ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0];
         $foremanGradeCounts = ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0];
@@ -451,6 +453,10 @@ class DashboardController extends Controller
                 // 2. Check Section Head evaluation
                 // Khusus form 07-006-SH (evaluasi diri Section Head), nilai Section Head disimpan di kolom 'foreman' (Mandiri Kolom 1).
                 // Untuk bawahan KJ 1-5 tanpa Foreman, nilai Section Head murni disimpan di kolom 'section_head' (Kolom 2).
+                $hasShSign = $docId && (
+                    isset($ttdGrouped[$docId]['section_head']) ||
+                    ($isSelfDoc && isset($ttdGrouped[$docId]['foreman']))
+                );
                 $sectionScores = ($docId && isset($nilaiGrouped[$docId]['section_head'])) 
                     ? $nilaiGrouped[$docId]['section_head'] 
                     : (($docId && ($isSelfDoc || $isGol4UpDoc) && isset($nilaiGrouped[$docId]['foreman']))
@@ -461,8 +467,8 @@ class DashboardController extends Controller
                     : ['grand_total' => 0.00];
                 $sScore = $calcSection['grand_total'] > 0
                     ? $calcSection['grand_total']
-                    : (in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']) ? ($doc['total_nilai'] ?? 0) : 0);
-                $isEvaluatedBySection = in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($calcSection['grand_total'] > 0);
+                    : ((!$isSelfDoc && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) ? ($doc['total_nilai'] ?? 0) : 0);
+                $isEvaluatedBySection = ($calcSection['grand_total'] > 0) || $hasShSign || (!$isSelfDoc && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']));
                 $sectionGrade = '-';
                 if ($isEvaluatedBySection && $sScore > 0) {
                     $sectionGrade = $this->calcService->scoreToGrade($sScore);
@@ -549,11 +555,19 @@ class DashboardController extends Controller
                         $sectionDoneCount++;
                         $waitingDivCount++;
                     } elseif ($status === 'menunggu_dept_head') {
-                        $actionType = 'sudah_dikirim';
-                        $actionLabel = 'Terkirim ke Dept Head';
-                        $stageLabel = 'Department Head';
-                        $sectionDoneCount++;
-                        $waitingDeptCount++;
+                        if ($isSelfDoc && !$hasShSign && $calcSection['grand_total'] == 0) {
+                            $actionType = 'belum_dinilai';
+                            $actionLabel = 'Evaluasi Mandiri';
+                            $stageLabel = 'Evaluasi Mandiri';
+                            $sectionBelumCount++;
+                            $sectionNeedActionCount++;
+                        } else {
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Terkirim ke Dept Head';
+                            $stageLabel = 'Department Head';
+                            $sectionDoneCount++;
+                            $waitingDeptCount++;
+                        }
                     } elseif ($status === 'draft' || ($isEvaluatedBySection && in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'belum_ada']))) {
                         $actionType = 'draft';
                         $actionLabel = 'Draft Tersimpan';
@@ -562,8 +576,8 @@ class DashboardController extends Controller
                         $sectionNeedActionCount++;
                     } else {
                         $actionType = 'belum_dinilai';
-                        $actionLabel = 'Belum Dinilai';
-                        $stageLabel = 'Belum Dinilai';
+                        $actionLabel = $isSelfDoc ? 'Evaluasi Mandiri' : 'Belum Dinilai';
+                        $stageLabel = $isSelfDoc ? 'Evaluasi Mandiri' : 'Belum Dinilai';
                         $sectionBelumCount++;
                         $sectionNeedActionCount++;
                     }
@@ -607,6 +621,9 @@ class DashboardController extends Controller
 
             $sectionSubordinates = $enrichedSectionSubordinates;
             usort($sectionSubordinates, fn($a, $b) => strcmp($a['nrp'], $b['nrp']));
+
+            $sectionMandiriCount = count(array_filter($sectionSubordinates, fn($s) => strcasecmp($s['nrp'] ?? '', $user->nrp) === 0));
+            $sectionBawahanCount = count($sectionSubordinates) - $sectionMandiriCount;
 
             $sectionSudahDinilaiCount = count(array_filter($sectionSubordinates, function ($sub) {
                 return in_array($sub['action_type'], ['draft', 'sudah_dikirim']) || !empty($sub['is_evaluated']);
@@ -2294,6 +2311,8 @@ class DashboardController extends Controller
             'incomingDocsSectionHead',
             'incomingDocsDeptHead',
             'sectionSubordinates',
+            'sectionMandiriCount',
+            'sectionBawahanCount',
             'totalTargetSection',
             'rekapForeman',
             'sectionTargetCounts',

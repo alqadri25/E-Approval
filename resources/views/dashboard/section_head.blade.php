@@ -180,7 +180,13 @@
                             {{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? 'Penilaian Mandiri Selesai' : 'Tugas Section Head Selesai 100%' }}
                         </span>
                         <span class="text-xs font-bold text-emerald-950">
-                            {{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? 'Dokumen Penilaian Mandiri Anda Telah Selesai Dinilai & Dikirim ke Dept. Head' : 'Seluruh ' . count($sectionSubordinates) . ' Karyawan Bawahan Telah Selesai Dinilai & Dikirim ke Dept. Head' }}
+                            @if(!$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1)
+                                Dokumen Penilaian Mandiri Anda Telah Selesai Dinilai & Dikirim ke Dept. Head
+                            @elseif(($sectionBawahanCount ?? 0) > 0 && ($sectionMandiriCount ?? 0) > 0)
+                                Seluruh {{ count($sectionSubordinates) }} Dokumen ({{ $sectionBawahanCount }} Bawahan & {{ $sectionMandiriCount }} Mandiri) Telah Selesai Dinilai & Dikirim ke Dept. Head
+                            @else
+                                Seluruh {{ count($sectionSubordinates) }} Karyawan Bawahan Telah Selesai Dinilai & Dikirim ke Dept. Head
+                            @endif
                         </span>
                     </div>
                     <p class="text-xs text-emerald-800 mt-1">
@@ -212,7 +218,15 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Karyawan</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ count($sectionSubordinates) }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">{{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? 'Evaluasi Diri Mandiri' : 'Anggota Section Head' }}</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">
+                        @if(($sectionBawahanCount ?? 0) > 0 && ($sectionMandiriCount ?? 0) > 0)
+                            {{ $sectionMandiriCount }} Mandiri, {{ $sectionBawahanCount }} Bawahan
+                        @elseif(($sectionBawahanCount ?? 0) > 0)
+                            {{ $sectionBawahanCount }} Anggota Tim
+                        @else
+                            Evaluasi Diri Mandiri
+                        @endif
+                    </p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-none border border-slate-200">
@@ -230,8 +244,14 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Target</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $totalTargetSection ?? 0 }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">{{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? '1 Mandiri' : 'Karyawan yang dinilai' }}</p>
+                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $totalTargetSection ?? count($sectionSubordinates) }}</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">
+                        @if(($sectionBawahanCount ?? 0) > 0 && ($sectionMandiriCount ?? 0) > 0)
+                            Target Penilaian Tim
+                        @else
+                            Karyawan yang dinilai
+                        @endif
+                    </p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-none border border-blue-200">
@@ -267,23 +287,23 @@
         <!-- 4. Terkirim ke Dept. Head (Klik: Scroll ke tabel filter terkirim) -->
         <div @click="scrollToSection('section-data-karyawan', 'done')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-blue-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
-             title="Klik untuk melihat dokumen yang telah terkirim ke Dept. Head di tabel">
+             title="Klik untuk melihat dokumen yang telah terkirim ke Dept. Head / Div Head di tabel">
             <div class="flex items-center gap-3.5">
                 <div class="w-10 h-10 rounded-none bg-blue-50 text-blue-700 font-black flex items-center justify-center text-sm flex-shrink-0 border border-blue-300 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                     ✈
                 </div>
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-blue-700 transition-colors">
-                        Terkirim ke Dept. Head
+                        Diteruskan / Selesai
                     </p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $sectionDoneCount }}</p>
-                    <p class="text-[11px] text-blue-600 font-bold mt-1 leading-none">
+                    <p class="text-[11px] {{ ($sectionNeedActionCount ?? 0) > 0 ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold' }} mt-1 leading-none">
                         {{ $sectionNeedActionCount }} Perlu Tindakan (To-Do)
                     </p>
                 </div>
             </div>
-            <span class="text-[10px] font-bold px-2 py-1 {{ $sectionNeedActionCount > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
-                {{ $sectionNeedActionCount > 0 ? 'To-Do' : 'Tuntas' }}
+            <span class="text-[10px] font-bold px-2 py-1 {{ ($sectionNeedActionCount ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
+                {{ ($sectionNeedActionCount ?? 0) > 0 ? 'To-Do' : 'Tuntas' }}
             </span>
         </div>
     </div>
@@ -293,10 +313,10 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
             <div>
                 <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">
-                    Pelacakan Alur Status Dokumen Bawahan
+                    Pelacakan Alur Status Dokumen Tim
                 </h3>
                 <p class="text-xs text-slate-500">
-                    Memantau posisi dokumen seluruh {{ count($sectionSubordinates) }} karyawan bawahan Anda di setiap tahapan sistem
+                    Memantau posisi seluruh {{ count($sectionSubordinates) }} berkas penilaian di setiap tahapan sistem
                 </p>
             </div>
             @if($hasForemanSubordinates)
@@ -473,14 +493,14 @@
                         </div>
                         <h4 class="text-xs font-bold text-slate-900">3. Approval Division Head</h4>
                         <p class="text-[11px] text-slate-600 mt-1 leading-snug min-h-[30px]">
-                            Khusus Form SH (07-006) disetujui DH, menunggu Division Head.
+                            Khusus Form 07-006 (Gol. 4 &amp; SH) disetujui DH, menunggu persetujuan Division Head.
                         </p>
                     </div>
                     <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                         <span class="font-medium text-slate-500">
                             {{ $waitingDivCount > 0 ? 'Proses persetujuan Div Head' : 'Tidak ada antrean' }}
                         </span>
-                        <span class="font-mono text-slate-400 text-[10px]">Khusus SH (07-006)</span>
+                        <span class="font-mono text-slate-400 text-[10px]">Khusus Form 07-006</span>
                     </div>
                 </div>
 
@@ -497,7 +517,7 @@
                         </div>
                         <h4 class="text-xs font-bold text-slate-900">4. Selesai & Terarsip</h4>
                         <p class="text-[11px] text-slate-600 mt-1 leading-snug min-h-[30px]">
-                            KJ 1-5 tuntas di Dept Head dan Form SH (07-006) di Div Head.
+                            KJ 1-5 tuntas di Dept Head dan Form 07-006 disahkan final di Div Head.
                         </p>
                     </div>
                     <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">

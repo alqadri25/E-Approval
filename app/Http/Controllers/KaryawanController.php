@@ -332,9 +332,25 @@ class KaryawanController extends Controller
                 if (($doc['kode_form'] ?? '') !== $kodeForm) {
                     $updates['kode_form'] = $kodeForm;
                 }
-                if ($isSelfK || $isSub07006) {
-                    if (($doc['status'] ?? '') !== 'menunggu_dept_head') {
-                        $updates['status'] = 'menunggu_dept_head';
+
+                $hasShSign = DB::table('tanda_tangan')
+                    ->where('dokumen_id', $doc['id'])
+                    ->whereIn('level', ['section_head', 'foreman'])
+                    ->exists();
+
+                $isShRole = ($kodeForm === '07-006-SH') || (($k['level_form'] ?? '') === 'SECTION_HEAD');
+                $hasSectionHead = !empty($k['nrp_section_head']);
+
+                if ($isShRole || $hasSectionHead) {
+                    // Wajib ditinjau & TTD oleh Section Head / Mandiri sebelum masuk ke Department Head
+                    $targetStatus = $hasShSign ? 'menunggu_dept_head' : 'menunggu_section_head';
+                    if (($doc['status'] ?? '') !== $targetStatus) {
+                        $updates['status'] = $targetStatus;
+                    }
+                } elseif ($isSelfK || $isSub07006) {
+                    $targetStatus = ($kodeForm === '07-006-DIV') ? 'menunggu_div_head' : 'menunggu_dept_head';
+                    if (($doc['status'] ?? '') !== $targetStatus) {
+                        $updates['status'] = $targetStatus;
                     }
                 } elseif (empty($k['nrp_foreman']) && ($doc['status'] ?? '') === 'menunggu_foreman') {
                     $updates['status'] = 'menunggu_section_head';
