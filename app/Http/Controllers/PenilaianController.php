@@ -2688,26 +2688,6 @@ class PenilaianController extends Controller
             }
         }
 
-        // For Division Head doing re-assessment/penyesuaian, pre-fill dept_head / div_head with previous evaluator scores ONLY if status is menunggu_div_head or selesai
-        if (($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && $dokumen['nrp'] !== $user->nrp) {
-            if ($isKaryawan07006 && empty($scoresByLevel['div_head'])) {
-                if (in_array($status, ['menunggu_div_head', 'selesai'])) {
-                    if (!empty($scoresByLevel['dept_head'])) {
-                        $scoresByLevel['div_head'] = $scoresByLevel['dept_head'];
-                    } elseif (!empty($scoresByLevel['section_head'])) {
-                        $scoresByLevel['div_head'] = $scoresByLevel['section_head'];
-                    }
-                }
-            } elseif (empty($scoresByLevel['dept_head'])) {
-                if (in_array($status, ['menunggu_div_head', 'selesai'])) {
-                    if (!empty($scoresByLevel['section_head'])) {
-                        $scoresByLevel['dept_head'] = $scoresByLevel['section_head'];
-                    } elseif (!empty($scoresByLevel['foreman'])) {
-                        $scoresByLevel['dept_head'] = $scoresByLevel['foreman'];
-                    }
-                }
-            }
-        }
 
         // 7. Calculate totals for each level
         $calcForeman = $this->calcService->calculate($kodeForm, $scoresByLevel['foreman']);

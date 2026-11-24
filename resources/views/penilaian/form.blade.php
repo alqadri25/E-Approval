@@ -3198,30 +3198,22 @@ function penilaianApp() {
 
         getActiveWeighted(groupKey) {
             let lvl = '{{ $activeLevel }}';
-            let val = null;
             if (this.subFormVariant === 'karyawan_gol4') {
-                if (lvl === 'div_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) val = this.totalsDivHead[groupKey]?.weighted;
-                else if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) val = this.totalsDeptHead[groupKey]?.weighted;
-                else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) val = this.totalsSectionHead[groupKey]?.weighted;
+                if (lvl === 'div_head') return this.totalsDivHead[groupKey]?.weighted || '0.00';
+                if (lvl === 'dept_head') return this.totalsDeptHead[groupKey]?.weighted || '0.00';
+                if (lvl === 'section_head') return this.totalsSectionHead[groupKey]?.weighted || '0.00';
 
-                if (val !== undefined && val !== null && val !== '' && val !== '0.00') {
-                    return val;
-                }
                 if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.totalsDivHead[groupKey]?.weighted || 0) > 0) return this.totalsDivHead[groupKey].weighted;
                 if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.totalsDeptHead[groupKey]?.weighted || 0) > 0) return this.totalsDeptHead[groupKey].weighted;
                 if ({{ $canViewSectionHead ? 'true' : 'false' }} && parseFloat(this.totalsSectionHead[groupKey]?.weighted || 0) > 0) return this.totalsSectionHead[groupKey].weighted;
                 return '0.00';
             }
 
-            if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) val = this.totalsDeptHead[groupKey]?.weighted;
-            else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) val = this.totalsSectionHead[groupKey]?.weighted;
-            else if (lvl === 'foreman' && {{ $canViewForeman ? 'true' : 'false' }}) val = this.totalsForeman[groupKey]?.weighted;
+            if (lvl === 'dept_head') return this.totalsDeptHead[groupKey]?.weighted || '0.00';
+            if (lvl === 'section_head') return this.totalsSectionHead[groupKey]?.weighted || '0.00';
+            if (lvl === 'foreman') return this.totalsForeman[groupKey]?.weighted || '0.00';
 
-            if (val !== undefined && val !== null && val !== '' && val !== '0.00') {
-                return val;
-            }
-
-            // Fallback: highest level with value > 0 that this user is permitted to view
+            // Fallback for read-only view: highest level with value > 0 that this user is permitted to view
             if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.totalsDeptHead[groupKey]?.weighted || 0) > 0) return this.totalsDeptHead[groupKey].weighted;
             if ({{ $canViewSectionHead ? 'true' : 'false' }} && parseFloat(this.totalsSectionHead[groupKey]?.weighted || 0) > 0) return this.totalsSectionHead[groupKey].weighted;
             if ({{ $canViewForeman ? 'true' : 'false' }} && parseFloat(this.totalsForeman[groupKey]?.weighted || 0) > 0) return this.totalsForeman[groupKey].weighted;
@@ -3230,28 +3222,20 @@ function penilaianApp() {
 
         getActiveGrandTotal() {
             let lvl = '{{ $activeLevel }}';
-            let grand = null;
             if (this.subFormVariant === 'karyawan_gol4') {
-                if (lvl === 'div_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) grand = this.grandTotalDivHead;
-                else if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) grand = this.grandTotalDeptHead;
-                else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) grand = this.grandTotalSectionHead;
+                if (lvl === 'div_head') return this.grandTotalDivHead || '0.00';
+                if (lvl === 'dept_head') return this.grandTotalDeptHead || '0.00';
+                if (lvl === 'section_head') return this.grandTotalSectionHead || '0.00';
 
-                if (grand !== undefined && grand !== null && grand !== '' && grand !== '0.00') {
-                    return grand;
-                }
                 if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.grandTotalDivHead || 0) > 0) return this.grandTotalDivHead;
                 if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.grandTotalDeptHead || 0) > 0) return this.grandTotalDeptHead;
                 if ({{ $canViewSectionHead ? 'true' : 'false' }} && parseFloat(this.grandTotalSectionHead || 0) > 0) return this.grandTotalSectionHead;
                 return '0.00';
             }
 
-            if (lvl === 'dept_head' && {{ $canViewDeptHead ? 'true' : 'false' }}) grand = this.grandTotalDeptHead;
-            else if (lvl === 'section_head' && {{ $canViewSectionHead ? 'true' : 'false' }}) grand = this.grandTotalSectionHead;
-            else if (lvl === 'foreman' && {{ $canViewForeman ? 'true' : 'false' }}) grand = this.grandTotalForeman;
-
-            if (grand !== undefined && grand !== null && grand !== '' && grand !== '0.00') {
-                return grand;
-            }
+            if (lvl === 'dept_head') return this.grandTotalDeptHead || '0.00';
+            if (lvl === 'section_head') return this.grandTotalSectionHead || '0.00';
+            if (lvl === 'foreman') return this.grandTotalForeman || '0.00';
 
             if ({{ $canViewDeptHead ? 'true' : 'false' }} && parseFloat(this.grandTotalDeptHead || 0) > 0) return this.grandTotalDeptHead;
             if ({{ $canViewSectionHead ? 'true' : 'false' }} && parseFloat(this.grandTotalSectionHead || 0) > 0) return this.grandTotalSectionHead;
@@ -3273,7 +3257,14 @@ function penilaianApp() {
             this.grandTotalDivHead = this.calcLevel(this.scoresDivHead, this.totalsDivHead);
             let grandTotal = parseFloat(this.getActiveGrandTotal() || 0);
             let calculatedGrade = grandTotal > 0 ? this.calcScoreToGrade(grandTotal) : '';
-            if (!this.hasDockingChanged || !this.dockingGrade || this.dockingGrade === '') {
+            let activeLvl = this.activeAspectLevel || '{{ $activeLevel }}';
+            if (activeLvl && activeLvl !== '') {
+                if (grandTotal <= 0) {
+                    this.dockingGrade = '';
+                } else if (!this.hasDockingChanged || !this.dockingGrade || this.dockingGrade === '') {
+                    this.dockingGrade = calculatedGrade;
+                }
+            } else if (!this.hasDockingChanged || !this.dockingGrade || this.dockingGrade === '') {
                 if (calculatedGrade) {
                     this.dockingGrade = calculatedGrade;
                 }
