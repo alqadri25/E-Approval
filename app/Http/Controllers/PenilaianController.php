@@ -9735,9 +9735,9 @@ class PenilaianController extends Controller
         $isDeptHead = $user->isDepartmentHead() || in_array($userRole, ['dept_head', 'department_head']);
         $isSectionHead = $user->isSectionHead() || in_array($userRole, ['section_head', 'section', 'sechead']);
 
-        $showColForeman = true;
-        $showColSect = $isSuperOrAdmin || $isDivHead || $isDeptHead || $isSectionHead;
-        $showColDept = $isSuperOrAdmin || $isDivHead || $isDeptHead;
+        $showColForeman = !$user->isSecretary();
+        $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead || $isSectionHead);
+        $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead);
         $showColDiv = $isSuperOrAdmin || $isDivHead;
         $showColFinal = true;
 

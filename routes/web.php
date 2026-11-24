@@ -70,7 +70,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/penilaian/section/simpan-draft', [PenilaianController::class, 'sectionSaveDraft'])->name('penilaian.section.saveDraft');
     Route::post('/penilaian/section/submit-dept', [PenilaianController::class, 'sectionSubmitDept'])->name('penilaian.section.submitDept');
     
-    // Department Head Pages (Mockup Screens 1, 2, 3 & Data Penilaian & Penyesuaian Kuota)
+    // Department Head & Secretary Pages (Mockup Screens 1, 2, 3 & Data Penilaian & Penyesuaian Kuota)
+    Route::get('/secretary', [PenilaianController::class, 'deptIndex'])->name('penilaian.secretary');
+    Route::get('/penilaian/secretary', [PenilaianController::class, 'deptIndex'])->name('penilaian.secretary.alias');
     Route::get('/penilaian/dept', [PenilaianController::class, 'deptIndex'])->name('penilaian.dept');
     Route::post('/penilaian/dept/simpan-draft', [PenilaianController::class, 'deptSaveDraft'])->name('penilaian.dept.saveDraft');
     Route::get('/penilaian/dept/penyesuaian', [PenilaianController::class, 'deptPenyesuaian'])->name('penilaian.dept.penyesuaian');

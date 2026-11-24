@@ -405,14 +405,14 @@
             </div>
           </div>
 
-          <!-- 2. PENILAIAN DEPARTEMEN -->
+          <!-- 2. PENILAIAN DEPARTEMEN / SECRETARY -->
           <div class="pt-2">
             <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-3 pb-1">
-              PENILAIAN DEPARTEMEN
+              {{ $user->isSecretary() ? 'PENILAIAN SECRETARY' : 'PENILAIAN DEPARTEMEN' }}
             </div>
             <div class="space-y-1">
-              <a href="{{ route('penilaian.dept') }}" 
-                class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('penilaian.dept') || request()->routeIs('penilaian.dept.saveDraft') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
+              <a href="{{ $user->isSecretary() ? url('/secretary') : route('penilaian.dept') }}" 
+                class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->is('secretary') || request()->is('penilaian/secretary*') || request()->routeIs('penilaian.dept') || request()->routeIs('penilaian.dept.saveDraft') || request()->routeIs('penilaian.secretary*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
                 <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('penilaian.dept') || request()->routeIs('penilaian.dept.saveDraft') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                 </svg>
@@ -851,8 +851,8 @@
             @elseif($user->isDepartmentHead())
               <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">DASHBOARD</div>
               <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('dashboard') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Dashboard</a>
-              <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">PENILAIAN DEPARTEMEN</div>
-              <a href="{{ route('penilaian.dept') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('penilaian.dept') || request()->routeIs('penilaian.dept.saveDraft') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Data Penilaian</a>
+              <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">{{ $user->isSecretary() ? 'PENILAIAN SECRETARY' : 'PENILAIAN DEPARTEMEN' }}</div>
+              <a href="{{ $user->isSecretary() ? url('/secretary') : route('penilaian.dept') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->is('secretary') || request()->is('penilaian/secretary*') || request()->routeIs('penilaian.dept') || request()->routeIs('penilaian.dept.saveDraft') || request()->routeIs('penilaian.secretary*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Data Penilaian</a>
               @if(!$user->isSecretary())
               <a href="{{ route('penilaian.dept.penyesuaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('penilaian.dept.penyesuaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Penyesuaian Penilaian</a>
               @endif

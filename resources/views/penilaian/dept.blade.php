@@ -1,4 +1,4 @@
-@extends('layouts.app', ['title' => 'Data Penilaian - Department Head'])
+@extends('layouts.app', ['title' => ($user->isSecretary() ? 'Data Penilaian - Secretary' : 'Data Penilaian - Department Head')])
 
 @section('content')
 <div class="space-y-5" x-data="{ 
@@ -44,7 +44,11 @@
                 Data Penilaian
             </h1>
             <p class="text-xs text-red-100 font-medium mt-1">
-                Meninjau hasil penilaian dari Foreman, Penilaian Mandiri, dan Section Head, serta menetapkan nilai akhir &amp; tanda tangan digital Department Head
+                @if($user->isSecretary())
+                    Melakukan pengisian penilaian mandiri dan menetapkan nilai akhir serta tanda tangan digital untuk diteruskan ke Division Head
+                @else
+                    Meninjau hasil penilaian dari Foreman, Penilaian Mandiri, dan Section Head, serta menetapkan nilai akhir &amp; tanda tangan digital Department Head
+                @endif
             </p>
         </div>
 
@@ -162,7 +166,11 @@
         <div class="flex items-center gap-2.5">
             <span class="w-6 h-6 rounded-none bg-amber-500 text-white font-black text-xs flex items-center justify-center animate-pulse">!</span>
             <span>
-                Ada <strong>{{ $countSiap }} dokumen</strong> penilaian masuk dari Section Head yang menunggu review &amp; tanda tangan digital Anda.
+                @if($user->isSecretary())
+                    Ada <strong>{{ $countSiap }} dokumen</strong> penilaian mandiri yang menunggu pengisian nilai &amp; tanda tangan digital Anda.
+                @else
+                    Ada <strong>{{ $countSiap }} dokumen</strong> penilaian masuk dari Section Head yang menunggu review &amp; tanda tangan digital Anda.
+                @endif
             </span>
         </div>
         @if(!empty($latestPending['doc_id']))
@@ -274,8 +282,8 @@
                         @if(!$user->isSecretary())
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL SECTION HEAD</th>
                         @endif
-                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">NILAI AKHIR DEPT</th>
-                        <th class="py-3 px-3.5 border-t border-b border-r border-slate-300 min-w-[180px]">CATATAN DEPT HEAD</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">{{ $user->isSecretary() ? 'NILAI AKHIR MANDIRI' : 'NILAI AKHIR DEPT' }}</th>
+                        <th class="py-3 px-3.5 border-t border-b border-r border-slate-300 min-w-[180px]">{{ $user->isSecretary() ? 'CATATAN MANDIRI' : 'CATATAN DEPT HEAD' }}</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">STATUS ALUR</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-24">AKSI</th>
                     </tr>
@@ -453,7 +461,7 @@
                             <input type="text"
                                    name="penilaian[{{ $row['doc_id'] }}][catatan]"
                                    value="{{ $row['catatan'] }}"
-                                   placeholder="Catatan penilaian departemen..."
+                                   placeholder="{{ $user->isSecretary() ? 'Catatan penilaian mandiri...' : 'Catatan penilaian departemen...' }}"
                                    class="w-full px-2 py-1 rounded-none border border-slate-300 text-xs font-medium focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] bg-white">
                             @else
                             <span class="text-slate-600 text-[11px] truncate max-w-xs block">
@@ -536,7 +544,11 @@
         <!-- Footer Actions -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-3 border-t border-slate-200 gap-3">
             <span class="text-xs text-slate-500 font-medium">
-                Total <strong>{{ count($rows) }}</strong> karyawan terdaftar di {{ ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) ? 'Department Head' : ('departemen ' . ($user->departemen ?? '')) }}
+                @if($user->isSecretary())
+                    Total <strong>{{ count($rows) }}</strong> karyawan terdaftar di Secretary
+                @else
+                    Total <strong>{{ count($rows) }}</strong> karyawan terdaftar di {{ ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) ? 'Department Head' : ('departemen ' . ($user->departemen ?? '')) }}
+                @endif
             </span>
 
             <div class="flex items-center gap-2.5">

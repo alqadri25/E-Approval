@@ -926,9 +926,9 @@
         $isSectionHeadLaporan = $user->isSectionHead() || in_array($userRole, ['section_head', 'section', 'sechead']);
         $isForemanLaporan = $user->isForeman() || in_array($userRole, ['foreman', 'ketua']);
 
-        $showColForeman = true;
-        $showColSect = $isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan || $isSectionHeadLaporan;
-        $showColDept = $isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan;
+        $showColForeman = !$user->isSecretary();
+        $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan || $isSectionHeadLaporan);
+        $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan);
         $showColDiv = $isSuperOrAdmin || $isDivHeadLaporan;
         $showColFinal = true;
 
