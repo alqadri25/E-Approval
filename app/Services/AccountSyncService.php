@@ -13,7 +13,7 @@ class AccountSyncService
      * Eligible leadership positions that automatically get accounts:
      * FOREMAN, SECTION HEAD, DEPT HEAD, DIV HEAD
      */
-    public static function resolveLeadershipRole(string $position, string $kj = '', string $subGol = '', string $golongan = ''): ?array
+    public static function resolveLeadershipRole(string $position, string $kj = '', string $subGol = '', string $golongan = '', string $seksi = ''): ?array
     {
         $pos = strtoupper(trim($position));
         $subG = strtoupper(trim($subGol));
@@ -57,7 +57,34 @@ class AccountSyncService
             ];
         }
 
-        // 5. Karyawan non-pimpinan (meskipun KJ >= 5 seperti Staf, Senior Staff, Gol 4 Non Kasie, Operator)
+        // 5. Khusus SECRETARY dengan KJ > 5:
+        // Walaupun bukan Foreman, Section Head, atau Dept Head struktural, tetap dibuatkan akun
+        // dengan role department_head dan menggunakan Form 07-006-DH untuk menilai mandiri & disahkan Division Head.
+        $kjNum = 0;
+        if (preg_match('/(?:KJ\s*|KATEGORI\s*)?(\d+)/i', $kjRaw, $matches)) {
+            $kjNum = (int)$matches[1];
+        }
+        if ($kjNum === 0) {
+            if (str_contains($subG, 'VI') || str_contains($gol, 'VI')) {
+                $kjNum = 6;
+            } elseif (str_contains($subG, 'V') || str_contains($gol, 'V')) {
+                $kjNum = 5;
+            } elseif (str_contains($subG, 'IV') || str_contains($gol, 'IV')) {
+                $kjNum = 4;
+            } elseif (str_contains($subG, 'III') || str_contains($gol, 'III')) {
+                $kjNum = 3;
+            }
+        }
+        $seksiUpper = strtoupper(trim($seksi));
+        if ((str_contains($seksiUpper, 'SECRETARY') || str_contains($pos, 'SECRETARY')) && $kjNum > 5) {
+            return [
+                'role' => 'department_head',
+                'label' => 'SECRETARY',
+                'display' => 'Secretary',
+            ];
+        }
+
+        // 6. Karyawan non-pimpinan (meskipun KJ >= 5 seperti Staf, Senior Staff, Gol 4 Non Kasie, Operator)
         // Sekarang TIDAK dibuatkan akun dan tidak login sendiri.
         return null;
     }
@@ -146,7 +173,8 @@ class AccountSyncService
             (string)($emp->jabatan ?? ''),
             (string)($emp->kj ?? ''),
             (string)($emp->sub_gol ?? ''),
-            (string)($emp->golongan ?? '')
+            (string)($emp->golongan ?? ''),
+            (string)($emp->seksi ?? ($emp->nama_sect ?? ''))
         ) : null;
 
         // If employee is NOT an active supervisor AND does NOT qualify (e.g. KJ <= 5 and non-leadership position like STAF):
@@ -308,7 +336,8 @@ class AccountSyncService
                     (string)($emp->jabatan ?? ''),
                     (string)($emp->kj ?? ''),
                     (string)($emp->sub_gol ?? ''),
-                    (string)($emp->golongan ?? '')
+                    (string)($emp->golongan ?? ''),
+                    (string)($emp->seksi ?? ($emp->nama_sect ?? ''))
                 );
 
                 // If NOT an active supervisor AND does not qualify (e.g. KJ dropped to KJ 5 kebawah / KJ <= 5 and non-leadership position like STAF):
@@ -366,7 +395,13 @@ class AccountSyncService
                 }
 
                 $jabatan = (string)($emp->jabatan ?? '');
-                $leadership = self::resolveLeadershipRole($jabatan, (string)($emp->kj ?? ''), (string)($emp->sub_gol ?? ''), (string)($emp->golongan ?? ''));
+                $leadership = self::resolveLeadershipRole(
+                    $jabatan,
+                    (string)($emp->kj ?? ''),
+                    (string)($emp->sub_gol ?? ''),
+                    (string)($emp->golongan ?? ''),
+                    (string)($emp->seksi ?? ($emp->nama_sect ?? ''))
+                );
                 if (!$leadership) {
                     continue;
                 }

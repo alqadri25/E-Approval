@@ -1098,7 +1098,14 @@ class PenilaianController extends Controller
             }
         }
 
-        // 3. ATURAN UTAMA: Jika KJ > 5 (KJ 6 ke atas) -> MENGGUNAKAN FORM 07-006 VARIAN KARYAWAN (07-006-KARYAWAN)
+        // 3. ATURAN KHUSUS: SECRETARY dengan KJ > 5 menggunakan FORM 07-006-DH (Form Penilaian Department Head / Manager)
+        // di mana tanda tangan hanya 2 kolom: Kary. Ybs (dirinya sendiri) dan Penilai Final (Division Head).
+        $seksiRaw = strtoupper(trim((string)($karyawan['seksi'] ?? ($karyawan['nama_sect'] ?? ($karyawan['section'] ?? '')))));
+        if ((str_contains($seksiRaw, 'SECRETARY') || str_contains($jabatan, 'SECRETARY')) && $kjNum > 5) {
+            return '07-006-DH';
+        }
+
+        // 4. ATURAN UTAMA: Jika KJ > 5 (KJ 6 ke atas) -> MENGGUNAKAN FORM 07-006 VARIAN KARYAWAN (07-006-KARYAWAN)
         // Karyawan bukan Section Head (misal Foreman KJ 6, Staff KJ 6+, Gol 4 Non Kasie, Operator KJ 6, dll)
         // menggunakan Form 07-006 Varian Karyawan yang dinilai Section Head -> Dept Head -> Div Head.
         if ($kjNum > 5) {
@@ -1188,7 +1195,11 @@ class PenilaianController extends Controller
     public static function isSubordinateForm07006(array $karyawan, ?string $kodeForm = null): bool
     {
         $kf = $kodeForm ?? ($karyawan['kode_form'] ?? '');
-        $is07006 = str_starts_with(strtoupper(trim($kf)), '07-006');
+        $kfUpper = strtoupper(trim($kf));
+        if ($kfUpper === '07-006-DH' || $kfUpper === '07-006-DIV' || $kfUpper === '07-006-SH') {
+            return false;
+        }
+        $is07006 = str_starts_with($kfUpper, '07-006');
         return $is07006 && !self::isActualSectionHead($karyawan) && !self::isActualDeptHead($karyawan) && !self::isActualDivHead($karyawan);
     }
 
@@ -2854,7 +2865,8 @@ class PenilaianController extends Controller
         $isDeptHeadSubordinate = ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) && !empty($karyawan['nrp_dept_head']) && strcasecmp($karyawan['nrp_dept_head'], $user->nrp) === 0;
         $isDivHeadSubordinate = ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && !empty($karyawan['nrp_div_head']) && strcasecmp($karyawan['nrp_div_head'], $user->nrp) === 0;
 
-        $isMyDept = $user->canAccessDepartment($karyawanDept)
+        $isMyDept = ($dokumen['nrp'] === $user->nrp)
+            || $user->canAccessDepartment($karyawanDept)
             || ($isSectionHeadWithoutForeman && $isDirectSubordinate)
             || $isDeptHeadSubordinate
             || $isDivHeadSubordinate;

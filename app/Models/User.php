@@ -697,14 +697,19 @@ class User extends Authenticatable
     {
         if (in_array($this->role, ['dept_head', 'department_head'])) {
             $checkUpper = strtoupper(($this->email ?? '') . ' ' . ($this->nama ?? ''));
-            if (str_contains($checkUpper, 'MANAGER') || str_contains($checkUpper, 'MANAJER')) {
-                return 'Manager';
-            }
             if (!empty($this->nrp)) {
-                $pos = strtoupper((string)($this->karyawan->jabatan ?? ''));
+                $k = $this->karyawan;
+                $seksi = strtoupper((string)($k->seksi ?? ($k->nama_sect ?? '')));
+                $pos = strtoupper((string)($k->jabatan ?? ''));
+                if (str_contains($seksi, 'SECRETARY') || str_contains($pos, 'SECRETARY')) {
+                    return 'Secretary';
+                }
                 if (str_contains($pos, 'MANAGER') || str_contains($pos, 'MANAJER')) {
                     return 'Manager';
                 }
+            }
+            if (str_contains($checkUpper, 'MANAGER') || str_contains($checkUpper, 'MANAJER')) {
+                return 'Manager';
             }
             return 'Department Head';
         }
