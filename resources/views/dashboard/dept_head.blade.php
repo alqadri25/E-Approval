@@ -21,16 +21,24 @@
     },
     matchesFilter(sub) {
         // Tab filter
-        if (this.activeTab === 'todo' && sub.action_type !== 'todo') return false;
-        if (this.activeTab === 'foreman' && sub.action_type !== 'menunggu_foreman') return false;
-        if (this.activeTab === 'foreman_done' && !['tahap2', 'tahap3', 'tahap4'].includes(sub.stage_key)) return false;
-        if (this.activeTab === 'section' && !(sub.action_type === 'menunggu_section' || (sub.stage_key === 'tahap1' && sub.action_type !== 'menunggu_foreman'))) return false;
-        if (this.activeTab === 'tahap1' && sub.stage_key !== 'tahap1') return false;
-        if (this.activeTab === 'tahap2' && sub.stage_key !== 'tahap2') return false;
-        if (this.activeTab === 'tahap3' && sub.stage_key !== 'tahap3') return false;
-        if (this.activeTab === 'tahap4' && sub.stage_key !== 'tahap4') return false;
-        if (this.activeTab === 'done' && sub.action_type !== 'sudah_dikirim' && sub.action_type !== 'selesai') return false;
-        if (this.activeTab === 'evaluated' && !sub.is_evaluated && sub.action_type !== 'sudah_dikirim' && sub.action_type !== 'selesai') return false;
+        if (this.activeTab === 'all') { /* continue to search filter */ }
+        else if (this.activeTab === 'belum') {
+            if (sub.is_evaluated || sub.action_type === 'sudah_dikirim' || sub.action_type === 'selesai' || sub.status === 'menunggu_div_head') return false;
+        }
+        else if (this.activeTab === 'dinilai' || this.activeTab === 'evaluated') {
+            if (!sub.is_evaluated && sub.action_type !== 'sudah_dikirim' && sub.action_type !== 'selesai' && sub.status !== 'menunggu_div_head') return false;
+        }
+        else if (this.activeTab === 'done') {
+            if (sub.action_type !== 'sudah_dikirim' && sub.action_type !== 'selesai' && sub.status !== 'menunggu_div_head' && sub.stage_key !== 'tahap3' && sub.stage_key !== 'tahap4') return false;
+        }
+        else if (this.activeTab === 'todo' && sub.action_type !== 'todo') return false;
+        else if (this.activeTab === 'foreman' && sub.action_type !== 'menunggu_foreman') return false;
+        else if (this.activeTab === 'foreman_done' && !['tahap2', 'tahap3', 'tahap4'].includes(sub.stage_key)) return false;
+        else if (this.activeTab === 'section' && !(sub.action_type === 'menunggu_section' || (sub.stage_key === 'tahap1' && sub.action_type !== 'menunggu_foreman'))) return false;
+        else if (this.activeTab === 'tahap1' && sub.stage_key !== 'tahap1') return false;
+        else if (this.activeTab === 'tahap2' && sub.stage_key !== 'tahap2') return false;
+        else if (this.activeTab === 'tahap3' && sub.stage_key !== 'tahap3') return false;
+        else if (this.activeTab === 'tahap4' && sub.stage_key !== 'tahap4') return false;
         
         // Search filter
         if (this.searchQuery.trim() !== '') {
@@ -53,12 +61,12 @@
             </h1>
             <span class="sr-only">Dashboard Department Head</span>
             <p class="text-xs text-red-100 font-medium mt-1">
-                Selamat Datang {{ $user->nama }}
+                Selamat Datang {{ $user->nama }}{{ $user->isSecretary() ? ' • SECRETARY' : '' }}
             </p>
         </div>
 
         <div class="flex items-center gap-2.5">
-            <a href="{{ route('penilaian.dept') }}" 
+            <a href="{{ $user->isSecretary() ? url('/secretary') : route('penilaian.dept') }}" 
                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-none bg-white hover:bg-slate-100 text-[#92302e] font-bold text-xs shadow-sm transition-colors border border-white">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -131,14 +139,14 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-none">
-                            Tugas Department Head Tuntas 100%
+                            {{ $user->isSecretary() ? 'Tugas Penilaian Mandiri Tuntas 100%' : 'Tugas Department Head Tuntas 100%' }}
                         </span>
                         <span class="text-xs font-bold text-emerald-950">
-                            Seluruh {{ $deptTotalKaryawan }} Penilaian Karyawan Telah Disahkan / Disetujui Penuh
+                            {{ $user->isSecretary() ? 'Penilaian Mandiri Anda Telah Ditandatangani & Diteruskan ke Division Head' : "Seluruh {$deptTotalKaryawan} Penilaian Karyawan Telah Disahkan / Disetujui Penuh" }}
                         </span>
                     </div>
                     <p class="text-xs text-emerald-800 mt-1">
-                        Semua berkas penilaian karyawan departemen telah diverifikasi dan disetujui resmi sebagai tingkat persetujuan tertinggi.
+                        {{ $user->isSecretary() ? 'Dokumen penilaian mandiri Anda saat ini dalam proses peninjauan & pengesahan akhir oleh Division Head.' : 'Semua berkas penilaian karyawan departemen telah diverifikasi dan disetujui resmi sebagai tingkat persetujuan tertinggi.' }}
                     </p>
                 </div>
             </div>
@@ -179,10 +187,145 @@
                 }
             }
         }
+
+        $secTotal = $deptTotalKaryawan;
+        $secSudah = 0;
+        $secBelum = 0;
+        if (!empty($deptSubordinateRows)) {
+            foreach ($deptSubordinateRows as $r) {
+                if (!empty($r['is_evaluated']) || in_array($r['status'] ?? '', ['menunggu_div_head', 'selesai'])) {
+                    $secSudah++;
+                } else {
+                    $secBelum++;
+                }
+            }
+        }
+
+        $deptForemanPendingCount = $deptStageCounts['tahap1_foreman'] ?? 0;
+        $deptSectionPendingCount = ($hasAnyForeman ?? false)
+            ? ($deptStageCounts['tahap2_section'] ?? 0)
+            : ($deptStageCounts['tahap1_section'] ?? 0);
+        $deptDivDoneStageCount = $deptDoneCount ?? (($deptStageCounts['tahap3_div'] ?? 0) + ($deptStageCounts['tahap4_selesai'] ?? 0));
     @endphp
 
-    <!-- 3. Key Stat Cards in a Row (4 Columns - Desain Identik dengan Section Head) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 {{ !$user->isSecretary() ? 'lg:grid-cols-4' : '' }} gap-4">
+    @if($user->isSecretary())
+    <!-- 3. Key Stat Cards Khusus Secretary (4 Card Kecil Sesuai Alur Secretary) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Total Karyawan -->
+        <div @click="scrollToSection('dept-data-karyawan', 'all')" 
+             class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
+             title="Klik untuk melihat seluruh karyawan di tabel">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-sm flex-shrink-0 border border-[#92302e]/20 group-hover:bg-[#92302e] group-hover:text-white transition-colors">
+                        K
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Karyawan</p>
+                        <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $secTotal }}</p>
+                        <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota Secretary</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-none border border-slate-200">
+                    100% Tim
+                </span>
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                <span class="text-slate-600 font-medium">Sudah Dinilai: <strong class="text-emerald-700 font-bold">{{ $secSudah }}</strong> &bull; Belum Dinilai: <strong class="{{ $secBelum > 0 ? 'text-rose-600' : 'text-slate-500' }} font-bold">{{ $secBelum }}</strong></span>
+                <span class="text-[10px] font-mono text-slate-400">Total: {{ $secTotal }}</span>
+            </div>
+        </div>
+
+        <!-- Card 2: Belum Dinilai -->
+        <div @click="scrollToSection('dept-data-karyawan', 'belum')" 
+             class="bg-white rounded-none p-4 border {{ $secBelum > 0 ? 'border-amber-400 bg-amber-50/30 ring-1 ring-amber-300' : 'border-slate-300' }} hover:border-amber-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
+             title="Klik untuk melihat dokumen yang belum dinilai">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-none {{ $secBelum > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-600 border-slate-200' }} font-black flex items-center justify-center text-sm flex-shrink-0 border group-hover:bg-amber-500 group-hover:text-white transition-colors">
+                        ⏳
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-amber-700 transition-colors">Belum Dinilai</p>
+                        <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $secBelum }}</p>
+                        <p class="text-[11px] text-slate-500 mt-1 leading-none">Menunggu Evaluasi Mandiri</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 {{ $secBelum > 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-100 text-slate-600 border-slate-200' }} rounded-none border">
+                    Belum Dinilai
+                </span>
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                <span class="font-medium {{ $secBelum > 0 ? 'text-amber-700 font-bold' : 'text-slate-500' }}">
+                    {{ $secBelum > 0 ? 'Belum dinilai &bull; Perlu tindakan Anda' : 'Belum dinilai: 0 &bull; Tidak ada antrean' }}
+                </span>
+                <span class="text-[10px] font-mono text-slate-400">{{ $secBelum > 0 ? 'To-Do' : 'Tuntas' }}</span>
+            </div>
+        </div>
+
+        <!-- Card 3: Penilaian Anda (Menggantikan Tahap 3) -->
+        <div @click="scrollToSection('dept-data-karyawan', 'dinilai')" 
+             class="bg-white rounded-none p-4 border {{ $secSudah > 0 ? 'border-emerald-400 bg-emerald-50/30 ring-1 ring-emerald-300' : 'border-slate-300' }} hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
+             title="Klik untuk melihat dokumen evaluasi mandiri Anda">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-none {{ $secSudah > 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-slate-100 text-slate-600 border-slate-200' }} font-black flex items-center justify-center text-sm flex-shrink-0 border group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                        ✓
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-emerald-700 transition-colors">Penilaian Anda</p>
+                        <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $secSudah }}</p>
+                        <p class="text-[11px] text-slate-500 mt-1 leading-none">Evaluasi Mandiri Secretary</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 {{ $secSudah > 0 ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200' }} rounded-none border">
+                    {{ $secSudah > 0 ? 'Sudah Dinilai' : 'Belum Dinilai' }}
+                </span>
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                <span class="font-bold {{ $secSudah > 0 ? 'text-emerald-700' : 'text-slate-500' }}">
+                    {{ $secSudah > 0 ? 'Sudah dinilai & TTD digital' : 'Belum dinilai' }}
+                </span>
+                @if($secBelum > 0)
+                    <a href="{{ url('/secretary') }}" @click.stop class="text-[#92302e] font-bold hover:underline inline-flex items-center gap-1">
+                        Kerjakan &rarr;
+                    </a>
+                @else
+                    <span class="text-[10px] font-mono text-emerald-600 font-semibold">Tuntas</span>
+                @endif
+            </div>
+        </div>
+
+        <!-- Card 4: Terkirim ke Division Head (Menggantikan Tahap 4) -->
+        <div @click="scrollToSection('dept-data-karyawan', 'done')" 
+             class="bg-white rounded-none p-4 border {{ $deptDivDoneStageCount > 0 ? 'border-blue-400 bg-blue-50/30 ring-1 ring-blue-300' : 'border-slate-300' }} hover:border-blue-500 hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
+             title="Klik untuk melihat dokumen yang telah diteruskan ke Division Head">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-none {{ $deptDivDoneStageCount > 0 ? 'bg-blue-100 text-blue-800 border-blue-300' : 'bg-slate-100 text-slate-600 border-slate-200' }} font-black flex items-center justify-center text-sm flex-shrink-0 border group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        ✈
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-blue-700 transition-colors">Terkirim ke Division Head</p>
+                        <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $deptDivDoneStageCount }}</p>
+                        <p class="text-[11px] text-slate-500 mt-1 leading-none">Pengesahan Akhir Division Head</p>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold px-2 py-1 {{ $deptDivDoneStageCount > 0 ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-600 border-slate-200' }} rounded-none border">
+                    {{ $deptDivDoneStageCount > 0 ? 'Sudah Dinilai' : 'Belum Dinilai' }}
+                </span>
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                <span class="font-bold {{ $deptDivDoneStageCount > 0 ? 'text-blue-700' : 'text-slate-500' }}">
+                    {{ $deptDivDoneStageCount > 0 ? 'Sudah dinilai (Review Div Head)' : 'Belum dinilai' }}
+                </span>
+                <span class="text-[10px] font-mono text-blue-600 font-semibold">{{ $deptDivDoneStageCount > 0 ? 'Terkirim' : 'Menunggu' }}</span>
+            </div>
+        </div>
+    </div>
+    @else
+    <!-- 3. Key Stat Cards in a Row (4 Columns - Khusus Department Head) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- 1. Total Karyawan (Klik: Scroll ke tabel filter semua) -->
         <div @click="scrollToSection('dept-data-karyawan', 'all')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
@@ -194,7 +337,7 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Karyawan</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $deptTotalKaryawan }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota {{ $user->isSecretary() ? 'Secretary' : 'Department Head' }}</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota Department Head</p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-none border border-slate-200">
@@ -221,7 +364,6 @@
             </span>
         </div>
 
-        @if(!$user->isSecretary())
         <!-- 3. Dinilai Foreman (Klik: Scroll ke tabel filter foreman selesai / sudah dinilai) -->
         <div @click="scrollToSection('dept-data-karyawan', '{{ ($hasAnyForeman ?? false) ? 'foreman_done' : 'evaluated' }}')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-emerald-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
@@ -265,18 +407,9 @@
                 Nilai SH
             </span>
         </div>
-        @endif
     </div>
 
-    @php
-        $deptForemanPendingCount = $deptStageCounts['tahap1_foreman'] ?? 0;
-        $deptSectionPendingCount = ($hasAnyForeman ?? false)
-            ? ($deptStageCounts['tahap2_section'] ?? 0)
-            : ($deptStageCounts['tahap1_section'] ?? 0);
-        $deptDivDoneStageCount = $deptDoneCount ?? (($deptStageCounts['tahap3_div'] ?? 0) + ($deptStageCounts['tahap4_selesai'] ?? 0));
-    @endphp
-
-    <!-- 4. Visual Workflow Pipeline Tracker (Pelacakan Alur Status Dokumen Bawahan) -->
+    <!-- 4. Visual Workflow Pipeline Tracker (Pelacakan Alur Status Dokumen Bawahan - Khusus Dept Head) -->
     <div class="bg-white rounded-none p-5 border border-slate-300 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
             <div>
@@ -293,8 +426,7 @@
         </div>
 
         <!-- Alur 4 Tahap Terpadu: Foreman -> Section Head -> Approval Dept Head -> Approval Division Head -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 {{ !$user->isSecretary() ? 'lg:grid-cols-4' : 'lg:grid-cols-2' }} gap-3 mt-4">
-            @if(!$user->isSecretary())
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
             <!-- Tahap 1: Penilaian Foreman -->
             <div @click="scrollToSection('dept-data-karyawan', 'foreman')" 
                  class="p-3.5 border {{ $deptForemanPendingCount > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
@@ -342,7 +474,6 @@
                     <span class="font-mono text-slate-400 text-[10px]">Alur SH-DH</span>
                 </div>
             </div>
-            @endif
 
             <!-- Tahap 3: Approval Department Head -->
             <div @click="scrollToSection('dept-data-karyawan', 'todo')" 
@@ -393,7 +524,9 @@
             </div>
         </div>
     </div>
+    @endif
 
+    @if(!$user->isSecretary())
     <!-- 5. Matrix Tables Row: Target Penilaian & Hasil Penilaian Department Head per KJ -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6">
         @include('dashboard.partials.kj_matrix_card', [
@@ -427,6 +560,7 @@
             'footerRight' => ($deptActualKjSummary['total'] ?? 0) . '/' . ($deptTargetKjSummary['total'] ?? $effectiveTotalTarget) . ' Dinilai',
         ])
     </div>
+    @endif
 
     <!-- 7. Bottom Table: Data Karyawan & Penilaian (Lengkap dengan Toolbar Filter & Pencarian) -->
     <div id="dept-data-karyawan" class="bg-white rounded-none border border-slate-300 shadow-sm overflow-hidden scroll-mt-20">
@@ -449,15 +583,17 @@
                         <select x-model="activeTab" 
                                 class="w-full py-1.5 px-3 text-xs font-semibold text-slate-700 rounded-none border border-slate-300 hover:border-slate-400 bg-white focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] transition shadow-xs cursor-pointer">
                             <option value="all">Semua ({{ count($deptSubordinateRows) }})</option>
-                            @if(!$user->isSecretary())
-                            <option value="foreman">Foreman ({{ $deptForemanPendingCount }})</option>
-                            <option value="foreman_done">Sudah Dinilai Foreman ({{ $deptForemanTotalDinilai ?? 0 }})</option>
-                            <option value="section">Section Head ({{ $deptSectionPendingCount }})</option>
-                            @endif
-                            <option value="todo">{{ $user->isSecretary() ? 'Penilaian Mandiri' : 'Department Head' }} ({{ $deptNeedActionCount ?? 0 }})</option>
-                            <option value="done">Division Head ({{ $deptDivDoneStageCount }})</option>
-                            @if(!$user->isSecretary())
-                            <option value="evaluated">Sudah Dinilai Section Head ({{ $deptSectionTotalDinilai ?? 0 }})</option>
+                            @if($user->isSecretary())
+                                <option value="belum">Belum Dinilai ({{ $secBelum }})</option>
+                                <option value="dinilai">Penilaian Anda / Sudah Dinilai ({{ $secSudah }})</option>
+                                <option value="done">Terkirim ke Division Head ({{ $deptDivDoneStageCount }})</option>
+                            @else
+                                <option value="foreman">Foreman ({{ $deptForemanPendingCount }})</option>
+                                <option value="foreman_done">Sudah Dinilai Foreman ({{ $deptForemanTotalDinilai ?? 0 }})</option>
+                                <option value="section">Section Head ({{ $deptSectionPendingCount }})</option>
+                                <option value="todo">Department Head ({{ $deptNeedActionCount ?? 0 }})</option>
+                                <option value="done">Division Head ({{ $deptDivDoneStageCount }})</option>
+                                <option value="evaluated">Sudah Dinilai Section Head ({{ $deptSectionTotalDinilai ?? 0 }})</option>
                             @endif
                         </select>
                     </div>
@@ -523,7 +659,11 @@
                         </td>
                         <td class="py-3 px-4 border border-slate-200">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold border {{ $sub['badge_class'] ?? 'bg-slate-100 text-slate-700 border-slate-200' }}">
-                                {{ $sub['stage_label'] ?? '-' }}
+                                @if($user->isSecretary())
+                                    {{ in_array($sub['status'], ['menunggu_div_head', 'selesai']) ? 'Terkirim ke Division Head' : 'Penilaian Mandiri' }}
+                                @else
+                                    {{ $sub['stage_label'] ?? '-' }}
+                                @endif
                             </span>
                         </td>
                         <td class="py-3 px-4 text-center border border-slate-200">
@@ -550,8 +690,8 @@
                         <td class="py-3 px-4 text-center border border-slate-200">
                             @if(!empty($sub['doc_id']))
                                 <a href="{{ route($user->isSecretary() ? 'penilaian.show.secretary' : 'penilaian.show.depthead', $sub['doc_id']) }}" 
-                                   class="inline-block px-2.5 py-1 rounded-none text-xs font-bold transition-colors {{ in_array($sub['status'], ['menunggu_dept_head', 'draft']) ? 'bg-[#92302e] text-white hover:bg-[#7e2524]' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' }}">
-                                    {{ in_array($sub['status'], ['menunggu_dept_head', 'draft']) ? 'Tinjau / Sahkan' : 'Lihat' }}
+                                   class="inline-block px-2.5 py-1 rounded-none text-xs font-bold transition-colors {{ in_array($sub['status'], ['menunggu_dept_head', 'draft', 'menunggu_foreman']) ? 'bg-[#92302e] text-white hover:bg-[#7e2524]' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' }}">
+                                    {{ in_array($sub['status'], ['menunggu_dept_head', 'draft', 'menunggu_foreman']) ? ($user->isSecretary() ? 'Nilai Mandiri' : 'Tinjau / Sahkan') : 'Lihat' }}
                                 </a>
                             @else
                                 <a href="{{ $user->isSecretary() ? url('/secretary') : route('penilaian.dept') }}" 
@@ -581,12 +721,30 @@
         </div>
     </div>
 
-    <!-- 8. Panduan Alur Kerja Department Head (Petunjuk Pelaksanaan Pengesahan Akhir) -->
+    <!-- 8. Panduan Alur Kerja (Petunjuk Pelaksanaan Evaluasi) -->
     <div class="bg-white rounded-none p-5 border border-slate-300 shadow-sm">
         <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-3">
-            Panduan &amp; Prosedur Evaluasi Department Head
+            {{ $user->isSecretary() ? 'Panduan & Prosedur Evaluasi Secretary' : 'Panduan & Prosedur Evaluasi Department Head' }}
         </h4>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs text-slate-600">
+            @if($user->isSecretary())
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-none">
+                <span class="font-bold text-[#92302e] block mb-1">Langkah 1: Akses Form Penilaian</span>
+                <p>Buka formulir penilaian evaluasi mandiri Secretary (Form 07-006) melalui menu Form Penilaian atau tombol di dashboard.</p>
+            </div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-none">
+                <span class="font-bold text-[#92302e] block mb-1">Langkah 2: Evaluasi Mandiri</span>
+                <p>Lakukan penilaian mandiri secara objektif atas seluruh aspek hasil kerja, kedisiplinan, dan kompetensi.</p>
+            </div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-none">
+                <span class="font-bold text-[#92302e] block mb-1">Langkah 3: Tanda Tangan Digital</span>
+                <p>Bubuhkan tanda tangan digital Anda secara resmi dan klik Kirim untuk menyelesaikan evaluasi mandiri.</p>
+            </div>
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-none">
+                <span class="font-bold text-[#92302e] block mb-1">Langkah 4: Pengesahan Division Head</span>
+                <p>Dokumen otomatis terkirim ke Division Head untuk dilakukan peninjauan dan pengesahan akhir (final).</p>
+            </div>
+            @else
             <div class="p-3 bg-slate-50 border border-slate-200 rounded-none">
                 <span class="font-bold text-[#92302e] block mb-1">Langkah 1: Monitoring Alur</span>
                 <p>Pantau posisi dokumen seluruh karyawan departemen pada alur pipeline mulai dari Foreman dan Section Head.</p>
@@ -603,6 +761,7 @@
                 <span class="font-bold text-[#92302e] block mb-1">Langkah 4: Rekap &amp; Arsip Final</span>
                 <p>Pantau rekapitulasi nilai akhir departemen dan pastikan target alokasi kuota sesuai ketentuan perusahaan.</p>
             </div>
+            @endif
         </div>
     </div>
 
