@@ -63,6 +63,15 @@
     </div>
 
     <!-- 2. Live Action Banner: Yang Sudah Dilakukan & Yang Mau Dilakukan -->
+    @php
+        $totalSubCount = count($sectionSubordinates);
+        $isSectionFullyDone = ($totalSubCount > 0)
+            && ($sectionDoneCount >= $totalSubCount)
+            && ($sectionNeedActionCount === 0)
+            && ($sectionBelumCount === 0)
+            && ($sectionDraftCount === 0);
+    @endphp
+
     @if($sectionRevisiCount > 0)
         <!-- Urgent Revision Alert -->
         <div class="bg-rose-50 border-l-4 border-rose-600 p-4 border-y border-r border-rose-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -141,33 +150,7 @@
                 Lihat Data Penilaian &rarr;
             </a>
         </div>
-    @elseif($sectionNeedActionCount > 0)
-        <!-- Urgent Action Banner: Direct Section Head Subordinates -->
-        <div class="bg-amber-50/80 border-l-4 border-amber-500 p-4 border-y border-r border-amber-300 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div class="flex items-start gap-3.5">
-                <div class="w-8 h-8 rounded-none bg-amber-500 text-white flex items-center justify-center font-bold text-base flex-shrink-0 animate-pulse">
-                    !
-                </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-amber-200 text-amber-900 rounded-none">
-                            Perlu Tindakan Anda (To-Do)
-                        </span>
-                        <span class="text-xs text-amber-950 font-bold">
-                            {{ $sectionNeedActionCount }} Dokumen Penilaian Menunggu Persetujuan!
-                        </span>
-                    </div>
-                    <p class="text-xs text-amber-900 mt-1">
-                        Mohon segera lakukan peninjauan nilai &amp; tanda tangan digital untuk diteruskan ke Department Head.
-                    </p>
-                </div>
-            </div>
-            <a href="{{ route('penilaian.sectionhead') }}" 
-               class="px-4 py-2 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white font-bold text-xs shadow-sm whitespace-nowrap self-start md:self-center transition-colors">
-                Tinjau Dokumen Masuk &rarr;
-            </a>
-        </div>
-    @else
+    @elseif($isSectionFullyDone)
         <!-- All Done Success Banner -->
         <div class="bg-emerald-50 border-l-4 border-emerald-600 p-4 border-y border-r border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-start gap-3">
@@ -177,15 +160,15 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-none">
-                            {{ !$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1 ? 'Penilaian Mandiri Selesai' : 'Tugas Section Head Selesai 100%' }}
+                            {{ !$user->isStructuralSectionHead() && $totalSubCount <= 1 ? 'Penilaian Mandiri Selesai' : 'Tugas Section Head Selesai 100%' }}
                         </span>
                         <span class="text-xs font-bold text-emerald-950">
-                            @if(!$user->isStructuralSectionHead() && count($sectionSubordinates) <= 1)
+                            @if(!$user->isStructuralSectionHead() && $totalSubCount <= 1)
                                 Dokumen Penilaian Mandiri Anda Telah Selesai Dinilai & Dikirim ke Dept. Head
                             @elseif(($sectionBawahanCount ?? 0) > 0 && ($sectionMandiriCount ?? 0) > 0)
-                                Seluruh {{ count($sectionSubordinates) }} Dokumen ({{ $sectionBawahanCount }} Bawahan & {{ $sectionMandiriCount }} Mandiri) Telah Selesai Dinilai & Dikirim ke Dept. Head
+                                Seluruh {{ $totalSubCount }} Dokumen ({{ $sectionBawahanCount }} Bawahan & {{ $sectionMandiriCount }} Mandiri) Telah Selesai Dinilai & Dikirim ke Dept. Head
                             @else
-                                Seluruh {{ count($sectionSubordinates) }} Karyawan Bawahan Telah Selesai Dinilai & Dikirim ke Dept. Head
+                                Seluruh {{ $totalSubCount }} Karyawan Bawahan Telah Selesai Dinilai & Dikirim ke Dept. Head
                             @endif
                         </span>
                     </div>
@@ -200,6 +183,62 @@
             </div>
             <a href="{{ route('penilaian.riwayat') }}" 
                class="px-3.5 py-1.5 rounded-none bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm whitespace-nowrap self-start md:self-center">
+                Lihat Riwayat & Rekap &rarr;
+            </a>
+        </div>
+    @elseif($sectionNeedActionCount > 0)
+        <!-- Urgent Action Banner: Direct Section Head Subordinates -->
+        <div class="bg-amber-50/80 border-l-4 border-amber-500 p-4 border-y border-r border-amber-300 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-start gap-3.5">
+                <div class="w-8 h-8 rounded-none bg-amber-500 text-white flex items-center justify-center font-bold text-base flex-shrink-0 animate-pulse">
+                    !
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-amber-200 text-amber-900 rounded-none">
+                            Perlu Tindakan Anda (To-Do)
+                        </span>
+                        <span class="text-xs text-amber-950 font-bold">
+                            {{ $sectionNeedActionCount }} Dokumen Penilaian Menunggu Penilaian &amp; Persetujuan Anda!
+                        </span>
+                    </div>
+                    <p class="text-xs text-amber-900 mt-1">
+                        @if(($sectionDoneCount ?? 0) > 0)
+                            Sebanyak {{ $sectionDoneCount }} dari {{ $totalSubCount }} dokumen telah Anda selesaikan. Mohon segera selesaikan sisa {{ $sectionNeedActionCount }} dokumen lainnya.
+                        @else
+                            Belum ada dokumen yang dinilai. Mohon segera lakukan penilaian &amp; tanda tangan digital untuk diteruskan ke Department Head.
+                        @endif
+                    </p>
+                </div>
+            </div>
+            <a href="{{ route('penilaian.cari') }}" 
+               class="px-4 py-2 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white font-bold text-xs shadow-sm whitespace-nowrap self-start md:self-center transition-colors">
+                Buka Form Penilaian &rarr;
+            </a>
+        </div>
+    @else
+        <!-- Standby / Progress Banner -->
+        <div class="bg-slate-50 border-l-4 border-slate-500 p-4 border-y border-r border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded-none bg-slate-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                    ℹ
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-slate-200 text-slate-800 rounded-none">
+                            Status Alur Penilaian
+                        </span>
+                        <span class="text-xs font-bold text-slate-900">
+                            Progres Penilaian: {{ $sectionDoneCount ?? 0 }} / {{ $totalSubCount }} Selesai Dinilai
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-600 mt-1">
+                        Dokumen yang telah Anda tandatangani sedang dalam proses review di tahapan pimpinan selanjutnya.
+                    </p>
+                </div>
+            </div>
+            <a href="{{ route('penilaian.riwayat') }}" 
+               class="px-3.5 py-1.5 rounded-none bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs shadow-sm whitespace-nowrap self-start md:self-center">
                 Lihat Riwayat & Rekap &rarr;
             </a>
         </div>

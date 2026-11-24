@@ -5620,7 +5620,8 @@ class PenilaianController extends Controller
                 ? $this->calcService->calculate($kodeFormRow, $sectionScores) 
                 : ['grand_total' => 0.00];
             $sScore = $calcSection['grand_total'];
-            $hasSectionVal = in_array($statusRaw, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']) || ($sScore > 0);
+            $hasShTtd = $docId ? (isset($ttdGrouped[$docId]['section_head']) || DB::table('tanda_tangan')->where('dokumen_id', $docId)->where('level', 'section_head')->exists() || !empty($doc['ttd_section_head'])) : false;
+            $hasSectionVal = ($sScore > 0) || $hasShTtd || (!empty($doc['total_nilai']) && in_array($statusRaw, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']));
             $nilaiSection = '';
             if ($hasSectionVal) {
                 $finalScore = $sScore > 0 ? $sScore : ($doc['total_nilai'] ?? 0);
@@ -5632,11 +5633,21 @@ class PenilaianController extends Controller
 
             // Waiting states
             $isWaitingForeman = $hasForemanEmp && ($statusRaw === 'menunggu_foreman' || !$hasForemanVal);
-            $canEvaluate = !$isWaitingForeman && !in_array($statusRaw, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
+            $canEvaluate = !$isWaitingForeman && !in_array($statusRaw, ['menunggu_div_head', 'selesai']) && (!$hasShTtd || $statusRaw === 'draft' || $statusRaw === 'revisi');
 
             if ($isSubordinate07006) {
-                $hasShTtd = $docId ? DB::table('tanda_tangan')->where('dokumen_id', $docId)->where('level', 'section_head')->exists() : false;
-                $canEvaluate = !$hasShTtd && in_array($statusRaw, ['menunggu_section_head', 'menunggu_dept_head', 'draft', 'revisi', 'belum_ada']);
+                if ($statusRaw === 'selesai') {
+                    $statusLabel = 'Selesai';
+                } elseif ($statusRaw === 'menunggu_div_head') {
+                    $statusLabel = 'Review Div Head';
+                } elseif (($statusRaw === 'menunggu_dept_head' || in_array($statusRaw, ['menunggu_div_head', 'selesai'])) && $hasShTtd) {
+                    $statusLabel = 'Menunggu Dept Head';
+                } elseif ($hasSectionVal || $hasShTtd) {
+                    $statusLabel = 'Dinilai';
+                } else {
+                    $statusLabel = 'Menunggu';
+                }
+            } else {
                 if ($statusRaw === 'selesai') {
                     $statusLabel = 'Selesai';
                 } elseif ($statusRaw === 'menunggu_div_head') {
@@ -5646,11 +5657,8 @@ class PenilaianController extends Controller
                 } elseif ($hasSectionVal || $hasShTtd) {
                     $statusLabel = 'Dinilai';
                 } else {
-                    $statusLabel = 'Menunggu';
+                    $statusLabel = $isWaitingForeman ? 'Menunggu Foreman' : 'Menunggu';
                 }
-            } else {
-                // Status label: Dinilai or Menunggu
-                $statusLabel = $hasSectionVal ? 'Dinilai' : ($isWaitingForeman ? 'Menunggu Foreman' : 'Menunggu');
             }
 
             // Note / Catatan
@@ -5668,7 +5676,7 @@ class PenilaianController extends Controller
                 'foreman_nama' => $fNameClean,
                 'foreman_nrp' => $hasForemanEmp ? $fNrp : '',
                 'has_foreman_sign' => $hasForemanEmp && (!empty($doc['ttd_foreman']) || ($hasForemanVal && $fScore > 0)),
-                'has_section_sign' => !empty($doc['ttd_section_head']),
+                'has_section_sign' => $hasShTtd,
                 'doc_id' => $docId,
                 'status_raw' => $statusRaw,
                 'nilai_foreman' => $nilaiForeman,

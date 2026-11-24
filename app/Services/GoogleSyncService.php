@@ -415,6 +415,11 @@ class GoogleSyncService
                                     }
                                 }
                             });
+
+                            // Tertibkan status dokumen yang belum pernah dinilai agar tidak salah loncat ke menunggu_dept_head
+                            try {
+                                \App\Services\DatabaseSyncService::healUnsignedDocumentStatuses();
+                            } catch (\Throwable $e) {}
                         }
 
                         // Also sync signatures from 'Master Tanda Tangan' sheet if present

@@ -131,10 +131,7 @@ class SheetRepository implements SheetRepositoryInterface
 
             // 1. FAST LOCAL-FIRST: Check local SQLite database first (< 1ms)
             if (Schema::hasTable($localTable)) {
-                $localRows = $this->getFromLocal($table);
-                if (!empty($localRows)) {
-                    return $localRows;
-                }
+                return $this->getFromLocal($table);
             }
 
             // 2. Fetch fresh data from Google Apps Script Web App only if local DB is empty

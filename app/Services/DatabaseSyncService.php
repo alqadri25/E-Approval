@@ -187,12 +187,15 @@ class DatabaseSyncService
                         $docUpdate['nama_section_head'] = $resolvedShNama;
                     }
                 }
-                // Form 07-006-KARYAWAN: dimulai dari Section Head (status menunggu_section_head) jika belum ditandatangani
+                // Dokumen yang belum ditandatangani Section Head: jika bukan Dept Head / Div Head, posisinya masih di Section Head
                 $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->first();
-                if ($existingDoc && $kodeForm === '07-006-KARYAWAN') {
+                if ($existingDoc && !$isDiv && !$isDept) {
                     $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
-                    if (!$hasShTtd && in_array($existingDoc->status, ['draft', 'menunggu_foreman', 'menunggu_dept_head'])) {
-                        $docUpdate['status'] = 'menunggu_section_head';
+                    $hasShScore = DB::table('nilai')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
+                    $hasTotalScore = !empty($existingDoc->total_nilai);
+                    if (!$hasShTtd && !$hasShScore && !$hasTotalScore && in_array($existingDoc->status, ['draft', 'menunggu_dept_head'])) {
+                        $hasForemanEmp = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
+                        $docUpdate['status'] = $hasForemanEmp ? 'menunggu_foreman' : 'menunggu_section_head';
                     }
                 }
                 DB::table('dokumen')->where('nrp', $nrp)->update($docUpdate);
@@ -234,5 +237,63 @@ class DatabaseSyncService
             'account_deleted' => $accountSyncResult['deleted'] ?? 0,
             'sync_time' => $displaySyncTime,
         ];
+    }
+
+    /**
+     * Memperbaiki dan menertibkan status dokumen yang belum pernah dinilai sama sekali
+     * agar tidak loncat ke menunggu_dept_head jika belum ditandatangani Section Head.
+     */
+    public static function healUnsignedDocumentStatuses(): int
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('dokumen') || !\Illuminate\Support\Facades\Schema::hasTable('karyawan')) {
+            return 0;
+        }
+
+        $docs = DB::table('dokumen')->get();
+        $healed = 0;
+
+        foreach ($docs as $d) {
+            $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $d->id)->where('level', 'section_head')->exists();
+            $hasShScore = DB::table('nilai')->where('dokumen_id', $d->id)->where('level', 'section_head')->exists();
+            $hasForemanTtd = DB::table('tanda_tangan')->where('dokumen_id', $d->id)->where('level', 'foreman')->exists();
+            $hasForemanScore = DB::table('nilai')->where('dokumen_id', $d->id)->where('level', 'foreman')->exists();
+            $hasDeptTtd = DB::table('tanda_tangan')->where('dokumen_id', $d->id)->where('level', 'dept_head')->exists();
+            $hasDivTtd = DB::table('tanda_tangan')->where('dokumen_id', $d->id)->where('level', 'div_head')->exists();
+            $hasTotal = !empty($d->total_nilai);
+
+            // Jika dokumen sudah memiliki nilai atau tanda tangan digital asli, jangan sentuh
+            if ($hasTotal || $hasShTtd || $hasForemanTtd || $hasDeptTtd || $hasDivTtd || $hasShScore || $hasForemanScore) {
+                continue;
+            }
+
+            $k = DB::table('karyawan')->where('nrp', $d->nrp)->first();
+            if (!$k) continue;
+
+            $jab = strtoupper(trim((string)$k->jabatan));
+            $isDiv = str_contains($jab, 'DIVISION HEAD') || str_contains($jab, 'DIV HEAD');
+            $isDept = (str_contains($jab, 'DEPARTMENT HEAD') || str_contains($jab, 'DEPT HEAD') || str_contains($jab, 'DEPT. HEAD') || str_contains($jab, 'MANAGER') || str_contains($jab, 'MANAJER')) && !str_contains($jab, 'NON KASIE');
+            $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $k->nrp) !== 0;
+
+            $targetStatus = 'menunggu_section_head';
+            if ($isDiv) {
+                $targetStatus = 'menunggu_div_head';
+            } elseif ($isDept) {
+                $targetStatus = 'menunggu_dept_head';
+            } elseif ($hasForeman) {
+                $targetStatus = 'menunggu_foreman';
+            } else {
+                $targetStatus = 'menunggu_section_head';
+            }
+
+            if ($d->status !== $targetStatus) {
+                DB::table('dokumen')->where('id', $d->id)->update([
+                    'status' => $targetStatus,
+                    'updated_at' => now(),
+                ]);
+                $healed++;
+            }
+        }
+
+        return $healed;
     }
 }

@@ -47,12 +47,7 @@ class KaryawanController extends Controller
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning("Manual sync on karyawan index notice: " . $e->getMessage());
             }
-        } else {
-            // Auto-sync check from Google Spreadsheet (cached 60s)
-            try {
-                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
-            } catch (\Throwable $e) {}
-        }
+
 
         $allKaryawan = $this->repository->all('karyawan');
         $allDocs = $this->repository->all('dokumen');
@@ -993,27 +988,18 @@ class KaryawanController extends Controller
         }
         $kodeFormDetermined = PenilaianController::determineKodeForm($employee);
         $empKj = (int) preg_replace('/[^\d]/', '', (string)($employee['kj'] ?? '0'));
-        $empGol = strtoupper(trim((string)($employee['golongan'] ?? '')));
-        $isSub07006 = (
-            str_starts_with($kodeFormDetermined, '07-006') ||
-            $empKj >= 5 ||
-            in_array($empGol, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
-        );
+        $empPosUpper = strtoupper(trim((string)($employee['jabatan'] ?? '')));
+        $isDivEmp = $kodeFormDetermined === '07-006-DIV' || str_contains($empPosUpper, 'DIV HEAD') || str_contains($empPosUpper, 'DIVISION HEAD');
+        $isDeptEmp = $kodeFormDetermined === '07-006-DH' || ((str_contains($empPosUpper, 'DEPT HEAD') || str_contains($empPosUpper, 'DEPARTMENT HEAD') || str_contains($empPosUpper, 'MANAGER')) && !str_contains($empPosUpper, 'NON KASIE'));
 
-        if ($isSub07006) {
+        if ($isDivEmp) {
+            $status = 'menunggu_div_head';
+        } elseif ($isDeptEmp) {
             $status = 'menunggu_dept_head';
-        } elseif (empty($status) || ($status === 'menunggu_foreman' && empty($employee['nrp_foreman']))) {
-            if (!empty($employee['nrp_foreman'])) {
-                $status = 'menunggu_foreman';
-            } elseif (!empty($employee['nrp_section_head'])) {
-                $status = 'menunggu_section_head';
-            } elseif (!empty($employee['nrp_dept_head'])) {
-                $status = 'menunggu_dept_head';
-            } elseif (!empty($employee['nrp_div_head'])) {
-                $status = 'menunggu_div_head';
-            } else {
-                $status = 'menunggu_section_head';
-            }
+        } elseif (!empty($employee['nrp_foreman'])) {
+            $status = 'menunggu_foreman';
+        } else {
+            $status = 'menunggu_section_head';
         }
         $activePeriod = DB::table('periode')->where('status', 'aktif')->first() ?? (object)['id' => 1];
 
@@ -1667,24 +1653,18 @@ class KaryawanController extends Controller
                     $maxDocId++;
                     $determinedKodeEmp = PenilaianController::determineKodeForm($employeeRecord);
                     $empKj = (int) preg_replace('/[^\d]/', '', (string)($employeeRecord['kj'] ?? '0'));
-                    $empGol = strtoupper(trim((string)($employeeRecord['golongan'] ?? '')));
-                    $isSub07006Emp = (
-                        str_starts_with($determinedKodeEmp, '07-006') ||
-                        $empKj >= 5 ||
-                        in_array($empGol, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
-                    );
+                    $empPosUpper = strtoupper(trim((string)($employeeRecord['jabatan'] ?? '')));
+                    $isDivEmp = $determinedKodeEmp === '07-006-DIV' || str_contains($empPosUpper, 'DIV HEAD') || str_contains($empPosUpper, 'DIVISION HEAD');
+                    $isDeptEmp = $determinedKodeEmp === '07-006-DH' || ((str_contains($empPosUpper, 'DEPT HEAD') || str_contains($empPosUpper, 'DEPARTMENT HEAD') || str_contains($empPosUpper, 'MANAGER')) && !str_contains($empPosUpper, 'NON KASIE'));
 
-                    $docStatus = 'menunggu_section_head';
-                    if ($isSub07006Emp) {
+                    if ($isDivEmp) {
+                        $docStatus = 'menunggu_div_head';
+                    } elseif ($isDeptEmp) {
                         $docStatus = 'menunggu_dept_head';
                     } elseif (!empty($nrpForemanVal)) {
                         $docStatus = 'menunggu_foreman';
-                    } elseif (!empty($nrpSectionVal)) {
+                    } else {
                         $docStatus = 'menunggu_section_head';
-                    } elseif (!empty($nrpDeptVal)) {
-                        $docStatus = 'menunggu_dept_head';
-                    } elseif (!empty($nrpDivVal)) {
-                        $docStatus = 'menunggu_div_head';
                     }
                     $dokumenInserts[] = [
                         'id' => $maxDocId,
@@ -1716,24 +1696,18 @@ class KaryawanController extends Controller
                     $maxDocId++;
                     $determinedKodeNew = PenilaianController::determineKodeForm($newEmployee);
                     $empKjNew = (int) preg_replace('/[^\d]/', '', (string)($newEmployee['kj'] ?? '0'));
-                    $empGolNew = strtoupper(trim((string)($newEmployee['golongan'] ?? '')));
-                    $isSub07006New = (
-                        str_starts_with($determinedKodeNew, '07-006') ||
-                        $empKjNew >= 5 ||
-                        in_array($empGolNew, ['4', 'IV', 'GOL 4', 'GOLONGAN 4', 'GOL. 4'])
-                    );
+                    $empPosUpperNew = strtoupper(trim((string)($newEmployee['jabatan'] ?? '')));
+                    $isDivEmpNew = $determinedKodeNew === '07-006-DIV' || str_contains($empPosUpperNew, 'DIV HEAD') || str_contains($empPosUpperNew, 'DIVISION HEAD');
+                    $isDeptEmpNew = $determinedKodeNew === '07-006-DH' || ((str_contains($empPosUpperNew, 'DEPT HEAD') || str_contains($empPosUpperNew, 'DEPARTMENT HEAD') || str_contains($empPosUpperNew, 'MANAGER')) && !str_contains($empPosUpperNew, 'NON KASIE'));
 
-                    $docStatus = 'menunggu_section_head';
-                    if ($isSub07006New) {
+                    if ($isDivEmpNew) {
+                        $docStatus = 'menunggu_div_head';
+                    } elseif ($isDeptEmpNew) {
                         $docStatus = 'menunggu_dept_head';
                     } elseif (!empty($nrpForemanVal)) {
                         $docStatus = 'menunggu_foreman';
-                    } elseif (!empty($nrpSectionVal)) {
+                    } else {
                         $docStatus = 'menunggu_section_head';
-                    } elseif (!empty($nrpDeptVal)) {
-                        $docStatus = 'menunggu_dept_head';
-                    } elseif (!empty($nrpDivVal)) {
-                        $docStatus = 'menunggu_div_head';
                     }
                     $dokumenInserts[] = [
                         'id' => $maxDocId,

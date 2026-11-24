@@ -307,10 +307,10 @@
                                                ($row['nilai_section'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
                                             {{ $row['nilai_section'] }}
                                         </span>
-                                        <span class="text-[9px] text-blue-700 font-bold mt-0.5">Dept Head</span>
+                                        <span class="text-[9px] text-emerald-700 font-bold mt-0.5">Section Head</span>
                                     </div>
                                 @else
-                                    <span class="text-slate-400 font-medium text-[11px] italic">Menunggu Dept Head</span>
+                                    <span class="text-amber-700 font-medium text-[11px] italic">Belum Dinilai</span>
                                 @endif
                             @elseif(!empty($row['doc_id']))
                                 @php
@@ -335,7 +335,11 @@
                         <!-- 7. Catatan Section Head -->
                         <td class="py-2 px-3 border-b border-r border-slate-200">
                             @if(!empty($row['is_subordinate_07006']))
-                                <span class="text-[11px] text-slate-500 italic block py-1">Dinilai langsung oleh Dept Head</span>
+                                @if(!empty($row['catatan']))
+                                    <span class="text-xs text-slate-800 font-semibold">{{ $row['catatan'] }}</span>
+                                @else
+                                    <span class="text-[11px] text-slate-400 italic block py-1">Belum ada catatan</span>
+                                @endif
                             @elseif(!empty($row['doc_id']))
                                 @php
                                     $canEditThisRow = !empty($row['can_evaluate']);
@@ -353,51 +357,29 @@
 
                         <!-- 8. Status Alur -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
-                            @if(!empty($row['is_subordinate_07006']))
-                                @if($row['status_raw'] === 'selesai')
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                        ✓ Selesai
-                                    </span>
-                                @elseif($row['status_raw'] === 'menunggu_div_head')
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
-                                        Review Div Head
-                                    </span>
-                                @elseif(!empty($row['nilai_section']) && $row['nilai_section'] !== '-')
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
-                                        Dinilai Dept Head
-                                    </span>
-                                @else
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                                        Menunggu Dept Head
-                                    </span>
-                                @endif
-                            @elseif($row['status_raw'] === 'menunggu_foreman')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
-                                    Proses Foreman
-                                </span>
-                            @elseif($row['status_raw'] === 'menunggu_section_head')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
-                                    🔔 Siap Dinilai
-                                </span>
-                            @elseif($row['status_raw'] === 'draft')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                                    Draft Section
-                                </span>
-                            @elseif($row['status_raw'] === 'menunggu_dept_head')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
-                                    Proses Dept Head
+                            @if($row['status_raw'] === 'selesai')
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    ✓ Selesai
                                 </span>
                             @elseif($row['status_raw'] === 'menunggu_div_head')
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
                                     Review Div Head
                                 </span>
-                            @elseif($row['status_raw'] === 'selesai')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                    ✓ Selesai
+                            @elseif(!empty($row['has_section_sign']) || (!empty($row['nilai_section']) && $row['status_raw'] === 'menunggu_dept_head'))
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
+                                    Proses Dept Head
+                                </span>
+                            @elseif($row['status_raw'] === 'menunggu_foreman')
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
+                                    Proses Foreman
+                                </span>
+                            @elseif($row['status_raw'] === 'draft')
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                    Draft Section
                                 </span>
                             @else
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                                    {{ $row['status'] }}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse">
+                                    🔔 Siap Dinilai
                                 </span>
                             @endif
                         </td>

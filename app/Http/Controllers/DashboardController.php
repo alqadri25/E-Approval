@@ -33,17 +33,13 @@ class DashboardController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // Sync dari Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1 atau auto-sync (cached 60s)
+        // Sync dari Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1
         if ($request->boolean('sync')) {
             try {
                 \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning("Sync from Google on dashboard: " . $e->getMessage());
             }
-        } else {
-            try {
-                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
-            } catch (\Throwable $e) {}
         }
 
         // 1. Employee query (department filtered if department user)
@@ -110,22 +106,15 @@ class DashboardController extends Controller
             foreach ($missingDocEmployees as $k) {
                 $maxDocId++;
                 $expectedKodeForm = PenilaianController::determineKodeForm($k);
-                $is07006 = PenilaianController::isForm07006($expectedKodeForm);
+                $isDivEmp = $expectedKodeForm === '07-006-DIV' || str_contains(strtoupper($k['jabatan'] ?? ''), 'DIV HEAD') || str_contains(strtoupper($k['jabatan'] ?? ''), 'DIVISION HEAD');
+                $isDeptEmp = $expectedKodeForm === '07-006-DH' || ((str_contains(strtoupper($k['jabatan'] ?? ''), 'DEPT HEAD') || str_contains(strtoupper($k['jabatan'] ?? ''), 'DEPARTMENT HEAD') || str_contains(strtoupper($k['jabatan'] ?? ''), 'MANAGER')) && !str_contains(strtoupper($k['jabatan'] ?? ''), 'NON KASIE'));
 
-                if ($expectedKodeForm === '07-006-KARYAWAN') {
-                    $status = 'menunggu_section_head';
-                } elseif ($expectedKodeForm === '07-006-SH') {
-                    $status = 'menunggu_section_head';
-                } elseif ($is07006) {
+                if ($isDivEmp) {
+                    $status = 'menunggu_div_head';
+                } elseif ($isDeptEmp) {
                     $status = 'menunggu_dept_head';
                 } elseif (!empty($k['nrp_foreman'])) {
                     $status = 'menunggu_foreman';
-                } elseif (!empty($k['nrp_section_head'])) {
-                    $status = 'menunggu_section_head';
-                } elseif (!empty($k['nrp_dept_head'])) {
-                    $status = 'menunggu_dept_head';
-                } elseif (!empty($k['nrp_div_head'])) {
-                    $status = 'menunggu_div_head';
                 } else {
                     $status = 'menunggu_section_head';
                 }
@@ -471,8 +460,8 @@ class DashboardController extends Controller
                     : ['grand_total' => 0.00];
                 $sScore = $calcSection['grand_total'] > 0
                     ? $calcSection['grand_total']
-                    : ((!$isSelfDoc && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) ? ($doc['total_nilai'] ?? 0) : 0);
-                $isEvaluatedBySection = ($calcSection['grand_total'] > 0) || $hasShSign || (!$isSelfDoc && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']));
+                    : ((!$isSelfDoc && !empty($doc['total_nilai']) && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) ? ($doc['total_nilai'] ?? 0) : 0);
+                $isEvaluatedBySection = ($calcSection['grand_total'] > 0) || $hasShSign || (!$isSelfDoc && !empty($doc['total_nilai']) && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']));
                 $sectionGrade = '-';
                 if ($isEvaluatedBySection && $sScore > 0) {
                     $sectionGrade = $this->calcService->scoreToGrade($sScore);
@@ -493,13 +482,23 @@ class DashboardController extends Controller
                         $foremanDoneCount++;
                         $foremanStageCounts['selesai']++;
                     } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
-                        $actionType = 'sudah_dikirim';
-                        $actionLabel = 'Terkirim ke Dept Head';
-                        $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
-                        $sectionDoneCount++;
-                        $waitingDeptCount++;
-                        $foremanDoneCount++;
-                        $foremanStageCounts['waiting_dept']++;
+                        if (!$hasShSign && $calcSection['grand_total'] == 0 && empty($doc['total_nilai']) && $status === 'menunggu_dept_head') {
+                            $actionType = 'todo';
+                            $actionLabel = 'Perlu Review / TTD';
+                            $stageLabel = 'Section Head';
+                            $sectionBelumCount++;
+                            $sectionNeedActionCount++;
+                            $foremanDoneCount++;
+                            $foremanStageCounts['waiting_section']++;
+                        } else {
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Terkirim ke Dept Head';
+                            $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
+                            $sectionDoneCount++;
+                            $waitingDeptCount++;
+                            $foremanDoneCount++;
+                            $foremanStageCounts['waiting_dept']++;
+                        }
                     } elseif ($status === 'revisi') {
                         $actionType = 'revisi';
                         $actionLabel = 'Perlu Revisi';
@@ -559,10 +558,10 @@ class DashboardController extends Controller
                         $sectionDoneCount++;
                         $waitingDivCount++;
                     } elseif ($status === 'menunggu_dept_head') {
-                        if ($isSelfDoc && !$hasShSign && $calcSection['grand_total'] == 0) {
+                        if (!$hasShSign && $calcSection['grand_total'] == 0 && empty($doc['total_nilai'])) {
                             $actionType = 'belum_dinilai';
-                            $actionLabel = 'Evaluasi Mandiri';
-                            $stageLabel = 'Evaluasi Mandiri';
+                            $actionLabel = $isSelfDoc ? 'Evaluasi Mandiri' : 'Belum Dinilai';
+                            $stageLabel = $isSelfDoc ? 'Evaluasi Mandiri' : 'Section Head';
                             $sectionBelumCount++;
                             $sectionNeedActionCount++;
                         } else {
