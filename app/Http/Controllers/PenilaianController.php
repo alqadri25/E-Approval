@@ -44,7 +44,11 @@ class PenilaianController extends Controller
         $isDeptOrDivHead = $isDeptHeadUser || $isDivHeadUser;
 
         // Filter subordinates for current user
-        if ($user->isForeman()) {
+        if ($user->isSecretary()) {
+            $mySubordinates = array_filter($allKaryawan, function ($k) use ($user) {
+                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0;
+            });
+        } elseif ($user->isForeman()) {
             $mySubordinates = array_filter($allKaryawan, function ($k) use ($user) {
                 if (!empty($k['nrp_foreman']) && strcasecmp($k['nrp_foreman'], $user->nrp) === 0) {
                     return true;
@@ -5995,6 +5999,9 @@ class PenilaianController extends Controller
         // Subordinates in this department / division under this Dept Head or Div Head (including self)
         $subordinates = array_values(array_filter($allKaryawan, function ($k) use ($user, $shMap) {
             if ($user->isAdmin() || $user->isSuperadmin()) return true;
+            if ($user->isSecretary()) {
+                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0;
+            }
             if ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
                 return $user->matchesDivisionHeadScope($k);
             }
@@ -8254,8 +8261,8 @@ class PenilaianController extends Controller
                 return true;
             }
             if ($user->isSecretary()) {
-                $totalKaryawanSubtitle = 'Anggota Secretary';
-                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0 || str_contains(strtoupper((string)($k['seksi'] ?? ($k['nama_sect'] ?? ''))), 'SECRETARY');
+                $totalKaryawanSubtitle = 'Secretary';
+                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0;
             }
             if ($user->isDivisionHead()) {
                 $totalKaryawanSubtitle = 'Anggota Division Head';
