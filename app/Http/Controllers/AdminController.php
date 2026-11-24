@@ -3468,7 +3468,9 @@ class AdminController extends Controller
                 'karyawan.nrp_foreman',
                 'karyawan.nrp_section_head',
                 'karyawan.nrp_dept_head',
-                'karyawan.nrp_div_head'
+                'karyawan.nrp_div_head',
+                DB::raw('(SELECT COUNT(DISTINCT level) FROM tanda_tangan WHERE tanda_tangan.dokumen_id = dokumen.id) as ttd_count'),
+                DB::raw('(SELECT COUNT(DISTINCT level) FROM nilai WHERE nilai.dokumen_id = dokumen.id) as nilai_level_count')
             );
 
         if ($search !== '') {
@@ -3494,6 +3496,13 @@ class AdminController extends Controller
             $query->where('dokumen.status', $filterStatus);
         }
 
+        // Sort parameter: 'ttd_desc' (default: prioritas TTD & nilai terlengkap di atas), 'terbaru', 'nama_asc', 'dept_asc'
+        $sortBy = trim((string)$request->query('sort', 'ttd_desc'));
+        $allowedSort = ['ttd_desc', 'terbaru', 'nama_asc', 'dept_asc'];
+        if (!in_array($sortBy, $allowedSort)) {
+            $sortBy = 'ttd_desc';
+        }
+
         // Per page parameter (20, 50, 100, semua)
         $perPage = trim((string)$request->query('per_page', '20'));
         $allowedPerPage = ['20', '50', '100', 'semua'];
@@ -3508,9 +3517,29 @@ class AdminController extends Controller
             default => 20,
         };
 
-        $dokumenList = $query->orderBy('karyawan.departemen')
-            ->orderBy('karyawan.nama_lengkap')
-            ->paginate($limit)
+        $rawTtd = DB::raw('(SELECT COUNT(DISTINCT level) FROM tanda_tangan WHERE tanda_tangan.dokumen_id = dokumen.id)');
+        $rawNilai = DB::raw('(SELECT COUNT(DISTINCT level) FROM nilai WHERE nilai.dokumen_id = dokumen.id)');
+
+        if ($sortBy === 'terbaru') {
+            $query->orderByDesc('dokumen.updated_at')
+                  ->orderBy('karyawan.departemen')
+                  ->orderBy('karyawan.nama_lengkap');
+        } elseif ($sortBy === 'nama_asc') {
+            $query->orderBy('karyawan.nama_lengkap')
+                  ->orderBy('karyawan.departemen');
+        } elseif ($sortBy === 'dept_asc') {
+            $query->orderBy('karyawan.departemen')
+                  ->orderBy('karyawan.nama_lengkap');
+        } else {
+            // Default 'ttd_desc': Dokumen yang sudah ada tanda tangan paling lengkap (3 TTD -> 2 TTD -> 1 TTD) paling atas, lalu nilai draft, lalu dokumen kosong
+            $query->orderByDesc($rawTtd)
+                  ->orderByDesc($rawNilai)
+                  ->orderByDesc('dokumen.updated_at')
+                  ->orderBy('karyawan.departemen')
+                  ->orderBy('karyawan.nama_lengkap');
+        }
+
+        $dokumenList = $query->paginate($limit)
             ->appends($request->query());
 
         // Batch fetch scores and signatures for items on current page
@@ -3698,6 +3727,9 @@ class AdminController extends Controller
                 'div_signed' => $divSigned,
                 'has_div_value' => $hasDivValue,
 
+                // Signature count
+                'actual_ttd_count' => ($foremanSigned ? 1 : 0) + ($sectionSigned ? 1 : 0) + ($deptSigned ? 1 : 0) + ($divSigned ? 1 : 0),
+
                 // Revision capabilities
                 'can_revisi_foreman' => $canRevisiForeman,
                 'can_revisi_section' => $canRevisiSection,
@@ -3724,7 +3756,8 @@ class AdminController extends Controller
             'filterSeksi',
             'filterKj',
             'filterStatus',
-            'perPage'
+            'perPage',
+            'sortBy'
         ));
     }
 

@@ -167,6 +167,17 @@
                 </select>
             </div>
 
+            <!-- Urutkan Berdasarkan -->
+            <div class="w-40 sm:w-48 shrink-0">
+                <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1 truncate">Urutan Prioritas</label>
+                <select name="sort" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 border border-slate-300 hover:border-slate-400 bg-white py-2 px-2 focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] transition shadow-xs cursor-pointer">
+                    <option value="ttd_desc" {{ ($sortBy ?? 'ttd_desc') === 'ttd_desc' ? 'selected' : '' }}>★ TTD & Nilai Terlengkap</option>
+                    <option value="terbaru" {{ ($sortBy ?? '') === 'terbaru' ? 'selected' : '' }}>Aktivitas Terbaru</option>
+                    <option value="nama_asc" {{ ($sortBy ?? '') === 'nama_asc' ? 'selected' : '' }}>Nama Karyawan (A-Z)</option>
+                    <option value="dept_asc" {{ ($sortBy ?? '') === 'dept_asc' ? 'selected' : '' }}>Departemen (A-Z)</option>
+                </select>
+            </div>
+
             <!-- Tampilkan Data Per Halaman (20, 50, 100, Semua) -->
             <div class="w-24 sm:w-28 shrink-0">
                 <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1 truncate">Tampilkan</label>
@@ -182,7 +193,7 @@
             <button type="submit" class="hidden" tabindex="-1"></button>
 
             <!-- Reset Filter (Red Button) -->
-            @if(!empty($search) || !empty($filterDivisi) || !empty($filterDept) || !empty($filterSeksi) || !empty($filterKj) || !empty($filterStatus))
+            @if(!empty($search) || !empty($filterDivisi) || !empty($filterDept) || !empty($filterSeksi) || !empty($filterKj) || !empty($filterStatus) || ($sortBy ?? 'ttd_desc') !== 'ttd_desc' || ($perPage ?? '20') !== '20')
             <div class="shrink-0">
                 <a href="{{ url()->current() }}"
                    class="px-3 py-2 border border-rose-300 bg-rose-50 text-[#92302e] text-xs font-bold hover:bg-rose-100 transition shadow-2xs flex items-center gap-1 whitespace-nowrap">
@@ -441,6 +452,15 @@
                     <span class="ml-1 text-slate-400 font-semibold">(Seluruh Data Ditampilkan)</span>
                 @else
                     <span class="ml-1 text-slate-400">({{ $perPage ?? 20 }} per halaman)</span>
+                @endif
+                @if(($sortBy ?? 'ttd_desc') === 'ttd_desc')
+                    <span class="ml-1.5 text-emerald-700 font-semibold hidden sm:inline">• Prioritas TTD & Penilaian Terlengkap</span>
+                @elseif(($sortBy ?? '') === 'terbaru')
+                    <span class="ml-1.5 text-slate-500 font-semibold hidden sm:inline">• Urutan Aktivitas Terbaru</span>
+                @elseif(($sortBy ?? '') === 'nama_asc')
+                    <span class="ml-1.5 text-slate-500 font-semibold hidden sm:inline">• Urutan Nama (A-Z)</span>
+                @elseif(($sortBy ?? '') === 'dept_asc')
+                    <span class="ml-1.5 text-slate-500 font-semibold hidden sm:inline">• Urutan Departemen (A-Z)</span>
                 @endif
             </div>
             <div>
