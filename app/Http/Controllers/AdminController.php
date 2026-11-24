@@ -3494,9 +3494,23 @@ class AdminController extends Controller
             $query->where('dokumen.status', $filterStatus);
         }
 
+        // Per page parameter (20, 50, 100, semua)
+        $perPage = trim((string)$request->query('per_page', '20'));
+        $allowedPerPage = ['20', '50', '100', 'semua'];
+        if (!in_array($perPage, $allowedPerPage)) {
+            $perPage = '20';
+        }
+
+        $limit = match($perPage) {
+            '50' => 50,
+            '100' => 100,
+            'semua' => 1000,
+            default => 20,
+        };
+
         $dokumenList = $query->orderBy('karyawan.departemen')
             ->orderBy('karyawan.nama_lengkap')
-            ->paginate(20)
+            ->paginate($limit)
             ->appends($request->query());
 
         // Batch fetch scores and signatures for items on current page
@@ -3530,89 +3544,115 @@ class AdminController extends Controller
 
             $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
             $isKaryawan07006 = ($kodeForm === '07-006-KARYAWAN');
+            $isShForm = ($kodeForm === '07-006-SH');
+            $isDhForm = ($kodeForm === '07-006-DH');
+            $isDivForm = ($kodeForm === '07-006-DIV');
 
-            // Needs Foreman?
+            // 1. FOREMAN
+            // Foreman hanya untuk form standar jika karyawan memiliki NRP Foreman
             $needsForeman = !empty($doc->nrp_foreman) && trim($doc->nrp_foreman) !== '-' && !$isGol4Up;
-
-            // 1. Foreman scores & signature
-            $foremanScores = $scoresByDoc[$docId]['foreman'] ?? [];
+            $foremanScores = $needsForeman ? ($scoresByDoc[$docId]['foreman'] ?? []) : [];
             $foremanCalc = !empty($foremanScores) ? $calcService->calculate($kodeForm, $foremanScores) : null;
             $foremanTotal = $foremanCalc['grand_total'] ?? 0.00;
-            $foremanSigned = !empty($ttdByDoc[$docId]['foreman'])
-                || in_array($doc->status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']);
-            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'revisi']) || $isKaryawan07006) {
-                $foremanSigned = false;
-            }
-            if (!$needsForeman && empty($foremanScores) && empty($ttdByDoc[$docId]['foreman'])) {
-                $foremanSigned = false;
-            }
-            $hasForemanValue = (!empty($foremanScores) && $foremanTotal > 0) || $foremanSigned;
+            $foremanSigned = $needsForeman && !empty($ttdByDoc[$docId]['foreman']);
+            $hasForemanValue = $needsForeman && (!empty($foremanScores) && $foremanTotal > 0);
 
-            // 2. Section Head scores & signature
-            // Pada Form 07-006 standard (07-006-SH / Mandiri Section Head): nilai Mandiri ada di slot 'foreman'
-            // Pada Form 07-006-KARYAWAN: Section Head mengisi slot 'section_head'
-            if ($isGol4Up && !$isKaryawan07006) {
+            // 2. SECTION HEAD
+            if ($isDhForm || $isDivForm) {
+                $needsSectionHead = false;
+                $sectionScores = [];
+                $sectionTotal = 0.00;
+                $sectionSigned = false;
+                $hasSectionValue = false;
+            } elseif ($isShForm) {
+                // Section Head self-evaluation tersimpan di slot 'foreman'
+                $needsSectionHead = true;
                 $sectionScores = $scoresByDoc[$docId]['foreman'] ?? [];
+                $sectionCalc = !empty($sectionScores) ? $calcService->calculate($kodeForm, $sectionScores) : null;
+                $sectionTotal = $sectionCalc['grand_total'] ?? 0.00;
+                $sectionSigned = !empty($ttdByDoc[$docId]['foreman']);
+                $hasSectionValue = (!empty($sectionScores) && $sectionTotal > 0);
             } else {
+                // Form Standar & 07-006-KARYAWAN
+                $needsSectionHead = true;
                 $sectionScores = $scoresByDoc[$docId]['section_head'] ?? [];
-            }
-            $sectionCalc = !empty($sectionScores) ? $calcService->calculate($kodeForm, $sectionScores) : null;
-            $sectionTotal = $sectionCalc['grand_total'] ?? 0.00;
-            if ($sectionTotal <= 0 && $isGol4Up && !$isKaryawan07006 && !empty($foremanTotal)) {
-                $sectionTotal = $foremanTotal;
-            }
-            $sectionSigned = !empty($ttdByDoc[$docId]['section_head'])
-                || ($isGol4Up && !$isKaryawan07006 && !empty($ttdByDoc[$docId]['foreman']))
-                || in_array($doc->status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']);
-            if (in_array($doc->status, ['menunggu_foreman', 'draft'])) {
-                $sectionSigned = false;
-                $hasSectionValue = false;
-                $sectionTotal = 0.00;
-            } elseif ($doc->status === 'menunggu_section_head' && $isKaryawan07006) {
-                $sectionSigned = false;
-                $hasSectionValue = false;
-                $sectionTotal = 0.00;
-            } else {
-                $hasSectionValue = (!empty($sectionScores) && $sectionTotal > 0) || $sectionSigned;
+                $sectionCalc = !empty($sectionScores) ? $calcService->calculate($kodeForm, $sectionScores) : null;
+                $sectionTotal = $sectionCalc['grand_total'] ?? 0.00;
+                $sectionSigned = !empty($ttdByDoc[$docId]['section_head']);
+                $hasSectionValue = (!empty($sectionScores) && $sectionTotal > 0);
             }
 
-            // 3. Dept Head scores & signature
-            // Pada Form 07-006 standard: Atasan Langsung (Dept Head) disimpan di slot 'section_head'
-            // Pada Form standar dan 07-006-KARYAWAN: Dept Head disimpan di slot 'dept_head'
-            if ($isGol4Up && !$isKaryawan07006) {
-                $deptScores = $scoresByDoc[$docId]['section_head'] ?? [];
-            } else {
-                $deptScores = $scoresByDoc[$docId]['dept_head'] ?? [];
-            }
-            $deptCalc = !empty($deptScores) ? $calcService->calculate($kodeForm, $deptScores) : null;
-            $deptTotal = $deptCalc['grand_total'] ?? 0.00;
-            if ($deptTotal <= 0 && ($doc->total_nilai ?? 0) > 0 && in_array($doc->status, ['menunggu_div_head', 'selesai'])) {
-                $deptTotal = (float)$doc->total_nilai;
-            }
-            $deptSigned = !empty($ttdByDoc[$docId]['dept_head'])
-                || ($isGol4Up && !$isKaryawan07006 && !empty($ttdByDoc[$docId]['section_head']))
-                || in_array($doc->status, ['menunggu_div_head', 'selesai']);
-
-            // JIKA status masih menunggu foreman / draft / menunggu section head / revisi, Dept Head BELUM mengisi!
-            if (in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) || ($doc->status === 'menunggu_dept_head' && $isKaryawan07006)) {
+            // 3. DEPT HEAD
+            if ($isDivForm) {
+                $needsDeptHead = false;
+                $deptScores = [];
+                $deptTotal = 0.00;
                 $deptSigned = false;
                 $hasDeptValue = false;
-                $deptTotal = 0.00;
+            } elseif ($isShForm) {
+                // Dept Head review pada 07-006-SH tersimpan di slot 'section_head'
+                $needsDeptHead = true;
+                $deptScores = $scoresByDoc[$docId]['section_head'] ?? [];
+                $deptCalc = !empty($deptScores) ? $calcService->calculate($kodeForm, $deptScores) : null;
+                $deptTotal = $deptCalc['grand_total'] ?? 0.00;
+                $deptSigned = !empty($ttdByDoc[$docId]['section_head']);
+                $hasDeptValue = (!empty($deptScores) && $deptTotal > 0);
+            } elseif ($isDhForm) {
+                // Dept Head self-evaluation pada 07-006-DH tersimpan di slot 'foreman'
+                $needsDeptHead = true;
+                $deptScores = $scoresByDoc[$docId]['foreman'] ?? [];
+                $deptCalc = !empty($deptScores) ? $calcService->calculate($kodeForm, $deptScores) : null;
+                $deptTotal = $deptCalc['grand_total'] ?? 0.00;
+                $deptSigned = !empty($ttdByDoc[$docId]['foreman']);
+                $hasDeptValue = (!empty($deptScores) && $deptTotal > 0);
             } else {
-                $hasDeptValue = (!empty($deptScores) && $deptTotal > 0) || $deptSigned;
+                // Form Standar & 07-006-KARYAWAN
+                $needsDeptHead = true;
+                $deptScores = $scoresByDoc[$docId]['dept_head'] ?? [];
+                $deptCalc = !empty($deptScores) ? $calcService->calculate($kodeForm, $deptScores) : null;
+                $deptTotal = $deptCalc['grand_total'] ?? 0.00;
+                $deptSigned = !empty($ttdByDoc[$docId]['dept_head']);
+                $hasDeptValue = (!empty($deptScores) && $deptTotal > 0);
             }
 
-            // 4. Div Head scores & signature
-            $divScores = $scoresByDoc[$docId]['div_head'] ?? ($isGol4Up ? ($scoresByDoc[$docId]['dept_head'] ?? []) : []);
-            $divSigned = !empty($ttdByDoc[$docId]['div_head']) || ($doc->status === 'selesai');
-            $hasDivValue = !empty($divScores) || $divSigned || ($doc->status === 'selesai' && $isGol4Up);
+            // 4. DIV HEAD
+            if (!$isGol4Up) {
+                $needsDivHead = false;
+                $divScores = [];
+                $divTotal = 0.00;
+                $divSigned = false;
+                $hasDivValue = false;
+            } elseif ($isShForm || $isDhForm) {
+                // Division Head pada 07-006-SH / DH tersimpan di slot 'dept_head' (atau 'div_head')
+                $needsDivHead = true;
+                $divScores = $scoresByDoc[$docId]['dept_head'] ?? ($scoresByDoc[$docId]['div_head'] ?? []);
+                $divCalc = !empty($divScores) ? $calcService->calculate($kodeForm, $divScores) : null;
+                $divTotal = $divCalc['grand_total'] ?? 0.00;
+                $divSigned = !empty($ttdByDoc[$docId]['dept_head']) || !empty($ttdByDoc[$docId]['div_head']);
+                $hasDivValue = (!empty($divScores) && $divTotal > 0);
+            } elseif ($isDivForm) {
+                // Division Head self-evaluation pada 07-006-DIV
+                $needsDivHead = true;
+                $divScores = $scoresByDoc[$docId]['dept_head'] ?? ($scoresByDoc[$docId]['foreman'] ?? ($scoresByDoc[$docId]['div_head'] ?? []));
+                $divCalc = !empty($divScores) ? $calcService->calculate($kodeForm, $divScores) : null;
+                $divTotal = $divCalc['grand_total'] ?? 0.00;
+                $divSigned = !empty($ttdByDoc[$docId]['dept_head']) || !empty($ttdByDoc[$docId]['foreman']) || !empty($ttdByDoc[$docId]['div_head']);
+                $hasDivValue = (!empty($divScores) && $divTotal > 0);
+            } else {
+                // 07-006-KARYAWAN
+                $needsDivHead = true;
+                $divScores = $scoresByDoc[$docId]['div_head'] ?? [];
+                $divCalc = !empty($divScores) ? $calcService->calculate($kodeForm, $divScores) : null;
+                $divTotal = $divCalc['grand_total'] ?? 0.00;
+                $divSigned = !empty($ttdByDoc[$docId]['div_head']);
+                $hasDivValue = (!empty($divScores) && $divTotal > 0);
+            }
 
-            // Revision rules strictly matching user specification:
-            // "KETIKA MISAL BELUM ADA NILAI SECTION HEAD MAKA AKSI UNTUK KEMBALI REVISI SECTION HEAD KEATAS IT GABISA HANYA KE FOREMAN JIKA FOREMAN SUDAH ADA NILAI"
-            $canRevisiForeman = $needsForeman && $hasForemanValue;
-            $canRevisiSection = $hasSectionValue;
-            $canRevisiDept = $hasDeptValue;
-            $canRevisiDiv = $hasDivValue;
+            // Aturan revisi: tombol revisi ke suatu tingkat hanya aktif jika tingkat tersebut memang ada dan telah dinilai / ditandatangani
+            $canRevisiForeman = $needsForeman && ($foremanSigned || $hasForemanValue);
+            $canRevisiSection = $needsSectionHead && ($sectionSigned || $hasSectionValue);
+            $canRevisiDept = $needsDeptHead && ($deptSigned || $hasDeptValue);
+            $canRevisiDiv = $needsDivHead && ($divSigned || $hasDivValue);
 
             $hasAnyRevision = $canRevisiForeman || $canRevisiSection || $canRevisiDept || $canRevisiDiv;
 
@@ -3629,28 +3669,32 @@ class AdminController extends Controller
                 'golongan' => $doc->golongan,
                 'kode_form' => $kodeForm,
                 'status' => $doc->status,
-                'total_nilai' => in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) ? null : $doc->total_nilai,
-                'grade_original' => in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) ? null : $doc->grade_original,
-                'docking_final' => in_array($doc->status, ['menunggu_foreman', 'draft', 'menunggu_section_head', 'revisi']) ? null : $doc->docking_final,
+                'total_nilai' => ($doc->status === 'selesai' && ($doc->total_nilai ?? 0) > 0) ? $doc->total_nilai : null,
+                'grade_original' => ($doc->status === 'selesai') ? $doc->grade_original : null,
+                'docking_final' => ($doc->status === 'selesai') ? $doc->docking_final : null,
                 'updated_at' => $doc->updated_at,
-                'needs_foreman' => $needsForeman,
 
                 // Foreman
+                'needs_foreman' => $needsForeman,
                 'foreman_total' => $foremanTotal,
                 'foreman_signed' => $foremanSigned,
                 'has_foreman_value' => $hasForemanValue,
 
                 // Section
+                'needs_section_head' => $needsSectionHead,
                 'section_total' => $sectionTotal,
                 'section_signed' => $sectionSigned,
                 'has_section_value' => $hasSectionValue,
 
                 // Dept
+                'needs_dept_head' => $needsDeptHead,
                 'dept_total' => $deptTotal,
                 'dept_signed' => $deptSigned,
                 'has_dept_value' => $hasDeptValue,
 
                 // Div
+                'needs_div_head' => $needsDivHead,
+                'div_total' => $divTotal,
                 'div_signed' => $divSigned,
                 'has_div_value' => $hasDivValue,
 
@@ -3679,7 +3723,8 @@ class AdminController extends Controller
             'filterDept',
             'filterSeksi',
             'filterKj',
-            'filterStatus'
+            'filterStatus',
+            'perPage'
         ));
     }
 

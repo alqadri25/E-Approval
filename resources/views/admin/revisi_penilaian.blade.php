@@ -167,6 +167,17 @@
                 </select>
             </div>
 
+            <!-- Tampilkan Data Per Halaman (20, 50, 100, Semua) -->
+            <div class="w-24 sm:w-28 shrink-0">
+                <label class="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1 truncate">Tampilkan</label>
+                <select name="per_page" onchange="this.form.submit()" class="w-full text-xs font-semibold text-slate-700 border border-slate-300 hover:border-slate-400 bg-white py-2 px-2 focus:outline-none focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] transition shadow-xs cursor-pointer">
+                    <option value="20" {{ ($perPage ?? '20') === '20' ? 'selected' : '' }}>20 Data</option>
+                    <option value="50" {{ ($perPage ?? '') === '50' ? 'selected' : '' }}>50 Data</option>
+                    <option value="100" {{ ($perPage ?? '') === '100' ? 'selected' : '' }}>100 Data</option>
+                    <option value="semua" {{ ($perPage ?? '') === 'semua' ? 'selected' : '' }}>Semua Data</option>
+                </select>
+            </div>
+
             <!-- Hidden Submit for Enter Key -->
             <button type="submit" class="hidden" tabindex="-1"></button>
 
@@ -199,6 +210,7 @@
                         <th class="py-3 px-3 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center min-w-[110px] whitespace-nowrap">FOREMAN</th>
                         <th class="py-3 px-3 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center min-w-[110px] whitespace-nowrap">SECTION HEAD</th>
                         <th class="py-3 px-3 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center min-w-[110px] whitespace-nowrap">DEPT HEAD</th>
+                        <th class="py-3 px-3 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center min-w-[110px] whitespace-nowrap">DIV HEAD</th>
                         <th class="py-3 px-3 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center min-w-[100px] whitespace-nowrap">NILAI AKHIR</th>
                         <th class="py-3 px-2.5 border-b border-slate-300 bg-slate-100 font-bold text-slate-700 text-center w-36 min-w-[140px] whitespace-nowrap">AKSI REVISI</th>
                     </tr>
@@ -281,16 +293,19 @@
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
                             @if(!$item->needs_foreman)
                                 <span class="text-[10.5px] text-slate-400 italic">Tanpa FM</span>
-                            @elseif($item->has_foreman_value)
+                            @elseif($item->foreman_signed)
                                 <div class="font-black text-slate-900 font-mono text-xs">
                                     {{ $item->foreman_total > 0 ? number_format($item->foreman_total, 2) : '-' }}
                                 </div>
                                 <div class="mt-0.5">
-                                    @if($item->foreman_signed || in_array($item->status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai']))
-                                        <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
-                                    @else
-                                        <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
-                                    @endif
+                                    <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
+                                </div>
+                            @elseif($item->has_foreman_value)
+                                <div class="font-black text-slate-900 font-mono text-xs">
+                                    {{ number_format($item->foreman_total, 2) }}
+                                </div>
+                                <div class="mt-0.5">
+                                    <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
                                 </div>
                             @else
                                 <span class="text-[10.5px] text-slate-400 italic">Belum Isi</span>
@@ -299,16 +314,21 @@
 
                         <!-- NILAI SECTION HEAD -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
-                            @if($item->has_section_value)
+                            @if(!$item->needs_section_head)
+                                <span class="text-[10.5px] text-slate-400 italic">-</span>
+                            @elseif($item->section_signed)
                                 <div class="font-black text-slate-900 font-mono text-xs">
                                     {{ $item->section_total > 0 ? number_format($item->section_total, 2) : '-' }}
                                 </div>
                                 <div class="mt-0.5">
-                                    @if($item->section_signed || in_array($item->status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']))
-                                        <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
-                                    @else
-                                        <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
-                                    @endif
+                                    <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
+                                </div>
+                            @elseif($item->has_section_value)
+                                <div class="font-black text-slate-900 font-mono text-xs">
+                                    {{ number_format($item->section_total, 2) }}
+                                </div>
+                                <div class="mt-0.5">
+                                    <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
                                 </div>
                             @else
                                 <span class="text-[10.5px] text-slate-400 italic">Belum Isi</span>
@@ -317,16 +337,44 @@
 
                         <!-- NILAI DEPT HEAD -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
-                            @if($item->has_dept_value)
+                            @if(!$item->needs_dept_head)
+                                <span class="text-[10.5px] text-slate-400 italic">-</span>
+                            @elseif($item->dept_signed)
                                 <div class="font-black text-slate-900 font-mono text-xs">
                                     {{ $item->dept_total > 0 ? number_format($item->dept_total, 2) : '-' }}
                                 </div>
                                 <div class="mt-0.5">
-                                    @if($item->dept_signed || in_array($item->status, ['menunggu_div_head', 'selesai']))
-                                        <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
-                                    @else
-                                        <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
-                                    @endif
+                                    <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
+                                </div>
+                            @elseif($item->has_dept_value)
+                                <div class="font-black text-slate-900 font-mono text-xs">
+                                    {{ number_format($item->dept_total, 2) }}
+                                </div>
+                                <div class="mt-0.5">
+                                    <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
+                                </div>
+                            @else
+                                <span class="text-[10.5px] text-slate-400 italic">Belum Isi</span>
+                            @endif
+                        </td>
+
+                        <!-- NILAI DIV HEAD -->
+                        <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
+                            @if(!$item->needs_div_head)
+                                <span class="text-[10.5px] text-slate-400 italic">-</span>
+                            @elseif($item->div_signed)
+                                <div class="font-black text-slate-900 font-mono text-xs">
+                                    {{ $item->div_total > 0 ? number_format($item->div_total, 2) : '-' }}
+                                </div>
+                                <div class="mt-0.5">
+                                    <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 inline-block">TTD ✓</span>
+                                </div>
+                            @elseif($item->has_div_value)
+                                <div class="font-black text-slate-900 font-mono text-xs">
+                                    {{ number_format($item->div_total, 2) }}
+                                </div>
+                                <div class="mt-0.5">
+                                    <span class="px-1.5 py-0.2 text-[9.5px] font-bold border border-amber-300 bg-amber-50 text-amber-800 inline-block">Draft</span>
                                 </div>
                             @else
                                 <span class="text-[10.5px] text-slate-400 italic">Belum Isi</span>
@@ -376,7 +424,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="13" class="py-8 text-center text-slate-400 text-xs italic bg-white border-b border-slate-300">
+                        <td colspan="14" class="py-8 text-center text-slate-400 text-xs italic bg-white border-b border-slate-300">
                             Tidak ada dokumen penilaian yang sesuai dengan filter pencarian.
                         </td>
                     </tr>
@@ -389,6 +437,11 @@
         <div class="px-4 py-3 bg-white border-t border-slate-300 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             <div>
                 Menampilkan <span class="font-bold text-slate-700">{{ $dokumenList->firstItem() ?? 0 }}</span> - <span class="font-bold text-slate-700">{{ $dokumenList->lastItem() ?? 0 }}</span> dari <span class="font-bold text-slate-700">{{ $dokumenList->total() }}</span> formulir penilaian terkelola
+                @if(($perPage ?? '') === 'semua')
+                    <span class="ml-1 text-slate-400 font-semibold">(Seluruh Data Ditampilkan)</span>
+                @else
+                    <span class="ml-1 text-slate-400">({{ $perPage ?? 20 }} per halaman)</span>
+                @endif
             </div>
             <div>
                 {{ $dokumenList->links() }}
