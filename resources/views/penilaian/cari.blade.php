@@ -14,7 +14,13 @@
                     Cari atau pilih karyawan untuk membuka formulir penilaian karyawan.
                 </p>
             </div>
-            <div>
+            <div class="flex items-center gap-2">
+                @if(!empty($countPerluDinilai) && $countPerluDinilai > 0)
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 text-slate-900 text-xs font-black shadow-xs rounded-none">
+                        <span class="w-2 h-2 rounded-full bg-[#92302e] animate-ping"></span>
+                        ⚡ {{ $countPerluDinilai }} Siap Dinilai
+                    </span>
+                @endif
                 <span class="inline-block px-3 py-1.5 bg-white/15 backdrop-blur-sm text-xs font-bold text-white border border-white/20 font-mono rounded-none">
                     {{ $totalCount }} Bawahan Terdaftar
                 </span>
@@ -513,7 +519,7 @@
                             $rowBagian = addslashes($bagianVal);
                         @endphp
                         <tr x-show="matchesRowFilter('{{ $sub['admin_status_category'] ?? 'belum' }}', '{{ $searchTokens }}', '{{ $rowKj }}', '{{ $rowJab }}', '{{ $rowSec }}', '{{ $rowDept }}', '{{ $rowBagian }}')"
-                            class="{{ $isSelf ? 'bg-rose-50/40' : 'bg-white hover:bg-slate-50/90' }} transition-colors">
+                            class="{{ !empty($sub['can_evaluate_by_role']) ? ($isSelf ? 'bg-rose-50/60 font-medium' : 'bg-rose-50/25 hover:bg-rose-50/50') : ($isSelf ? 'bg-rose-50/40' : 'bg-white hover:bg-slate-50/90') }} transition-colors">
                             <td class="py-2.5 px-2.5 border-b border-r border-slate-200 text-center font-bold text-slate-700 whitespace-nowrap">
                                 {{ $loop->iteration }}
                             </td>
@@ -689,33 +695,25 @@
                                         <button type="submit"
                                                 title="{{ $isSelf ? ('Buka Penilaian Mandiri (Form ' . $sub['kode_form'] . ')') : ('Buka Form ' . ($sub['kode_form'] ?? '')) }}"
                                                 class="w-full px-3 py-1.5 text-[11px] font-bold transition-all shadow-2xs flex items-center justify-center gap-1 rounded-none cursor-pointer
-                                            @if($isSelf)
-                                                bg-[#92302e] hover:bg-[#7e2524] text-white
+                                            @if(!empty($sub['can_evaluate_by_role']))
+                                                bg-[#92302e] hover:bg-[#7e2524] text-white shadow-xs
                                             @elseif(!empty($sub['is_kj_locked']) && $sub['status'] !== 'selesai')
                                                 bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300
-                                            @elseif($user->isDepartmentHead())
-                                                {{ $sub['status'] === 'menunggu_dept_head' ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
-                                            @elseif($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))
-                                                {{ ($isSelf || in_array($sub['status'], ['menunggu_div_head', 'selesai'])) ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
-                                            @elseif($user->isSectionHead())
-                                                {{ ($isSelf || in_array($sub['status'], ['menunggu_section_head', 'draft', 'revisi']) || (!$sub['section_head_evaluated'] && !$sub['has_section_head_sign'] && empty($sub['is_waiting_foreman']) && $sub['status'] !== 'menunggu_foreman' && $sub['status'] !== 'selesai')) ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
                                             @elseif($user->isAdmin())
                                                 bg-[#92302e] hover:bg-[#7e2524] text-white
                                             @else
-                                                {{ (!$sub['foreman_evaluated'] && in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_dinilai'])) ? 'bg-[#92302e] hover:bg-[#7e2524] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300' }}
+                                                bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300
                                             @endif">
                                             @if($isSelf)
-                                                <span>✍️ Nilai Mandiri</span>
+                                                <span>{{ $sub['status'] === 'selesai' ? '👁️ Lihat Form Mandiri (Selesai)' : '✍️ Nilai Mandiri' }}</span>
                                             @elseif(!empty($sub['is_kj_locked']) && $sub['status'] !== 'selesai')
                                                 <span>🔒 Buka Form (Kuota {{ $sub['quota_kj'] ?? $sub['kj'] }} Penuh)</span>
                                             @elseif($user->isDepartmentHead())
-                                                <span>{{ $sub['status'] === 'menunggu_dept_head' ? '✍️ Tinjau & Nilai Dept Head' : (!empty($sub['is_waiting_foreman']) ? '🔒 Buka Form (Menunggu Foreman)' : (!empty($sub['is_waiting_section']) ? '🔒 Buka Form (Menunggu Section)' : '👁️ Buka Form Penilaian')) }}</span>
+                                                <span>{{ $sub['status'] === 'menunggu_dept_head' ? '✍️ Tinjau & Nilai Dept Head' : (!empty($sub['is_waiting_foreman']) ? '🔒 Buka Form (Menunggu Foreman)' : (!empty($sub['is_waiting_section']) ? '🔒 Buka Form (Menunggu Section)' : ($sub['status'] === 'selesai' ? '👁️ Lihat Form Selesai' : '👁️ Buka Form Penilaian'))) }}</span>
                                             @elseif($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))
                                                 <span>{{ $sub['status'] === 'menunggu_div_head' ? '✍️ Tinjau & Final Approval' : ($sub['status'] === 'selesai' ? '👁️ Lihat Form Selesai' : ($sub['status'] === 'menunggu_dept_head' ? '🔒 Buka Form (Menunggu Dept Head)' : ($sub['status'] === 'menunggu_section_head' ? '🔒 Buka Form (Menunggu Section)' : ($sub['status'] === 'menunggu_foreman' ? '🔒 Buka Form (Menunggu Foreman)' : '👁️ Buka Form Penilaian')))) }}</span>
                                             @elseif($user->isSectionHead())
-                                                @if($isSelf)
-                                                    <span>✍️ Nilai Mandiri</span>
-                                                @elseif($sub['section_head_evaluated'] || $sub['has_section_head_sign'])
+                                                @if($sub['section_head_evaluated'] || $sub['has_section_head_sign'])
                                                     <span>👁️ Buka Formulir</span>
                                                 @elseif(!empty($sub['is_waiting_foreman']) || $sub['status'] === 'menunggu_foreman')
                                                     <span>🔒 Buka Form (Menunggu Foreman)</span>
@@ -725,7 +723,7 @@
                                                     <span>✍️ Nilai Section Head</span>
                                                 @endif
                                             @elseif($user->isAdmin())
-                                                <span>👁️ Buka Form Penilaian</span>
+                                                <span>{{ $sub['status'] === 'selesai' ? '👁️ Lihat Form Selesai' : '👁️ Buka Form Penilaian' }}</span>
                                             @else
                                                 <span>{{ (!$sub['foreman_evaluated'] && in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_dinilai'])) ? '✍️ Nilai Karyawan' : '👁️ Buka Formulir' }}</span>
                                             @endif

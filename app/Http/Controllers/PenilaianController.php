@@ -1868,6 +1868,39 @@ class PenilaianController extends Controller
                 }
             }
 
+            // Hitung apakah user dengan role saat ini bisa langsung menilai / meninjau karyawan ini:
+            $canEvaluateByRole = false;
+            if ($isSelf) {
+                // Penilaian Mandiri: aktif jika belum selesai dan belum ditandatangani mandiri
+                $selfDone = ($docStatus === 'selesai');
+                if (!$selfDone) {
+                    if ($user->isSectionHead()) {
+                        $selfDone = $hasSectionHeadSign || $sectionHeadEvaluated || in_array($docStatus, ['menunggu_dept_head', 'menunggu_div_head']);
+                    } elseif ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
+                        $selfDone = $hasDeptHeadSign || in_array($docStatus, ['menunggu_div_head']);
+                    } elseif ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
+                        $selfDone = ($docStatus === 'selesai');
+                    } elseif ($user->isForeman() || in_array($user->role, ['foreman', 'ketua'])) {
+                        $selfDone = $hasForemanSign || $foremanEvaluated || in_array($docStatus, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head']);
+                    }
+                }
+                $canEvaluateByRole = !$selfDone;
+            } elseif ($user->isForeman() || in_array($user->role, ['foreman', 'ketua'])) {
+                $canEvaluateByRole = !$foremanEvaluated && !$hasForemanSign && $docStatus !== 'selesai';
+            } elseif ($user->isSectionHead() || in_array($user->role, ['section_head', 'section', 'sechead'])) {
+                $canEvaluateByRole = !$sectionHeadEvaluated 
+                    && !$hasSectionHeadSign 
+                    && empty($isWaitingForeman) 
+                    && $docStatus !== 'menunggu_foreman' 
+                    && $docStatus !== 'selesai';
+            } elseif ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
+                $canEvaluateByRole = ($docStatus === 'menunggu_dept_head') && !$hasDeptHeadSign;
+            } elseif ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
+                $canEvaluateByRole = ($docStatus === 'menunggu_div_head');
+            } elseif ($user->isAdmin() || $user->isSuperadmin()) {
+                $canEvaluateByRole = in_array($docStatus, ['menunggu_div_head', 'menunggu_dept_head', 'menunggu_section_head', 'menunggu_foreman', 'revisi']);
+            }
+
             $list[] = [
                 'admin_status_category' => $adminStatusCategory,
                 'nrp' => $nrp,
@@ -1890,6 +1923,7 @@ class PenilaianController extends Controller
                 'is_waiting_foreman' => $isWaitingForeman,
                 'is_waiting_section' => $isWaitingSection,
                 'can_evaluate_dept' => $canEvaluateDept,
+                'can_evaluate_by_role' => $canEvaluateByRole,
                 'foreman_name' => $foremanName,
                 'nrp_foreman' => $foremanNrp,
                 'foreman_evaluated' => $foremanEvaluated,
@@ -1927,29 +1961,59 @@ class PenilaianController extends Controller
             }));
         }
 
-        // Sort so that self-assessment is first, followed by 07-006 forms (DIV -> DH -> SH), then operational forms
+        // Sort so that employees actionable by the currently logged-in role appear AT THE VERY TOP!
+        // 1. Primary Priority: can_evaluate_by_role (TRUE first)
+        // 2. Secondary Priority:
+        //    - If actionable: Self (0) -> 07-006-DIV (1) -> 07-006-DH (2) -> 07-006-SH (3) -> Operational (4)
+        //    - If non-actionable: In-progress documents (waiting for other levels) -> Selesai / finalized (at the bottom)
+        // 3. Alphabetical tie-breaker: nama_lengkap / nrp
         usort($list, function ($a, $b) {
-            $rank = function (array $row): int {
-                if (!empty($row['is_self'])) {
-                    return 0;
-                }
+            $aCan = !empty($a['can_evaluate_by_role']) ? 1 : 0;
+            $bCan = !empty($b['can_evaluate_by_role']) ? 1 : 0;
+            if ($aCan !== $bCan) {
+                return $bCan <=> $aCan; // 1 (bisa dinilai) sebelum 0 (belum bisa / sudah selesai)
+            }
+
+            $getSecondaryRank = function (array $row): int {
+                $status = $row['status'] ?? 'belum_dinilai';
+                $isSelf = !empty($row['is_self']);
                 $kf = strtoupper(trim((string)($row['kode_form'] ?? '')));
-                if ($kf === '07-006-DIV') {
-                    return 1;
+
+                if (!empty($row['can_evaluate_by_role'])) {
+                    if ($isSelf) return 0; // Penilaian mandiri siap dinilai
+                    if ($kf === '07-006-DIV') return 1;
+                    if ($kf === '07-006-DH') return 2;
+                    if (str_starts_with($kf, '07-006')) return 3;
+                    return 4; // Bawahan operasional siap dinilai
                 }
-                if ($kf === '07-006-DH') {
-                    return 2;
+
+                // Untuk berkas yang belum bisa dinilai oleh role saat ini:
+                // Tahap 1: Sedang berproses di alur approval (menunggu approval level lain)
+                if ($status !== 'selesai') {
+                    if ($status === 'menunggu_div_head') return 10;
+                    if ($status === 'menunggu_dept_head') return 11;
+                    if ($status === 'menunggu_section_head') return 12;
+                    if ($status === 'menunggu_foreman') return 13;
+                    if ($status === 'draft') return 14;
+                    if ($status === 'revisi') return 15;
+                    return 16; // belum_dinilai
                 }
-                if (str_starts_with($kf, '07-006')) {
-                    return 3;
-                }
-                return 4;
+
+                // Tahap 2: Selesai / Terarsip (posisi paling bawah)
+                return 25;
             };
 
-            $ra = $rank($a);
-            $rb = $rank($b);
-            if ($ra !== $rb) {
-                return $ra <=> $rb;
+            $rankA = $getSecondaryRank($a);
+            $rankB = $getSecondaryRank($b);
+            if ($rankA !== $rankB) {
+                return $rankA <=> $rankB;
+            }
+
+            $nameA = $a['nama_lengkap'] ?? '';
+            $nameB = $b['nama_lengkap'] ?? '';
+            $cmpName = strcasecmp((string)$nameA, (string)$nameB);
+            if ($cmpName !== 0) {
+                return $cmpName;
             }
             return strcmp((string)$a['nrp'], (string)$b['nrp']);
         });
@@ -2026,6 +2090,7 @@ class PenilaianController extends Controller
             'countAdminForeman' => $countAdminForeman,
             'countAdminSection' => $countAdminSection,
             'countAdminSelesai' => $countAdminSelesai,
+            'countPerluDinilai' => count(array_filter($list, fn ($item) => !empty($item['can_evaluate_by_role']))),
             'subordinates' => $list,
             'totalCount' => count($list),
             'selfKaryawan' => $selfKaryawan,
