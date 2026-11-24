@@ -141,7 +141,11 @@ class DatabaseSyncService
             $empKjNum = isset($k->kj) ? (int)preg_replace('/[^0-9]/', '', (string)$k->kj) : 0;
             $isSubordinate07006 = (str_starts_with($kodeForm, '07-006') || $empKjNum >= 5) && !$isActualSH && !$isDept && !$isDiv;
 
-            if ($isDiv) {
+            $isDirectDeptDiv = \App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate((array)$k);
+            if ($isDirectDeptDiv) {
+                $kodeForm = '07-006-DH';
+                $status = 'menunggu_dept_head';
+            } elseif ($isDiv) {
                 $status = 'menunggu_div_head';
             } elseif ($isDept) {
                 $status = 'menunggu_dept_head';
@@ -189,13 +193,18 @@ class DatabaseSyncService
                 }
                 // Dokumen yang belum ditandatangani Section Head: jika bukan Dept Head / Div Head, posisinya masih di Section Head
                 $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->first();
-                if ($existingDoc && !$isDiv && !$isDept) {
+                if ($existingDoc && !$isDiv && !$isDept && !$isDirectDeptDiv) {
                     $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
                     $hasShScore = DB::table('nilai')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
                     $hasTotalScore = !empty($existingDoc->total_nilai);
                     if (!$hasShTtd && !$hasShScore && !$hasTotalScore && in_array($existingDoc->status, ['draft', 'menunggu_dept_head'])) {
                         $hasForemanEmp = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
                         $docUpdate['status'] = $hasForemanEmp ? 'menunggu_foreman' : 'menunggu_section_head';
+                    }
+                } elseif ($existingDoc && $isDirectDeptDiv) {
+                    $hasDeptTtd = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'dept_head')->exists();
+                    if (!$hasDeptTtd && in_array($existingDoc->status, ['draft', 'menunggu_section_head', 'menunggu_foreman'])) {
+                        $docUpdate['status'] = 'menunggu_dept_head';
                     }
                 }
                 DB::table('dokumen')->where('nrp', $nrp)->update($docUpdate);
@@ -274,8 +283,14 @@ class DatabaseSyncService
             $isDept = (str_contains($jab, 'DEPARTMENT HEAD') || str_contains($jab, 'DEPT HEAD') || str_contains($jab, 'DEPT. HEAD') || str_contains($jab, 'MANAGER') || str_contains($jab, 'MANAJER')) && !str_contains($jab, 'NON KASIE');
             $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $k->nrp) !== 0;
 
+            $isDirectDeptDiv = \App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate($k, (array)$d);
             $targetStatus = 'menunggu_section_head';
-            if ($isDiv) {
+            if ($isDirectDeptDiv) {
+                $targetStatus = 'menunggu_dept_head';
+                if ($d->kode_form !== '07-006-DH') {
+                    DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DH']);
+                }
+            } elseif ($isDiv) {
                 $targetStatus = 'menunggu_div_head';
             } elseif ($isDept) {
                 $targetStatus = 'menunggu_dept_head';
