@@ -1075,7 +1075,7 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(12)->withoutVerifying()->get($appscriptUrl, [
+            $response = Http::timeout(6)->withoutVerifying()->get($appscriptUrl, [
                 'action' => 'get_table',
                 'table' => 'users',
             ]);
@@ -1924,7 +1924,7 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(12)->withoutVerifying()->get($appscriptUrl, [
+            $response = Http::timeout(6)->withoutVerifying()->get($appscriptUrl, [
                 'action' => 'pull_all',
             ]);
 

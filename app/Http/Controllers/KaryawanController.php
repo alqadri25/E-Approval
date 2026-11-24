@@ -47,6 +47,11 @@ class KaryawanController extends Controller
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning("Manual sync on karyawan index notice: " . $e->getMessage());
             }
+        } else {
+            // Auto-sync check from Google Spreadsheet (cached 60s)
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
+            } catch (\Throwable $e) {}
         }
 
         $allKaryawan = $this->repository->all('karyawan');

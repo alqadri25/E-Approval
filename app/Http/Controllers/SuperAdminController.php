@@ -29,6 +29,11 @@ class SuperAdminController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        // Auto-sync check from Google Spreadsheet (cached 60s)
+        try {
+            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
+        } catch (\Throwable $e) {}
+
         $allKaryawan = $this->repository->all('karyawan');
         $allDocs = $this->repository->all('dokumen');
         $totalKaryawan = count($allKaryawan);
@@ -149,6 +154,7 @@ class SuperAdminController extends Controller
         // Selalu sinkronkan data user & password terbaru dari sheet 'users' Google Spreadsheet
         // (menggunakan cache 15 detik agar tidak membebani network saat navigasi cepat)
         try {
+            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
             \App\Services\GoogleSyncService::syncUsersFromSpreadsheet(false);
         } catch (\Throwable $e) {}
 

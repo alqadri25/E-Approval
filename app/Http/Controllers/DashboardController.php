@@ -33,13 +33,17 @@ class DashboardController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        // Sync dari Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1
+        // Sync dari Google Spreadsheet hanya jika diminta secara eksplisit via ?sync=1 atau auto-sync (cached 60s)
         if ($request->boolean('sync')) {
             try {
                 \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning("Sync from Google on dashboard: " . $e->getMessage());
             }
+        } else {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
+            } catch (\Throwable $e) {}
         }
 
         // 1. Employee query (department filtered if department user)

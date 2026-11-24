@@ -31,6 +31,11 @@ class AdminController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
+        // Auto-sync check from Google Spreadsheet (cached 60s)
+        try {
+            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
+        } catch (\Throwable $e) {}
+
         $allKaryawan = $this->repository->all('karyawan');
         $allDocs = $this->repository->all('dokumen');
         $totalKaryawan = count($allKaryawan);
@@ -673,6 +678,11 @@ class AdminController extends Controller
         if (!$user->isAdmin() && !$user->isSuperadmin()) {
             abort(403, 'Akses terbatas untuk Admin dan Superadmin.');
         }
+
+        // Auto-sync check from Google Spreadsheet (cached 60s)
+        try {
+            \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(false);
+        } catch (\Throwable $e) {}
 
         $allKaryawan = $this->repository->all('karyawan');
         $allDocs = $this->repository->all('dokumen');
