@@ -1088,8 +1088,13 @@ class PenilaianController extends Controller
         if ($levelFormRaw === 'DEPT_HEAD' || str_contains($jabatan, 'DEPARTMENT HEAD') || str_contains($jabatan, 'DEPT HEAD') || str_contains($jabatan, 'DEPT. HEAD') || str_contains($jabatan, 'MANAGER') || str_contains($jabatan, 'MANAJER')) {
             return '07-006-DH';
         }
-        if (self::isActualSectionHead($karyawan) || $levelFormRaw === 'SECTION_HEAD') {
-            if (!str_contains($jabatan, 'NON KASIE') && !str_contains($jabatan, 'NON-KASIE')) {
+
+        // Check if genuine Foreman
+        $isForeman = str_contains($jabatan, 'FOREMAN') || ($levelFormRaw === 'FOREMAN');
+
+        // Check if genuine Section Head
+        if (!$isForeman && (self::isActualSectionHead($karyawan) || $levelFormRaw === 'SECTION_HEAD')) {
+            if (!str_contains($jabatan, 'NON KASIE') && !str_contains($jabatan, 'NON-KASIE') && !str_contains($jabatan, 'STAFF') && !str_contains($jabatan, 'OPERATOR')) {
                 return '07-006-SH';
             }
         }
@@ -1112,6 +1117,17 @@ class PenilaianController extends Controller
             } else {
                 $kjNum = 2; // Default range KJ 1-3
             }
+        }
+
+        // 3. ATURAN KHUSUS FOREMAN:
+        // - Foreman dengan KJ > 5 (KJ 6 ke atas) -> FORM 07-006 Varian Karyawan (07-006-KARYAWAN)
+        //   yang dinilai oleh: Section Head, Department Head, Division Head.
+        // - Foreman dengan KJ <= 5 (KJ 5 atau dibawahnya) -> Form Foreman (07-004)
+        if ($isForeman) {
+            if ($kjNum > 5) {
+                return '07-006-KARYAWAN';
+            }
+            return '07-004';
         }
 
         // 3. ATURAN KHUSUS: SECRETARY dengan KJ > 5 menggunakan FORM 07-006-DH (Form Penilaian Department Head / Manager)

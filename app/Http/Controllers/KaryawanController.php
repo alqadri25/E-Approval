@@ -47,7 +47,7 @@ class KaryawanController extends Controller
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning("Manual sync on karyawan index notice: " . $e->getMessage());
             }
-
+        }
 
         $allKaryawan = $this->repository->all('karyawan');
         $allDocs = $this->repository->all('dokumen');
