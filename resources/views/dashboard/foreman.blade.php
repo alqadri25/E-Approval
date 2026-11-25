@@ -115,6 +115,9 @@
         </div>
     @else
         <!-- All Done Success Banner -->
+        @php
+            $countBawahan = count(array_filter($foremanSubordinates, fn($s) => strcasecmp($s['nrp'] ?? '', $user->nrp ?? '') !== 0));
+        @endphp
         <div class="bg-emerald-50 border-l-4 border-emerald-600 p-4 border-y border-r border-emerald-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-start gap-3">
                 <div class="w-8 h-8 rounded-none bg-emerald-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
@@ -123,14 +126,14 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-none">
-                            Tugas Foreman Selesai 100%
+                            {{ $countBawahan > 0 ? 'Tugas Foreman Selesai 100%' : 'Dokumen Penilaian Anda di Section Head' }}
                         </span>
                         <span class="text-xs font-bold text-emerald-950">
-                            Seluruh {{ count($foremanSubordinates) }} Karyawan Bawahan Telah Selesai Dinilai & Dikirim
+                            {{ $countBawahan > 0 ? 'Seluruh ' . $countBawahan . ' Karyawan Bawahan Telah Selesai Dinilai & Dikirim' : 'Dokumen Penilaian Anda Sedang Ditinjau oleh Section Head' }}
                         </span>
                     </div>
                     <p class="text-xs text-emerald-800 mt-1">
-                        Semua berkas penilaian karyawan telah ditandatangani digital oleh Anda dan saat ini sedang dalam proses tinjauan Section Head / Department Head.
+                        {{ $countBawahan > 0 ? 'Semua berkas penilaian karyawan telah ditandatangani digital oleh Anda dan saat ini sedang dalam proses tinjauan Section Head / Department Head.' : 'Formulir penilaian Anda telah diteruskan ke Section Head untuk tahap penilaian & verifikasi.' }}
                     </p>
                 </div>
             </div>
@@ -214,30 +217,24 @@
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-blue-700 transition-colors">Terkirim ke Section Head</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $foremanDoneCount }}</p>
                     <p class="text-[11px] text-blue-600 font-bold mt-1 leading-none">
-                        {{ $foremanNeedActionCount }} Perlu Tindakan (To-Do)
+                        Sudah Dinilai: {{ $foremanShSudahDinilai ?? 0 }} &bull; Belum Dinilai: {{ $foremanShBelumDinilai ?? 0 }}
                     </p>
                 </div>
             </div>
-            <span class="text-[10px] font-bold px-2 py-1 {{ $foremanNeedActionCount > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
-                {{ $foremanNeedActionCount > 0 ? 'To-Do' : 'Tuntas' }}
+            <span class="text-[10px] font-bold px-2 py-1 {{ ($foremanShBelumDinilai ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
+                {{ ($foremanShBelumDinilai ?? 0) > 0 ? 'To-Do' : 'Tuntas' }}
             </span>
         </div>
     </div>
 
-    <!-- 4. Visual Workflow Pipeline Tracker (Tahapan Penilaian Bawahan) -->
+    <!-- 4. Visual Workflow Pipeline Tracker -->
     <div class="bg-white rounded-none p-5 border border-slate-300 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
             <div>
                 <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">
-                    Pelacakan Alur Status Dokumen Bawahan
+                    Pelacakan Alur Status Dokumen
                 </h3>
-                <p class="text-xs text-slate-500">
-                    Memantau posisi dokumen seluruh {{ count($foremanSubordinates) }} karyawan bawahan Anda di setiap tahapan sistem
-                </p>
             </div>
-            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-none border border-slate-200 self-start sm:self-auto">
-                {{ $foremanDoneCount }}/{{ count($foremanSubordinates) }} Telah Melewati Foreman
-            </span>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 items-stretch">
@@ -285,7 +282,7 @@
                     </div>
                     <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Section Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Dokumen telah Anda tanda tangani dan sedang ditinjau Section Head.
+                        {{ $waitingSectionCount > 0 ? 'Dokumen penilaian sedang dalam proses tinjauan & pengesahan Section Head.' : 'Tidak ada antrean dokumen di Section Head.' }}
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">

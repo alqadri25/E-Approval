@@ -176,6 +176,8 @@ class DashboardController extends Controller
         $foremanRevisiCount = 0;
         $foremanSelesaiCount = 0;
         $foremanSudahDinilaiCount = 0;
+        $foremanShSudahDinilai = 0;
+        $foremanShBelumDinilai = 0;
 
         if ($user->isForeman()) {
             // Filter strictly to subordinates of this specific Foreman (termasuk evaluasi diri sendiri)
@@ -218,49 +220,82 @@ class DashboardController extends Controller
                 $actionLabel = 'Belum Dinilai';
                 $stageLabel = 'Foreman';
 
-                if ($status === 'revisi') {
-                    $actionType = 'revisi';
-                    $actionLabel = 'Perlu Revisi';
-                    $stageLabel = 'Revisi dari Section Head';
-                    $foremanRevisiCount++;
-                    $foremanNeedActionCount++;
-                } elseif ($status === 'selesai') {
-                    $actionType = 'sudah_dikirim';
-                    $actionLabel = 'Selesai & Arsip';
-                    $stageLabel = 'Selesai (Disetujui)';
-                    $foremanDoneCount++;
-                    $foremanSelesaiCount++;
-                } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
-                    $actionType = 'sudah_dikirim';
-                    $actionLabel = 'Proses Dept Head';
-                    $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
-                    $foremanDoneCount++;
-                } elseif ($status === 'menunggu_section_head') {
-                    $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
-                    if ($isSelf) {
-                        $actionType = 'belum_dinilai';
-                        $actionLabel = 'Evaluasi Mandiri';
-                        $stageLabel = 'Evaluasi Mandiri';
-                        $foremanBelumCount++;
-                        $foremanNeedActionCount++;
+                $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
+
+                if ($isSelf) {
+                    // Foreman KJ 5 ke atas (Form 07-006 / 07-004) dinilai langsung oleh Section Head -> Dept Head -> Div Head.
+                    // Dokumen Foreman tidak memerlukan tindakan penilaian mandiri oleh Foreman sendiri.
+                    if ($status === 'selesai') {
+                        $actionType = 'sudah_dikirim';
+                        $actionLabel = 'Selesai & Arsip';
+                        $stageLabel = 'Selesai (Disetujui)';
+                        $foremanDoneCount++;
+                        $foremanSelesaiCount++;
+                        $foremanShSudahDinilai++;
+                    } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
+                        $actionType = 'sudah_dikirim';
+                        $actionLabel = 'Proses Dept Head';
+                        $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
+                        $foremanDoneCount++;
+                        $foremanShSudahDinilai++;
                     } else {
+                        // Menunggu Section Head
                         $actionType = 'sudah_dikirim';
                         $actionLabel = 'Terkirim ke Section Head';
                         $stageLabel = 'Section Head';
                         $foremanDoneCount++;
+                        $hasShScore = ($docId && isset($nilaiGrouped[$docId]['section_head']) && !empty($nilaiGrouped[$docId]['section_head']));
+                        if ($hasShScore) {
+                            $foremanShSudahDinilai++;
+                        } else {
+                            $foremanShBelumDinilai++;
+                        }
                     }
-                } elseif ($status === 'draft' || ($isEvaluated && ($status === 'menunggu_foreman' || $status === 'belum_ada'))) {
-                    $actionType = 'draft';
-                    $actionLabel = 'Draft Tersimpan';
-                    $stageLabel = 'Draft (Belum TTD)';
-                    $foremanDraftCount++;
-                    $foremanNeedActionCount++;
                 } else {
-                    $actionType = 'belum_dinilai';
-                    $actionLabel = 'Belum Dinilai';
-                    $stageLabel = 'Belum Dinilai';
-                    $foremanBelumCount++;
-                    $foremanNeedActionCount++;
+                    // Karyawan Bawahan Foreman (Operator / Staff KJ 1-4)
+                    if ($status === 'revisi') {
+                        $actionType = 'revisi';
+                        $actionLabel = 'Perlu Revisi';
+                        $stageLabel = 'Revisi dari Section Head';
+                        $foremanRevisiCount++;
+                        $foremanNeedActionCount++;
+                    } elseif ($status === 'selesai') {
+                        $actionType = 'sudah_dikirim';
+                        $actionLabel = 'Selesai & Arsip';
+                        $stageLabel = 'Selesai (Disetujui)';
+                        $foremanDoneCount++;
+                        $foremanSelesaiCount++;
+                        $foremanShSudahDinilai++;
+                    } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
+                        $actionType = 'sudah_dikirim';
+                        $actionLabel = 'Proses Dept Head';
+                        $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
+                        $foremanDoneCount++;
+                        $foremanShSudahDinilai++;
+                    } elseif ($status === 'menunggu_section_head') {
+                        $actionType = 'sudah_dikirim';
+                        $actionLabel = 'Terkirim ke Section Head';
+                        $stageLabel = 'Section Head';
+                        $foremanDoneCount++;
+                        $hasShScore = ($docId && isset($nilaiGrouped[$docId]['section_head']) && !empty($nilaiGrouped[$docId]['section_head']));
+                        if ($hasShScore) {
+                            $foremanShSudahDinilai++;
+                        } else {
+                            $foremanShBelumDinilai++;
+                        }
+                    } elseif ($status === 'draft' || ($isEvaluated && ($status === 'menunggu_foreman' || $status === 'belum_ada'))) {
+                        $actionType = 'draft';
+                        $actionLabel = 'Draft Tersimpan';
+                        $stageLabel = 'Draft (Belum TTD)';
+                        $foremanDraftCount++;
+                        $foremanNeedActionCount++;
+                    } else {
+                        $actionType = 'belum_dinilai';
+                        $actionLabel = 'Belum Dinilai';
+                        $stageLabel = 'Belum Dinilai';
+                        $foremanBelumCount++;
+                        $foremanNeedActionCount++;
+                    }
                 }
 
                 $rawSect = trim($k['nama_sect'] ?? '');
@@ -2411,6 +2446,8 @@ class DashboardController extends Controller
             'foremanRevisiCount',
             'foremanSelesaiCount',
             'foremanSudahDinilaiCount',
+            'foremanShSudahDinilai',
+            'foremanShBelumDinilai',
             'incomingDocsSectionHead',
             'incomingDocsDeptHead',
             'sectionSubordinates',
