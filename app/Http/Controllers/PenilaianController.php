@@ -1385,10 +1385,10 @@ class PenilaianController extends Controller
         // "DEPARTEMEN HEAD BISA MENIAI BAWAHNNYA, KALAU MASIH SATU OPENILAI DAN DIRINYA SENDIRI MAKA HANYA ITU NILAI YANG BISA DILIHAT"
         if ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) {
             if ($isGol4Up) {
-                // Di Form 07-006 Varian Karyawan (karyawan_gol4):
+                // Di Form 07-006 Varian Karyawan (karyawan_gol4) & dept_and_div:
                 // Section Head di slot section_head, Dept Head di slot dept_head, Div Head di slot div_head.
                 // Dept Head harus dapat melihat nilai Section Head dan nilai Dept Head itu sendiri!
-                if ($subFormVariant === 'karyawan_gol4') {
+                if ($subFormVariant === 'karyawan_gol4' || $subFormVariant === 'dept_and_div') {
                     return [
                         'can_view_foreman' => true,
                         'can_view_section_head' => true,
@@ -5449,14 +5449,10 @@ class PenilaianController extends Controller
             abort(404, 'Dokumen penilaian tidak ditemukan atau Anda tidak memiliki akses.');
         }
 
-        $etag = '"' . md5(($pdfData['dokumen']['id'] ?? '') . '_' . ($pdfData['dokumen']['updated_at'] ?? '') . '_' . ($pdfData['dokumen']['status'] ?? '')) . '"';
-        if (request()->header('If-None-Match') === $etag) {
-            return response('', 304)->header('ETag', $etag);
-        }
-
         $response = request()->query('download') ? $pdfData['pdf']->download($pdfData['filename']) : $pdfData['pdf']->stream($pdfData['filename']);
-        $response->header('ETag', $etag);
-        $response->header('Cache-Control', 'private, max-age=120, must-revalidate');
+        $response->header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+        $response->header('Pragma', 'no-cache');
+        $response->header('Expires', '0');
         return $response;
     }
 
@@ -5564,7 +5560,7 @@ class PenilaianController extends Controller
                 $scoresByLevel['dept_head'] = [];
             }
         } elseif (in_array($docStatus, ['menunggu_dept_head'])) {
-            if ($isGol4UpTemp) {
+            if ($isGol4UpTemp && !self::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
                 $scoresByLevel['dept_head'] = [];
             }
         }
@@ -5680,21 +5676,21 @@ class PenilaianController extends Controller
         $isSubordinate07006 = ($kodeForm === '07-006-KARYAWAN') || self::isSubordinateForm07006($karyawan, $kodeForm);
 
         $col1Title = match($subFormVariant) {
-            'dept_and_div' => 'Dept. Head',
+            'dept_and_div' => '',
             'div_head' => '',
             'karyawan_gol4' => 'Sect. Head',
             'dept_head', 'section_head' => 'Mandiri / 自分',
             default => 'Foreman (jika ada)',
         };
         $col2Title = match($subFormVariant) {
-            'dept_and_div' => 'Div. Head',
+            'dept_and_div' => 'Dept. Head',
             'div_head', 'dept_head' => '',
             'karyawan_gol4' => 'Dept. head',
             'section_head' => 'Dept. Head',
             default => 'Section Head / Deputy Section Head',
         };
         $col3Title = match($subFormVariant) {
-            'dept_and_div' => '',
+            'dept_and_div' => 'Div. Head',
             'div_head' => 'Division Head',
             'karyawan_gol4' => 'Div. Head',
             'dept_head', 'section_head' => 'Div. Head',

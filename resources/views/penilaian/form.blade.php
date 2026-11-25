@@ -154,15 +154,18 @@
                             str_contains(strtoupper($karyawan['seksi'] ?? ''), 'SECRETARY') || in_array($dokumen['nrp'] ?? '', ['268', '1237'])
                         );
                         $isMandiriStage = ($isGol4Up || $isSecretaryDoc) 
+                            && !in_array($subFormVariant ?? '', ['dept_and_div', 'div_head'])
                             && in_array($dokumen['status'] ?? '', ['menunggu_dept_head', 'menunggu_section_head', 'menunggu_foreman', 'draft', 'belum_ada']) 
                             && empty($ttdByLevel['foreman']);
                         $isViewerSelfOrAuthorized = $isSelfDoc || (Auth::user()?->isSecretary() ?? false) || in_array($rolePrefix ?? '', ['foreman', 'sechead', 'secretary']) || (Auth::user()?->isAdmin() || Auth::user()?->isSuperadmin());
                         
                         $statusBadgeText = match($dokumen['status'] ?? '') {
                             'menunggu_div_head' => 'MENUNGGU DIVISION HEAD',
-                            'menunggu_dept_head' => ($isMandiriStage || $isSecretaryDoc || $isSelfDoc) && empty($ttdByLevel['foreman'])
-                                ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
-                                : 'MENUNGGU DEPARTMENT HEAD',
+                            'menunggu_dept_head' => ($subFormVariant === 'dept_and_div')
+                                ? 'MENUNGGU DEPARTMENT HEAD'
+                                : ((($isMandiriStage || $isSecretaryDoc || $isSelfDoc) && empty($ttdByLevel['foreman']))
+                                    ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
+                                    : 'MENUNGGU DEPARTMENT HEAD'),
                             'menunggu_section_head' => $isMandiriStage 
                                 ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
                                 : 'MENUNGGU SECTION HEAD',
@@ -653,7 +656,7 @@
                 @if($waitingForLevel === 'foreman')
                     Form Penilaian Terkunci: Masih Menunggu Penilaian Foreman
                 @elseif($waitingForLevel === 'section_head')
-                    Form Penilaian Terkunci: {{ ($isGol4Up && $subFormVariant !== 'karyawan_gol4') ? 'Masih Menunggu Evaluasi Mandiri Karyawan' : 'Masih Menunggu Penilaian Section Head' }}
+                    Form Penilaian Terkunci: {{ ($isGol4Up && !in_array($subFormVariant ?? '', ['karyawan_gol4', 'dept_and_div', 'div_head'])) ? 'Masih Menunggu Evaluasi Mandiri Karyawan' : 'Masih Menunggu Penilaian Section Head' }}
                 @elseif($waitingForLevel === 'dept_head')
                     Form Penilaian Terkunci: Masih Menunggu Penilaian Department Head
                 @else
@@ -1808,7 +1811,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">{{ $calcDeptHead['groups'][$groupKey]['total_sum'] ?? 0 }}</span>
                                         @endif
                                     </td>
                                     <td class="p-1 text-center font-mono font-bold text-slate-900">
@@ -1830,7 +1833,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">{{ $calcDeptHead['groups'][$groupKey]['total_sum'] ?? 0 }}</span>
                                         @endif
                                     </td>
                                     <td class="p-1 text-center font-mono font-bold text-slate-900">
@@ -1863,7 +1866,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">{{ $calcDeptHead['groups'][$groupKey]['total_sum'] ?? 0 }}</span>
                                         @endif
                                     </td>
                                     @else
@@ -1885,7 +1888,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">0</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.sum ?? '0'">{{ $calcDeptHead['groups'][$groupKey]['total_sum'] ?? 0 }}</span>
                                         @endif
                                     </td>
                                     @endif
@@ -1919,7 +1922,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">{{ isset($calcDeptHead['groups'][$groupKey]['average']) ? number_format($calcDeptHead['groups'][$groupKey]['average'], 2) : '0.00' }}</span>
                                         @endif
                                     </td>
                                     <td class="p-1 text-center font-mono text-slate-900">
@@ -1941,7 +1944,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">{{ isset($calcDeptHead['groups'][$groupKey]['average']) ? number_format($calcDeptHead['groups'][$groupKey]['average'], 2) : '0.00' }}</span>
                                         @endif
                                     </td>
                                     <td class="p-1 text-center font-mono text-slate-900">
@@ -1974,7 +1977,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">{{ isset($calcDeptHead['groups'][$groupKey]['average']) ? number_format($calcDeptHead['groups'][$groupKey]['average'], 2) : '0.00' }}</span>
                                         @endif
                                     </td>
                                     @else
@@ -1996,7 +1999,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">0.00</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.avg ?? '0.00'">{{ isset($calcDeptHead['groups'][$groupKey]['average']) ? number_format($calcDeptHead['groups'][$groupKey]['average'], 2) : '0.00' }}</span>
                                         @endif
                                     </td>
                                     @endif
@@ -2013,7 +2016,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">{{ isset($calcDeptHead['groups'][$groupKey]['weighted_score']) ? number_format($calcDeptHead['groups'][$groupKey]['weighted_score'], 2) : '0.00' }}</span>
                                         @endif
                                     </td>
                                     <td class="p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
@@ -2035,7 +2038,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">{{ isset($calcDeptHead['groups'][$groupKey]['weighted_score']) ? number_format($calcDeptHead['groups'][$groupKey]['weighted_score'], 2) : '0.00' }}</span>
                                         @endif
                                     </td>
                                     <td class="p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
@@ -2068,7 +2071,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">{{ isset($calcDeptHead['groups'][$groupKey]['weighted_score']) ? number_format($calcDeptHead['groups'][$groupKey]['weighted_score'], 2) : '0.00' }}</span>
                                         @endif
                                     </td>
                                     @else
@@ -2090,7 +2093,7 @@
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
                                         @else
-                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">0.00</span>
+                                            <span x-text="totalsDeptHead['{{ $groupKey }}']?.weighted ?? '0.00'">{{ isset($calcDeptHead['groups'][$groupKey]['weighted_score']) ? number_format($calcDeptHead['groups'][$groupKey]['weighted_score'], 2) : '0.00' }}</span>
                                         @endif
                                     </td>
                                     @endif
