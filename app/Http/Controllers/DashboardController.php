@@ -1633,15 +1633,63 @@ class DashboardController extends Controller
                 ];
             }
 
-            // Calculate actual grade distribution across all division subordinates (informational)
+            // Aggregate actual grade distribution for Form 07-006 across all divisions combined
+            $allForm07006 = [];
             $divActualGradeCounts = ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0];
-            foreach ($divSubordinateRows as $r) {
-                $g = strtoupper(trim((string)($r['grade'] ?? '')));
-                if (isset($divActualGradeCounts[$g])) {
-                    $divActualGradeCounts[$g]++;
+            foreach ($allKaryawan as $k) {
+                $nrp = (string)($k['nrp'] ?? '');
+                $doc = $docsByNrp[$nrp] ?? null;
+                $kf = strtoupper(trim((string)($doc['kode_form'] ?? PenilaianController::determineKodeForm($k))));
+                if (!str_starts_with($kf, '07-006')) {
+                    continue;
+                }
+                $allForm07006[] = $k;
+
+                $docId = $doc['id'] ?? null;
+                $score = 0;
+                $grade = '-';
+
+                if ($doc && !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0) {
+                    $score = (float)$doc['total_nilai'];
+                    $grade = $doc['docking_final'] ?? ($doc['grade_original'] ?? $this->calcService->scoreToGrade($score));
+                } elseif ($docId && isset($nilaiGrouped[$docId])) {
+                    foreach (['div_head', 'dept_head', 'section_head', 'foreman'] as $lvl) {
+                        if (!empty($nilaiGrouped[$docId][$lvl])) {
+                            $calc = $this->calcService->calculate($kf, $nilaiGrouped[$docId][$lvl]);
+                            if ($calc['grand_total'] > 0) {
+                                $score = $calc['grand_total'];
+                                $grade = $this->calcService->scoreToGrade($score);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                $gradeUpper = strtoupper(trim((string)$grade));
+                if (isset($divActualGradeCounts[$gradeUpper])) {
+                    $divActualGradeCounts[$gradeUpper]++;
                 }
             }
             $divActualGradeTotal = array_sum($divActualGradeCounts);
+
+            // Target counts aligned with all Form 07-006 employees company-wide
+            $totAll07006 = count($allForm07006);
+            $pctS = (float)($targetPercentages['S'] ?? 10);
+            $pctA = (float)($targetPercentages['A'] ?? 30);
+            $pctB = (float)($targetPercentages['B'] ?? 30);
+            $pctC = (float)($targetPercentages['C'] ?? 20);
+
+            $targetS = max(0, (int)round($totAll07006 * ($pctS / 100)));
+            $targetA = max(0, (int)round($totAll07006 * ($pctA / 100)));
+            $targetB = max(0, (int)round($totAll07006 * ($pctB / 100)));
+            $targetC = max(0, (int)round($totAll07006 * ($pctC / 100)));
+            $targetK = max(0, $totAll07006 - ($targetS + $targetA + $targetB + $targetC));
+            if ($targetK < 0) {
+                $targetK = 0;
+                $targetB = max(0, $totAll07006 - ($targetS + $targetA + $targetC));
+            }
+            $divTargetCounts = ['S' => $targetS, 'A' => $targetA, 'B' => $targetB, 'C' => $targetC, 'K' => $targetK];
+            $totalTargetDiv = $totAll07006;
 
             // Self evaluation metrics specifically for Division Head Penilaian Mandiri Card
             $selfKaryawan = DB::table('karyawan')->where('nrp', $user->nrp)->first();
