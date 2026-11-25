@@ -141,8 +141,12 @@ class DatabaseSyncService
             $empKjNum = isset($k->kj) ? (int)preg_replace('/[^0-9]/', '', (string)$k->kj) : 0;
             $isSubordinate07006 = (str_starts_with($kodeForm, '07-006') || $empKjNum >= 5) && !$isActualSH && !$isDept && !$isDiv;
 
+            $isDirectDiv = \App\Http\Controllers\PenilaianController::isDirectDivSubordinate((array)$k);
             $isDirectDeptDiv = \App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate((array)$k);
-            if ($isDirectDeptDiv) {
+            if ($isDirectDiv) {
+                $kodeForm = '07-006-DIV';
+                $status = 'menunggu_div_head';
+            } elseif ($isDirectDeptDiv) {
                 $kodeForm = '07-006-DH';
                 $status = 'menunggu_dept_head';
             } elseif ($isDiv) {
@@ -283,9 +287,15 @@ class DatabaseSyncService
             $isDept = (str_contains($jab, 'DEPARTMENT HEAD') || str_contains($jab, 'DEPT HEAD') || str_contains($jab, 'DEPT. HEAD') || str_contains($jab, 'MANAGER') || str_contains($jab, 'MANAJER')) && !str_contains($jab, 'NON KASIE');
             $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $k->nrp) !== 0;
 
+            $isDirectDiv = \App\Http\Controllers\PenilaianController::isDirectDivSubordinate($k, (array)$d);
             $isDirectDeptDiv = \App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate($k, (array)$d);
             $targetStatus = 'menunggu_section_head';
-            if ($isDirectDeptDiv) {
+            if ($isDirectDiv) {
+                $targetStatus = 'menunggu_div_head';
+                if ($d->kode_form !== '07-006-DIV') {
+                    DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DIV']);
+                }
+            } elseif ($isDirectDeptDiv) {
                 $targetStatus = 'menunggu_dept_head';
                 if ($d->kode_form !== '07-006-DH') {
                     DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DH']);
@@ -307,6 +317,12 @@ class DatabaseSyncService
                 ]);
                 $healed++;
             }
+        }
+
+        if ($healed > 0) {
+            try {
+                app(\App\Repositories\SheetRepository::class)->clearCache('dokumen');
+            } catch (\Throwable $e) {}
         }
 
         return $healed;

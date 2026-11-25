@@ -1063,6 +1063,18 @@ class PenilaianController extends Controller
      */
     public static function determineKodeForm(array $karyawan): string
     {
+        // 0. ATURAN KHUSUS: Karyawan dinilai langsung HANYA Division Head (misal SUTARNO NRP 173)
+        // menggunakan FORM 07-006-DIV dengan 1 penilai: Division Head saja.
+        if (self::isDirectDivSubordinate($karyawan)) {
+            return '07-006-DIV';
+        }
+
+        // 0b. ATURAN KHUSUS: Karyawan dinilai langsung Dept Head & Div Head (misal NAUFAL AQIL HIMAWAN NRP 1415)
+        // menggunakan FORM 07-006-DH dengan 2 penilai: Department Head dan Division Head.
+        if (self::isDirectDeptDivSubordinate($karyawan)) {
+            return '07-006-DH';
+        }
+
         $jabatan = strtoupper(trim((string)($karyawan['jabatan'] ?? '')));
         $levelFormRaw = strtoupper(trim((string)($karyawan['level_form'] ?? '')));
         $subGol = strtoupper(trim((string)($karyawan['sub_gol'] ?? '')));
@@ -1113,6 +1125,12 @@ class PenilaianController extends Controller
         // menggunakan FORM 07-006-DH dengan 2 penilai: Department Head dan Division Head.
         if (self::isDirectDeptDivSubordinate($karyawan)) {
             return '07-006-DH';
+        }
+
+        // 3c. ATURAN KHUSUS: Karyawan dinilai langsung HANYA Division Head (misal SUTARNO NRP 173)
+        // menggunakan FORM 07-006-DIV dengan 1 penilai: Division Head saja.
+        if (self::isDirectDivSubordinate($karyawan)) {
+            return '07-006-DIV';
         }
 
         // 4. ATURAN UTAMA: Jika KJ > 5 (KJ 6 ke atas) -> MENGGUNAKAN FORM 07-006 VARIAN KARYAWAN (07-006-KARYAWAN)
@@ -1229,12 +1247,43 @@ class PenilaianController extends Controller
     }
 
     /**
+     * Check whether an employee is directly evaluated by Division Head ONLY
+     * (e.g. SUTARNO NRP 173, Senior Staff Production A Division).
+     * Uses Form 07-006-DIV with exactly 1 evaluator: Division Head only.
+     */
+    public static function isDirectDivSubordinate($karyawan, $doc = null): bool
+    {
+        if (is_object($karyawan)) {
+            $nrp = (string)($karyawan->nrp ?? '');
+            $ket = (string)($karyawan->keterangan ?? '');
+        } elseif (is_array($karyawan)) {
+            $nrp = (string)($karyawan['nrp'] ?? '');
+            $ket = (string)($karyawan['keterangan'] ?? '');
+        } else {
+            $nrp = (string)$karyawan;
+            $ket = '';
+        }
+
+        if (strcasecmp($nrp, '173') === 0) {
+            return true;
+        }
+
+        $ketUpper = strtoupper($ket);
+        if ((str_contains($ketUpper, 'DINILAI LANGSUNG DIVISION HEAD') || str_contains($ketUpper, 'DINILAI LANGSUNG DIV HEAD'))
+            && !str_contains($ketUpper, 'DEPT') && !str_contains($ketUpper, 'MANDIRI')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Check whether an employee uses Form 07-006 but is a subordinate (e.g. GOL 4 NON KASIE, Staff)
      * who must be evaluated by their Section Head first before Department Head.
      */
     public static function isSubordinateForm07006(array $karyawan, ?string $kodeForm = null): bool
     {
-        if (self::isDirectDeptDivSubordinate($karyawan)) {
+        if (self::isDirectDeptDivSubordinate($karyawan) || self::isDirectDivSubordinate($karyawan)) {
             return false;
         }
         $kf = $kodeForm ?? ($karyawan['kode_form'] ?? '');
@@ -1275,7 +1324,9 @@ class PenilaianController extends Controller
         $isGol4Up = self::isForm07006($kodeForm);
         $subFormVariant = null;
         if ($isGol4Up) {
-            if (self::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
+            if (self::isDirectDivSubordinate($karyawan, $dokumen)) {
+                $subFormVariant = 'div_head';
+            } elseif (self::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
                 $subFormVariant = 'dept_and_div';
             } elseif ($kodeForm === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION')) {
                 $subFormVariant = 'div_head';
@@ -2628,8 +2679,19 @@ class PenilaianController extends Controller
         $kodeFormCheck = $dokumen['kode_form'] ?? '';
         $kCheck = DB::table('karyawan')->where('nrp', $dokumen['nrp'])->first();
         $kCheckArr = $kCheck ? (array)$kCheck : [];
+        $isDirectDivCheck = self::isDirectDivSubordinate($kCheckArr, $dokumen);
         $isDirectDeptDivCheck = self::isDirectDeptDivSubordinate($kCheckArr, $dokumen);
-        $isSubordinate07006Check = (($kodeFormCheck === '07-006-KARYAWAN') || self::isSubordinateForm07006($kCheckArr, $kodeFormCheck)) && !$isDirectDeptDivCheck;
+        $isSubordinate07006Check = (($kodeFormCheck === '07-006-KARYAWAN') || self::isSubordinateForm07006($kCheckArr, $kodeFormCheck)) && !$isDirectDeptDivCheck && !$isDirectDivCheck;
+
+        if ($isDirectDivCheck) {
+            if (($dokumen['kode_form'] ?? '') !== '07-006-DIV') {
+                DB::table('dokumen')->where('id', $id)->update(['kode_form' => '07-006-DIV']);
+                $dokumen['kode_form'] = '07-006-DIV';
+                if ($dokumenRow) {
+                    $dokumenRow->kode_form = '07-006-DIV';
+                }
+            }
+        }
 
         if ($isDirectDeptDivCheck) {
             if (($dokumen['kode_form'] ?? '') !== '07-006-DH') {
@@ -3010,7 +3072,7 @@ class PenilaianController extends Controller
             // 2. Section Head / Gol 4 Non Kasie rules
             if ($user->isSectionHead() && $isMyDept) {
                 $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
-                if (self::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
+                if (self::isDirectDeptDivSubordinate($karyawan, $dokumen) || self::isDirectDivSubordinate($karyawan, $dokumen)) {
                     $canEditSectionHead = false;
                     $canSignSectionHead = false;
                     $canEditForeman = false;
@@ -3069,8 +3131,13 @@ class PenilaianController extends Controller
 
             // 3. Department Head rules
             if ($user->isDepartmentHead() && $isMyDept) {
+                $isDirectDiv = self::isDirectDivSubordinate($karyawan, $dokumen);
                 $isDirectDeptDiv = self::isDirectDeptDivSubordinate($karyawan, $dokumen);
-                if ($isDirectDeptDiv) {
+                if ($isDirectDiv) {
+                    $canEditDeptHead = false;
+                    $canSignDeptHead = false;
+                    $canRevisi = false;
+                } elseif ($isDirectDeptDiv) {
                     // Form 07-006 khusus 2 penilai (Dept Head & Div Head):
                     // Dept Head mengisi di slot dept_head (Kolom 1)
                     if (in_array($status, ['menunggu_dept_head', 'draft', 'revisi']) && empty($ttdByLevel['dept_head'])) {
@@ -3126,8 +3193,21 @@ class PenilaianController extends Controller
             // 4. Division Head rules
             if (($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && ($isMyDept || $dokumen['nrp'] === $user->nrp)) {
                 $isGol4UpDoc = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
+                $isDirectDiv = self::isDirectDivSubordinate($karyawan, $dokumen);
                 $isDirectDeptDiv = self::isDirectDeptDivSubordinate($karyawan, $dokumen);
-                if ($isDirectDeptDiv) {
+                if ($isDirectDiv) {
+                    // Form 07-006 khusus 1 penilai (Division Head saja, misal SUTARNO NRP 173):
+                    // Div Head mengisi di slot div_head (Kolom 3)
+                    if (in_array($status, ['menunggu_div_head', 'draft', 'revisi']) && empty($ttdByLevel['div_head'])) {
+                        $canEditDivHead = true;
+                        $canSignDivHead = true;
+                        $canRevisi = false;
+                    } else {
+                        $canEditDivHead = false;
+                        $canSignDivHead = false;
+                        $canRevisi = ($status === 'selesai');
+                    }
+                } elseif ($isDirectDeptDiv) {
                     // Form 07-006 khusus 2 penilai (Dept Head & Div Head):
                     // Div Head mengisi di slot div_head (Kolom 2)
                     if (in_array($status, ['menunggu_div_head', 'revisi']) && empty($ttdByLevel['div_head'])) {
@@ -3219,7 +3299,9 @@ class PenilaianController extends Controller
         $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
         $subFormVariant = null;
         if ($isGol4Up) {
-            if (self::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
+            if (self::isDirectDivSubordinate($karyawan, $dokumen)) {
+                $subFormVariant = 'div_head';
+            } elseif (self::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
                 $subFormVariant = 'dept_and_div';
             } elseif ($kodeForm === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION')) {
                 $subFormVariant = 'div_head';
@@ -3836,6 +3918,23 @@ class PenilaianController extends Controller
         $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
         $isSubordinate07006 = ($kodeForm === '07-006-KARYAWAN') || self::isSubordinateForm07006($karyawan, $kodeForm);
 
+        $isDirectDiv = self::isDirectDivSubordinate($karyawan, $dokumen);
+        if ($isDirectDiv) {
+            if ($user->isForeman() || $user->isSectionHead() || $user->isDepartmentHead()) {
+                return false;
+            }
+            if ($status !== 'revisi' && !empty($dokumen['id'])) {
+                $signedLevels = DB::table('tanda_tangan')->where('dokumen_id', $dokumen['id'])->pluck('level')->toArray();
+                if (($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && in_array('div_head', $signedLevels) && $status === 'selesai') {
+                    return false;
+                }
+            }
+            if ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) {
+                return in_array($status, ['menunggu_div_head', 'draft', 'revisi']);
+            }
+            return false;
+        }
+
         $isDirectDeptDiv = self::isDirectDeptDivSubordinate($karyawan, $dokumen);
         if ($isDirectDeptDiv) {
             if ($user->isForeman() || $user->isSectionHead()) {
@@ -4142,8 +4241,11 @@ class PenilaianController extends Controller
 
         $level = $request->input('level');
         if (!in_array($level, ['foreman', 'section_head', 'dept_head', 'div_head'])) {
+            $isDirectDiv = self::isDirectDivSubordinate($karyawan, $dokumen);
             $isDirectDeptDiv = self::isDirectDeptDivSubordinate($karyawan, $dokumen);
-            if ($isDirectDeptDiv) {
+            if ($isDirectDiv) {
+                $level = 'div_head';
+            } elseif ($isDirectDeptDiv) {
                 $level = ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) ? 'div_head' : 'dept_head';
             } else {
                 $isGol4Up = in_array($dokumen['kode_form'] ?? '', ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
@@ -4282,7 +4384,9 @@ class PenilaianController extends Controller
         $isQuotaExempt = $isGol4Up || self::isQuotaExemptEmployee($karyawan ?? [], $dokumen);
         $subFormVariant = null;
         if ($isGol4Up) {
-            if (self::isDirectDeptDivSubordinate($karyawan ?? [], $dokumen)) {
+            if (self::isDirectDivSubordinate($karyawan ?? [], $dokumen)) {
+                $subFormVariant = 'div_head';
+            } elseif (self::isDirectDeptDivSubordinate($karyawan ?? [], $dokumen)) {
                 $subFormVariant = 'dept_and_div';
             } elseif ($kodeForm === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION')) {
                 $subFormVariant = 'div_head';
@@ -5413,6 +5517,7 @@ class PenilaianController extends Controller
             'foreman' => [],
             'section_head' => [],
             'dept_head' => [],
+            'div_head' => [],
         ];
         foreach ($existingNilai as $n) {
             $lvl = $n['level'] ?? 'foreman';
@@ -5541,7 +5646,9 @@ class PenilaianController extends Controller
         $isGol4Up = in_array($kodeForm, ['07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN']);
         $subFormVariant = null;
         if ($isGol4Up) {
-            if (self::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
+            if (self::isDirectDivSubordinate($karyawan, $dokumen)) {
+                $subFormVariant = 'div_head';
+            } elseif (self::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
                 $subFormVariant = 'dept_and_div';
             } elseif ($kodeForm === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION')) {
                 $subFormVariant = 'div_head';
@@ -5572,7 +5679,7 @@ class PenilaianController extends Controller
         };
         $col3Title = match($subFormVariant) {
             'dept_and_div' => '',
-            'div_head' => 'Mandiri / 自分',
+            'div_head' => 'Division Head',
             'karyawan_gol4' => 'Div. Head',
             'dept_head', 'section_head' => 'Div. Head',
             default => 'Dept. Head (Final)',
@@ -6676,7 +6783,8 @@ class PenilaianController extends Controller
             $kodeForm = $doc['kode_form'] ?? self::determineKodeForm($k);
             $isGol4UpDoc = self::isForm07006($kodeForm);
             $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
-            $isMandiriWorkflow = $isGol4UpDoc || $isSelf || ($empKjNum > 5);
+            $isDirectDiv = self::isDirectDivSubordinate($k, $doc);
+            $isMandiriWorkflow = ($isGol4UpDoc || $isSelf || ($empKjNum > 5)) && !$isDirectDiv;
 
             // 1. Foreman Details
             $fNrp = $isSelf ? '' : ($k['nrp_foreman'] ?? '');
@@ -6779,6 +6887,10 @@ class PenilaianController extends Controller
                 $statusLabel = 'Disahkan Final';
                 $isWaitingDiv = false;
                 $canEvaluateDiv = false;
+            } elseif ($isDirectDiv && in_array($statusRaw, ['menunggu_div_head', 'draft', 'revisi'])) {
+                $statusLabel = 'Menunggu Penilaian Anda';
+                $isWaitingDiv = true;
+                $canEvaluateDiv = true;
             } elseif ($isSelf) {
                 $statusLabel = 'Proses Penilaian Mandiri';
                 $isWaitingDiv = false;
