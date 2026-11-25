@@ -19,14 +19,6 @@
     <!-- 1. Header Banner Musashi Red (Sharp & Clean) -->
     <div class="bg-gradient-to-r from-[#962226] via-[#92302e] to-[#781b1f] text-white rounded-none p-5 sm:p-6 border border-[#781b1f] shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <div class="flex items-center gap-2 mb-1">
-                <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-none bg-white/20 text-white font-bold border border-white/30">
-                    Executive Calibration
-                </span>
-                <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-none bg-emerald-500/30 text-emerald-100 font-bold border border-emerald-400/40">
-                    Form 07-006 (All Divisions)
-                </span>
-            </div>
             <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight">
                 Target &amp; Kuota Penilaian Divisi
             </h1>
@@ -50,23 +42,6 @@
                 </svg>
                 <span>Dashboard</span>
             </a>
-        </div>
-    </div>
-
-    <!-- 2. Navigation Tabs (Division vs Department) -->
-    <div class="bg-white rounded-none border border-slate-300 shadow-sm p-1.5 flex items-center justify-between gap-2">
-        <div class="flex items-center gap-1">
-            <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetDivisi' : 'admin.targetDivisi') }}" 
-               class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-none bg-[#92302e] text-white shadow-xs border border-[#92302e]">
-                <span>🏢 DIVISION (Form 07-006)</span>
-            </a>
-            <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota') }}" 
-               class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-none bg-white hover:bg-slate-100 text-slate-700 transition border border-transparent hover:border-slate-300">
-                <span>📁 DEPARTMENT</span>
-            </a>
-        </div>
-        <div class="text-[11px] text-slate-500 font-mono hidden sm:block pr-3">
-            Database Sheet: <strong class="text-slate-800">TARGETDIVISION</strong>
         </div>
     </div>
 
