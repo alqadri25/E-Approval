@@ -30,6 +30,14 @@
     $finB = $divFinalGradeCounts['B'] ?? 0;
     $finC = $divFinalGradeCounts['C'] ?? 0;
     $finK = $divFinalGradeCounts['K'] ?? 0;
+
+    // Actual Grade Distribution across Division (Informational)
+    $actS = $divActualGradeCounts['S'] ?? 0;
+    $actA = $divActualGradeCounts['A'] ?? 0;
+    $actB = $divActualGradeCounts['B'] ?? 0;
+    $actC = $divActualGradeCounts['C'] ?? 0;
+    $actK = $divActualGradeCounts['K'] ?? 0;
+    $sumActual = $actS + $actA + $actB + $actC + $actK;
 @endphp
 
 <div class="space-y-6">
@@ -82,37 +90,6 @@
            class="px-4 py-2 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white font-bold text-xs shadow-sm whitespace-nowrap self-start md:self-center transition-colors">
             Tinjau Dokumen Masuk &rarr;
         </a>
-    </div>
-
-    <!-- Preview Cards for Pending Documents -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        @foreach(array_slice($incomingDocsDivHead, 0, 4) as $inDoc)
-        <div class="bg-white rounded-none p-3.5 border border-amber-300 shadow-xs flex flex-col justify-between hover:shadow-md transition">
-            <div>
-                <div class="flex items-center justify-between gap-1">
-                    <span class="font-bold text-slate-900 text-xs truncate" title="{{ $inDoc['karyawan']['nama_lengkap'] ?? $inDoc['nrp'] }}">
-                        {{ $inDoc['karyawan']['nama_lengkap'] ?? $inDoc['nrp'] }}
-                    </span>
-                    <span class="text-[9px] font-mono px-1.5 py-0.5 rounded-none bg-slate-100 text-slate-700 font-bold">
-                        {{ $inDoc['kode_form'] }}
-                    </span>
-                </div>
-                <p class="text-[10px] text-slate-500 font-mono mt-0.5">
-                    NRP: {{ $inDoc['nrp'] }} &bull; {{ $inDoc['karyawan']['departemen'] ?? '-' }}
-                </p>
-                <div class="mt-2 text-[11px] text-slate-600">
-                    <span>{{ (($inDoc['nrp'] ?? '') === $user->nrp) ? 'Penilaian Mandiri: ' : 'Nilai Dept Head: ' }}</span>
-                    <strong class="text-amber-700 font-bold">{{ $inDoc['total_nilai'] ?? '-' }}</strong>
-                </div>
-            </div>
-            <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-end">
-                <a href="{{ route('penilaian.show.divhead', $inDoc['id']) }}" 
-                   class="w-full text-center py-1.5 px-3 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white font-bold text-xs shadow-xs transition">
-                    {{ (($inDoc['nrp'] ?? '') === $user->nrp) ? 'Nilai Form Mandiri →' : 'Review & Sahkan →' }}
-                </a>
-            </div>
-        </div>
-        @endforeach
     </div>
 
     @elseif(($divStageCounts['tahap1_section'] + $divStageCounts['tahap2_dept']) > 0)
@@ -401,21 +378,26 @@
     <!-- 5. Rekap Penilaian per Departemen (Left) & Penilaian Mandiri (Right) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         
-        <!-- Left: Rekap Penilaian per Departemen (Col 8) -->
+        <!-- Left: Target Penilaian Divisi (Col 8) -->
         <div class="lg:col-span-8 bg-white rounded-none border border-slate-300 shadow-sm flex flex-col justify-between min-w-0">
             <div>
                 <div class="px-5 py-4 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                        <h3 class="text-sm font-bold text-slate-900">
-                            Rekap Penilaian per Departemen
+                        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                            <span>Target Penilaian Divisi</span>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded-none bg-red-100 text-[#92302e] font-bold border border-red-200 uppercase tracking-wider">
+                                Admin Quota
+                            </span>
                         </h3>
                         <p class="text-xs text-slate-500 mt-0.5">
-                            Progres penyelesaian penilaian karyawan pada tiap departemen dalam divisi
+                            Target kuota perolehan kategori nilai (S, A, B, C, K) dari Administrator &amp; pencapaian hasil penilaian divisi
                         </p>
                     </div>
-                    <span class="text-xs font-mono font-bold bg-white text-slate-700 px-2.5 py-1 rounded-none border border-slate-300 self-start sm:self-auto whitespace-nowrap">
-                        {{ count($rekapDept) }} Departemen
-                    </span>
+                    <div class="flex items-center gap-2 self-start sm:self-auto">
+                        <span class="text-xs font-mono font-bold bg-white text-slate-700 px-2.5 py-1 rounded-none border border-slate-300 whitespace-nowrap">
+                            {{ $totKaryawan }} Karyawan Divisi
+                        </span>
+                    </div>
                 </div>
 
                 <div class="p-4 sm:p-5">
@@ -423,63 +405,244 @@
                         <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
                             <thead>
                                 <tr class="border-b border-slate-300 text-slate-700 font-bold bg-slate-100 text-[11px] uppercase tracking-wider">
-                                    <th class="py-3 px-4 border-r border-slate-300">Department</th>
-                                    <th class="py-3 px-3.5 text-center border-r border-slate-300">Total Karyawan</th>
-                                    <th class="py-3 px-3.5 text-center border-r border-slate-300">Dinilai Sec Head</th>
-                                    <th class="py-3 px-3.5 text-center border-r border-slate-300">Dinilai Dept Head</th>
-                                    <th class="py-3 px-3.5 text-center border-r border-slate-300">Disahkan Divisi</th>
-                                    <th class="py-3 px-4 text-center border-r border-slate-300">Progres</th>
-                                    <th class="py-3 px-4 text-center">Aksi</th>
+                                    <th class="py-3 px-4 border-r border-slate-300">Kategori Nilai</th>
+                                    <th class="py-3 px-4 text-center border-r border-slate-300">Standar Predikat</th>
+                                    <th class="py-3 px-4 text-center border-r border-slate-300">Target Kuota (Admin)</th>
+                                    <th class="py-3 px-4 text-center border-r border-slate-300">Sudah Dinilai (Divisi)</th>
+                                    <th class="py-3 px-4 text-center">Status Target</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-200 bg-white">
-                                @forelse($rekapDept as $dept)
+                                <!-- Grade S -->
                                 <tr class="hover:bg-slate-50 transition-colors">
-                                    <td class="py-3.5 px-4 font-bold text-slate-900 border-r border-slate-200">
-                                        {{ $dept['departemen'] }}
-                                    </td>
-                                    <td class="py-3.5 px-3.5 text-slate-700 font-semibold text-center border-r border-slate-200 font-mono">
-                                        {{ $dept['total_karyawan'] }}
-                                    </td>
-                                    <td class="py-3.5 px-3.5 text-teal-700 font-bold text-center border-r border-slate-200 font-mono">
-                                        {{ $dept['dinilai_sec'] }}
-                                    </td>
-                                    <td class="py-3.5 px-3.5 text-amber-700 font-bold text-center border-r border-slate-200 font-mono">
-                                        {{ $dept['dinilai_dept'] }}
-                                    </td>
-                                    <td class="py-3.5 px-3.5 text-[#92302e] font-bold text-center border-r border-slate-200 font-mono">
-                                        {{ $dept['selesai_div'] }}
-                                    </td>
-                                    <td class="py-3.5 px-4 text-center border-r border-slate-200">
-                                        <div class="flex items-center justify-center gap-2.5">
-                                            <div class="w-20 bg-slate-100 rounded-none h-2 overflow-hidden border border-slate-200">
-                                                <div class="bg-[#92302e] h-2 rounded-none transition-all duration-300" style="width: {{ $dept['pct_val'] }}%"></div>
+                                    <td class="py-3.5 px-4 font-bold border-r border-slate-200">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-7 h-7 rounded-none bg-purple-100 text-purple-900 border border-purple-300 flex items-center justify-center font-black text-xs font-mono">
+                                                S
+                                            </span>
+                                            <div>
+                                                <div class="font-bold text-slate-900">Grade S</div>
+                                                <div class="text-[10px] text-slate-400">Istimewa</div>
                                             </div>
-                                            <span class="font-mono font-bold text-slate-800 text-[11px]">{{ $dept['persentase'] }}</span>
                                         </div>
                                     </td>
+                                    <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
+                                        91 - 100
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $targetS }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-purple-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $actS }} <span class="text-[10px] text-purple-900/60 font-normal">Orang</span>
+                                    </td>
                                     <td class="py-3.5 px-4 text-center">
-                                        <a href="{{ route('penilaian.div') }}" 
-                                           class="inline-flex items-center justify-center px-3 py-1 bg-slate-100 hover:bg-slate-200 text-[#92302e] border border-slate-300 text-xs font-bold rounded-none transition-colors">
-                                            Lihat
-                                        </a>
+                                        @if($actS > $targetS)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-amber-100 text-amber-900 border border-amber-300">
+                                                +{{ $actS - $targetS }} Melebihi Target
+                                            </span>
+                                        @elseif($actS === $targetS && $targetS > 0)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                ✓ Target Terpenuhi
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-none bg-slate-100 text-slate-600 border border-slate-200">
+                                                {{ $actS }}/{{ $targetS }} Orang
+                                            </span>
+                                        @endif
                                     </td>
                                 </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="7" class="py-6 text-center text-slate-400">
-                                        Tidak ada data departemen yang terdaftar.
+
+                                <!-- Grade A -->
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="py-3.5 px-4 font-bold border-r border-slate-200">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-7 h-7 rounded-none bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center font-black text-xs font-mono">
+                                                A
+                                            </span>
+                                            <div>
+                                                <div class="font-bold text-slate-900">Grade A</div>
+                                                <div class="text-[10px] text-slate-400">Baik Sekali</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
+                                        81 - 90
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $targetA }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-emerald-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $actA }} <span class="text-[10px] text-emerald-900/60 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        @if($actA > $targetA)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-amber-100 text-amber-900 border border-amber-300">
+                                                +{{ $actA - $targetA }} Melebihi Target
+                                            </span>
+                                        @elseif($actA === $targetA && $targetA > 0)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                ✓ Target Terpenuhi
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-none bg-slate-100 text-slate-600 border border-slate-200">
+                                                {{ $actA }}/{{ $targetA }} Orang
+                                            </span>
+                                        @endif
                                     </td>
                                 </tr>
-                                @endforelse
+
+                                <!-- Grade B -->
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="py-3.5 px-4 font-bold border-r border-slate-200">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-7 h-7 rounded-none bg-blue-100 text-blue-900 border border-blue-300 flex items-center justify-center font-black text-xs font-mono">
+                                                B
+                                            </span>
+                                            <div>
+                                                <div class="font-bold text-slate-900">Grade B</div>
+                                                <div class="text-[10px] text-slate-400">Baik / Standar</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
+                                        71 - 80
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $targetB }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-blue-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $actB }} <span class="text-[10px] text-blue-900/60 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        @if($actB > $targetB)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-amber-100 text-amber-900 border border-amber-300">
+                                                +{{ $actB - $targetB }} Melebihi Target
+                                            </span>
+                                        @elseif($actB === $targetB && $targetB > 0)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                ✓ Target Terpenuhi
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-none bg-slate-100 text-slate-600 border border-slate-200">
+                                                {{ $actB }}/{{ $targetB }} Orang
+                                            </span>
+                                        @endif
+                                    </td>
+                                </tr>
+
+                                <!-- Grade C -->
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="py-3.5 px-4 font-bold border-r border-slate-200">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-7 h-7 rounded-none bg-amber-100 text-amber-900 border border-amber-300 flex items-center justify-center font-black text-xs font-mono">
+                                                C
+                                            </span>
+                                            <div>
+                                                <div class="font-bold text-slate-900">Grade C</div>
+                                                <div class="text-[10px] text-slate-400">Cukup / Kurang</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
+                                        61 - 70
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $targetC }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-amber-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $actC }} <span class="text-[10px] text-amber-900/60 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        @if($actC > $targetC)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-amber-100 text-amber-900 border border-amber-300">
+                                                +{{ $actC - $targetC }} Melebihi Target
+                                            </span>
+                                        @elseif($actC === $targetC && $targetC > 0)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                ✓ Target Terpenuhi
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-none bg-slate-100 text-slate-600 border border-slate-200">
+                                                {{ $actC }}/{{ $targetC }} Orang
+                                            </span>
+                                        @endif
+                                    </td>
+                                </tr>
+
+                                <!-- Grade K -->
+                                <tr class="hover:bg-slate-50 transition-colors">
+                                    <td class="py-3.5 px-4 font-bold border-r border-slate-200">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-7 h-7 rounded-none bg-rose-100 text-rose-900 border border-rose-300 flex items-center justify-center font-black text-xs font-mono">
+                                                K
+                                            </span>
+                                            <div>
+                                                <div class="font-bold text-slate-900">Grade K</div>
+                                                <div class="text-[10px] text-slate-400">Kurang Sekali</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
+                                        &le; 60
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $targetK }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-rose-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                                        {{ $actK }} <span class="text-[10px] text-rose-900/60 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        @if($actK > $targetK)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-amber-100 text-amber-900 border border-amber-300">
+                                                +{{ $actK - $targetK }} Melebihi Target
+                                            </span>
+                                        @elseif($actK === $targetK && $targetK > 0)
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-none bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                ✓ Target Terpenuhi
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-none bg-slate-100 text-slate-600 border border-slate-200">
+                                                {{ $actK }}/{{ $targetK }} Orang
+                                            </span>
+                                        @endif
+                                    </td>
+                                </tr>
                             </tbody>
+                            <tfoot class="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900">
+                                <tr>
+                                    <td class="py-3 px-4 border-r border-slate-300 uppercase tracking-wider text-[11px]">
+                                        TOTAL PENILAIAN
+                                    </td>
+                                    <td class="py-3 px-4 text-center border-r border-slate-300 font-mono text-[11px] text-slate-600">
+                                        100% Karyawan
+                                    </td>
+                                    <td class="py-3 px-4 text-center border-r border-slate-300 font-mono text-sm text-slate-900">
+                                        {{ $sumDivTargets }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3 px-4 text-center border-r border-slate-300 font-mono text-sm text-[#92302e]">
+                                        {{ $sumActual }} <span class="text-[10px] text-[#92302e]/60 font-normal">Orang</span>
+                                    </td>
+                                    <td class="py-3 px-4 text-center font-mono text-xs">
+                                        <span class="text-slate-600">
+                                            {{ max(0, $totKaryawan - $sumActual) }} Belum Dinilai
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
             </div>
-            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500">
-                <span>Ringkasan pencapaian seluruh departemen di divisi Anda</span>
-                <span class="font-mono font-bold text-slate-700">{{ $divFinalTotalDinilai }}/{{ $totKaryawan }} Disahkan</span>
+            <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-500">
+                <div class="flex items-center gap-1.5 text-slate-600">
+                    <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Target Admin bersifat panduan divisi. Jumlah nilai aktual tidak dibatasi dan dapat melebihi target.</span>
+                </div>
+                <div class="font-mono font-bold text-slate-700 whitespace-nowrap">
+                    Realisasi: {{ $sumActual }}/{{ $totKaryawan }} Karyawan Dinilai
+                </div>
             </div>
         </div>
 

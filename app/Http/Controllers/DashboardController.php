@@ -1224,6 +1224,8 @@ class DashboardController extends Controller
             'selesai' => 0,
         ];
         $divSubordinateRows = [];
+        $divActualGradeCounts = ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0];
+        $divActualGradeTotal = 0;
 
         $selfKaryawan = null;
         $selfDoc = null;
@@ -1278,6 +1280,57 @@ class DashboardController extends Controller
                 'K' => $divTargetQuota['K'] ?? 0,
             ];
             $totalTargetDiv = $divTargetQuota['total'] ?? count($quotaDivSubs);
+
+            // If target sum is 0, check if Admin set department quotas under this division
+            $sumDivTargets = array_sum($divTargetCounts);
+            if ($sumDivTargets === 0) {
+                $uniqueDepts = array_values(array_unique(array_filter(array_column($divSubordinates, 'departemen'))));
+                $dSumS = 0; $dSumA = 0; $dSumB = 0; $dSumC = 0; $dSumK = 0;
+                foreach ($uniqueDepts as $ud) {
+                    $cDeptVal = DB::table('pengaturan')->where('key', 'target_kuota_dept_' . $ud)->value('value');
+                    if ($cDeptVal) {
+                        $cd = json_decode($cDeptVal, true);
+                        if (isset($cd['S'])) {
+                            $dSumS += (int)($cd['S'] ?? 0);
+                            $dSumA += (int)($cd['A'] ?? 0);
+                            $dSumB += (int)($cd['B'] ?? 0);
+                            $dSumC += (int)($cd['C'] ?? 0);
+                            $dSumK += (int)($cd['K'] ?? 0);
+                        }
+                    }
+                }
+                if (($dSumS + $dSumA + $dSumB + $dSumC + $dSumK) > 0) {
+                    $divTargetCounts = [
+                        'S' => $dSumS,
+                        'A' => $dSumA,
+                        'B' => $dSumB,
+                        'C' => $dSumC,
+                        'K' => $dSumK,
+                    ];
+                    $totalTargetDiv = array_sum($divTargetCounts);
+                    $sumDivTargets = $totalTargetDiv;
+                }
+            }
+
+            // Fallback: If still 0 and division has employees, calculate proportional target based on company percentage
+            if ($sumDivTargets === 0 && $divTotalKaryawan > 0) {
+                $pctSetting = DB::table('pengaturan')->where('key', 'target_kuota_pct')->first();
+                $pcts = $pctSetting ? json_decode($pctSetting->value, true) : ['S' => 10, 'A' => 30, 'B' => 30, 'C' => 20, 'K' => 10];
+                $targetS = max(0, (int)round($divTotalKaryawan * (($pcts['S'] ?? 10) / 100)));
+                if ($targetS === 0 && $divTotalKaryawan >= 5) {
+                    $targetS = 1;
+                }
+                $targetA = max(0, (int)round($divTotalKaryawan * (($pcts['A'] ?? 30) / 100)));
+                $targetB = max(0, (int)round($divTotalKaryawan * (($pcts['B'] ?? 30) / 100)));
+                $targetC = max(0, (int)round($divTotalKaryawan * (($pcts['C'] ?? 20) / 100)));
+                $targetK = max(0, $divTotalKaryawan - ($targetS + $targetA + $targetB + $targetC));
+                if ($targetK < 0) {
+                    $targetK = 0;
+                    $targetB = max(0, $divTotalKaryawan - ($targetS + $targetA + $targetC));
+                }
+                $divTargetCounts = ['S' => $targetS, 'A' => $targetA, 'B' => $targetB, 'C' => $targetC, 'K' => $targetK];
+                $totalTargetDiv = $divTotalKaryawan;
+            }
 
             $divSubCountByKj = [];
             foreach ($quotaDivSubs as $qs) {
@@ -1544,6 +1597,16 @@ class DashboardController extends Controller
                     'pct_val' => $pct,
                 ];
             }
+
+            // Calculate actual grade distribution across all division subordinates (informational)
+            $divActualGradeCounts = ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0];
+            foreach ($divSubordinateRows as $r) {
+                $g = strtoupper(trim((string)($r['grade'] ?? '')));
+                if (isset($divActualGradeCounts[$g])) {
+                    $divActualGradeCounts[$g]++;
+                }
+            }
+            $divActualGradeTotal = array_sum($divActualGradeCounts);
 
             // Self evaluation metrics specifically for Division Head Penilaian Mandiri Card
             $selfKaryawan = DB::table('karyawan')->where('nrp', $user->nrp)->first();
@@ -2418,6 +2481,8 @@ class DashboardController extends Controller
             'divFinalTotalDinilai',
             'divStageCounts',
             'divSubordinateRows',
+            'divActualGradeCounts',
+            'divActualGradeTotal',
             'incomingDocsDivHead',
             'rekapDept',
             'selfKaryawan',
