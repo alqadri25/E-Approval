@@ -72,6 +72,9 @@ var CONFIG_TABLES = {
   'Target_Pemantauan': [
     'No', 'Division', 'Department', 'Target_Kuota', 'Sudah_Dinilai', 'Belum_Dinilai', 'Realisasi_Persen', 'Target_S', 'Target_A', 'Target_B', 'Target_C', 'Target_K', 'Status', 'Terakhir_Update'
   ],
+  'TARGETDIVISION': [
+    'No', 'Division', 'Target_S', 'Target_A', 'Target_B', 'Target_C', 'Target_K', 'Total_Target', 'Actual_S', 'Actual_A', 'Actual_B', 'Actual_C', 'Actual_K', 'Total_Actual', 'Total_Karyawan_07006', 'Terakhir_Update'
+  ],
   'users': [
     'id', 'nama', 'email', 'password', 'role', 'nrp', 'divisi', 'departemen', 'aktif', 'barcodettd', 'signature_path_link', 'created_at'
   ],
@@ -123,6 +126,10 @@ var COLUMN_FORMATS = {
   'Target_Pemantauan': {
     widths: { 1: 50, 2: 190, 3: 230, 4: 110, 5: 110, 6: 110, 7: 120, 8: 80, 9: 80, 10: 80, 11: 80, 12: 80, 13: 130, 14: 160 },
     alignCenter: [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+  },
+  'TARGETDIVISION': {
+    widths: { 1: 50, 2: 220, 3: 85, 4: 85, 5: 85, 6: 85, 7: 85, 8: 100, 9: 85, 10: 85, 11: 85, 12: 85, 13: 85, 14: 100, 15: 140, 16: 160 },
+    alignCenter: [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
   },
   'kuota_departemen': {
     widths: { 1: 60, 2: 220, 3: 110, 4: 110, 5: 110, 6: 110, 7: 110 },
@@ -602,7 +609,7 @@ function wipeAllAppraisalPdfsInDrive() {
  */
 function wipeAllAppraisalSheetsData() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var targetSheets = ['dokumen', 'Dokumen_Dinilai', 'Target_Pemantauan', 'nilai', 'indikator', 'tanda_tangan', 'kuota_departemen', 'audit_log'];
+  var targetSheets = ['dokumen', 'Dokumen_Dinilai', 'Target_Pemantauan', 'TARGETDIVISION', 'nilai', 'indikator', 'tanda_tangan', 'kuota_departemen', 'audit_log'];
 
   for (var i = 0; i < targetSheets.length; i++) {
     var sName = targetSheets[i];

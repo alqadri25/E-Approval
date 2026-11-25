@@ -114,12 +114,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/target-kuota/tambah-kj', [AdminController::class, 'tambahMasterKj'])->name('admin.tambahMasterKj');
     Route::post('/admin/target-kuota/hapus-kj', [AdminController::class, 'hapusMasterKj'])->name('admin.hapusMasterKj');
 
+    Route::get('/admin/target-divisi', [AdminController::class, 'targetDivisi'])->name('admin.targetDivisi');
+    Route::post('/admin/target-divisi', [AdminController::class, 'simpanTargetDivisi'])->name('admin.simpanTargetDivisi');
+
     Route::get('/superadmin/target-kuota', [AdminController::class, 'targetKuota'])->name('superadmin.targetKuota');
     Route::post('/superadmin/target-kuota', [AdminController::class, 'simpanTargetKuota'])->name('superadmin.simpanTargetKuota');
     Route::post('/superadmin/target-kuota/kj', [AdminController::class, 'simpanTargetKuotaKj'])->name('superadmin.simpanTargetKuotaKj');
     Route::post('/superadmin/target-kuota/level', [AdminController::class, 'simpanTargetLevel'])->name('superadmin.simpanTargetLevel');
     Route::post('/superadmin/target-kuota/tambah-kj', [AdminController::class, 'tambahMasterKj'])->name('superadmin.tambahMasterKj');
     Route::post('/superadmin/target-kuota/hapus-kj', [AdminController::class, 'hapusMasterKj'])->name('superadmin.hapusMasterKj');
+
+    Route::get('/superadmin/target-divisi', [AdminController::class, 'targetDivisi'])->name('superadmin.targetDivisi');
+    Route::post('/superadmin/target-divisi', [AdminController::class, 'simpanTargetDivisi'])->name('superadmin.simpanTargetDivisi');
     Route::get('/admin/pengaturan-form', [AdminController::class, 'pengaturanForm'])->name('admin.pengaturanForm');
     Route::post('/admin/pengaturan-form', [AdminController::class, 'simpanPengaturanForm'])->name('admin.simpanPengaturanForm');
     Route::get('/admin/lembar-penilaian', [AdminController::class, 'lembarPenilaian'])->name('admin.lembarPenilaian');

@@ -214,14 +214,35 @@
                 <span>Divisi &amp; Departemen</span>
               </a>
 
-              <a href="{{ route('admin.targetKuota') }}" 
-                class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('admin.targetKuota*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
-                <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('admin.targetKuota*') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
-                </svg>
-                <span>Target &amp; Kuota Nilai</span>
-              </a>
+              <!-- Target & Kuota Nilai (Dropdown: Division & Department) -->
+              <div x-data="{ openTarget: {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'true' : 'false' }} }">
+                <button type="button" 
+                        @click="openTarget = !openTarget"
+                        class="w-full flex items-center justify-between px-4 py-2.5 text-[13px] transition-all cursor-pointer {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
+                  <div class="flex items-center gap-3.5">
+                    <svg class="w-5 h-5 flex-shrink-0 {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                    </svg>
+                    <span>Target &amp; Kuota Nilai</span>
+                  </div>
+                  <svg class="w-3.5 h-3.5 transition-transform duration-200 text-white/70" :class="openTarget ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                <div x-show="openTarget" x-cloak class="pl-7 pr-2 py-1 space-y-1 bg-black/15 border-l-2 border-[#b2373b] ml-4 mt-0.5">
+                  <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetDivisi' : 'admin.targetDivisi') }}" 
+                     class="flex items-center gap-2.5 px-3 py-1.5 text-xs rounded-none transition-all {{ request()->routeIs('*targetDivisi*') ? 'text-white font-bold bg-white/20' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
+                    <span class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('*targetDivisi*') ? 'bg-white' : 'bg-red-300' }}"></span>
+                    <span>DIVISION</span>
+                  </a>
+                  <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota') }}" 
+                     class="flex items-center gap-2.5 px-3 py-1.5 text-xs rounded-none transition-all {{ request()->routeIs('*targetKuota*') ? 'text-white font-bold bg-white/20' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
+                    <span class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('*targetKuota*') ? 'bg-white' : 'bg-red-300' }}"></span>
+                    <span>DEPARTMENT</span>
+                  </a>
+                </div>
+              </div>
 
               <a href="{{ route('admin.pengaturanForm') }}" 
                 class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('admin.pengaturanForm*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
@@ -329,14 +350,35 @@
                 <span>Divisi &amp; Departemen</span>
               </a>
 
-              <a href="{{ route('admin.targetKuota') }}" 
-                class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('admin.targetKuota*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
-                <svg class="w-5 h-5 flex-shrink-0 {{ request()->routeIs('admin.targetKuota*') ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
-                </svg>
-                <span>Target &amp; Kuota Nilai</span>
-              </a>
+              <!-- Target & Kuota Nilai (Dropdown: Division & Department) -->
+              <div x-data="{ openTarget: {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'true' : 'false' }} }">
+                <button type="button" 
+                        @click="openTarget = !openTarget"
+                        class="w-full flex items-center justify-between px-4 py-2.5 text-[13px] transition-all cursor-pointer {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
+                  <div class="flex items-center gap-3.5">
+                    <svg class="w-5 h-5 flex-shrink-0 {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'text-white' : 'text-red-200 group-hover:text-white' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
+                    </svg>
+                    <span>Target &amp; Kuota Nilai</span>
+                  </div>
+                  <svg class="w-3.5 h-3.5 transition-transform duration-200 text-white/70" :class="openTarget ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                <div x-show="openTarget" x-cloak class="pl-7 pr-2 py-1 space-y-1 bg-black/15 border-l-2 border-[#b2373b] ml-4 mt-0.5">
+                  <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetDivisi' : 'admin.targetDivisi') }}" 
+                     class="flex items-center gap-2.5 px-3 py-1.5 text-xs rounded-none transition-all {{ request()->routeIs('*targetDivisi*') ? 'text-white font-bold bg-white/20' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
+                    <span class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('*targetDivisi*') ? 'bg-white' : 'bg-red-300' }}"></span>
+                    <span>DIVISION</span>
+                  </a>
+                  <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota') }}" 
+                     class="flex items-center gap-2.5 px-3 py-1.5 text-xs rounded-none transition-all {{ request()->routeIs('*targetKuota*') ? 'text-white font-bold bg-white/20' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
+                    <span class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('*targetKuota*') ? 'bg-white' : 'bg-red-300' }}"></span>
+                    <span>DEPARTMENT</span>
+                  </a>
+                </div>
+              </div>
 
               <a href="{{ route('admin.pengaturanForm') }}" 
                 class="flex items-center gap-3.5 px-4 py-2.5 text-[13px] transition-all {{ request()->routeIs('admin.pengaturanForm*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:text-white hover:bg-white/10 font-medium group' }}">
@@ -814,7 +856,26 @@
               </a>
               <a href="{{ route('admin.karyawan') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.karyawan*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Master Karyawan</a>
               <a href="{{ route('admin.divisiDepartemen') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.divisiDepartemen*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Divisi &amp; Departemen</a>
-              <a href="{{ route('admin.targetKuota') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.targetKuota*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Target &amp; Kuota</a>
+              <div x-data="{ openTargetMobile1: {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'true' : 'false' }} }">
+                <button type="button" 
+                        @click="openTargetMobile1 = !openTargetMobile1"
+                        class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold transition-all {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">
+                  <span>Target &amp; Kuota</span>
+                  <svg class="w-3 h-3 transition-transform duration-200" :class="openTargetMobile1 ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                <div x-show="openTargetMobile1" x-cloak class="pl-4 pr-2 py-1 space-y-1 bg-black/15 border-l-2 border-[#b2373b] ml-3 mt-0.5 text-xs">
+                  <a href="{{ route('superadmin.targetDivisi') }}" 
+                     class="flex items-center gap-2 px-2.5 py-1.5 {{ request()->routeIs('*targetDivisi*') ? 'text-white font-bold bg-white/20' : 'text-white/80 hover:text-white' }}">
+                    &bull; DIVISION
+                  </a>
+                  <a href="{{ route('superadmin.targetKuota') }}" 
+                     class="flex items-center gap-2 px-2.5 py-1.5 {{ request()->routeIs('*targetKuota*') ? 'text-white font-bold bg-white/20' : 'text-white/80 hover:text-white' }}">
+                    &bull; DEPARTMENT
+                  </a>
+                </div>
+              </div>
               <a href="{{ route('admin.pengaturanForm') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.pengaturanForm*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Kelola Form &amp; Periode</a>
               <a href="{{ route('admin.lembarPenilaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.lembarPenilaian*') || request()->routeIs('superadmin.lembarPenilaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Lembar Penilaian PK</a>
               <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">AUDIT &amp; SISTEM</div>
@@ -832,7 +893,26 @@
                 <span>Master Karyawan</span>
                 </a>
               <a href="{{ route('admin.divisiDepartemen') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.divisiDepartemen*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Divisi &amp; Departemen</a>
-              <a href="{{ route('admin.targetKuota') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.targetKuota*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Target &amp; Kuota</a>
+              <div x-data="{ openTargetMobile1: {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'true' : 'false' }} }">
+                <button type="button" 
+                        @click="openTargetMobile1 = !openTargetMobile1"
+                        class="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-bold transition-all {{ (request()->routeIs('*targetKuota*') || request()->routeIs('*targetDivisi*')) ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">
+                  <span>Target &amp; Kuota</span>
+                  <svg class="w-3 h-3 transition-transform duration-200" :class="openTargetMobile1 ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                <div x-show="openTargetMobile1" x-cloak class="pl-4 pr-2 py-1 space-y-1 bg-black/15 border-l-2 border-[#b2373b] ml-3 mt-0.5 text-xs">
+                  <a href="{{ route('superadmin.targetDivisi') }}" 
+                     class="flex items-center gap-2 px-2.5 py-1.5 {{ request()->routeIs('*targetDivisi*') ? 'text-white font-bold bg-white/20' : 'text-white/80 hover:text-white' }}">
+                    &bull; DIVISION
+                  </a>
+                  <a href="{{ route('superadmin.targetKuota') }}" 
+                     class="flex items-center gap-2 px-2.5 py-1.5 {{ request()->routeIs('*targetKuota*') ? 'text-white font-bold bg-white/20' : 'text-white/80 hover:text-white' }}">
+                    &bull; DEPARTMENT
+                  </a>
+                </div>
+              </div>
               <a href="{{ route('admin.pengaturanForm') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.pengaturanForm*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Kelola Form &amp; Periode</a>
               <a href="{{ route('admin.lembarPenilaian') }}" class="flex items-center gap-3 px-3.5 py-2.5 text-xs font-bold transition-all {{ request()->routeIs('admin.lembarPenilaian*') || request()->routeIs('superadmin.lembarPenilaian*') ? 'bg-[#b2373b] text-white shadow-md shadow-black/20 border border-white/10' : 'text-white/85 hover:bg-white/10' }}">Lembar Penilaian PK</a>
               <div class="text-[9.5px] font-bold uppercase tracking-wider text-red-200/80 px-2.5 pt-2">AUDIT &amp; SISTEM</div>

@@ -57,6 +57,9 @@ class SheetRepository implements SheetRepositoryInterface
         'kuota_departemen' => [
             'id', 'departemen', 'grade_s_max', 'grade_a_max', 'grade_b_max', 'grade_c_max', 'grade_k_max'
         ],
+        'TARGETDIVISION' => [
+            'No', 'Division', 'Target_S', 'Target_A', 'Target_B', 'Target_C', 'Target_K', 'Total_Target', 'Actual_S', 'Actual_A', 'Actual_B', 'Actual_C', 'Actual_K', 'Total_Actual', 'Total_Karyawan_07006', 'Terakhir_Update'
+        ],
         'Dokumen_Dinilai' => [
             'NRP', 'NAMA', 'NAMA BAGIAN', 'SECTION', 'DEPARTMENT', 'DIVISION', 'POSITION', 'START WORK', 'KJ', 'GOLONGAN', 'Hasil Kerja', 'Proses Kerja', 'Sikap Kerja', 'Man Management', 'Total Nilai', 'NILAI PK Foreman (Jika Ada)', 'NILAI PK SECT', 'NILAI PK DEPT', 'NILAI PK DIV', 'NILAI PK FINAL'
         ],

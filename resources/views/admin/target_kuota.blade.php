@@ -124,6 +124,23 @@
         </div>
     </div>
 
+    <!-- 2. Navigation Tabs (Division vs Department) -->
+    <div class="bg-white rounded-none border border-slate-300 shadow-sm p-1.5 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-1">
+            <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetDivisi' : 'admin.targetDivisi') }}" 
+               class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-none bg-white hover:bg-slate-100 text-slate-700 transition border border-transparent hover:border-slate-300">
+                <span>🏢 DIVISION (Form 07-006)</span>
+            </a>
+            <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota') }}" 
+               class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-none bg-[#92302e] text-white shadow-xs border border-[#92302e]">
+                <span>📁 DEPARTMENT</span>
+            </a>
+        </div>
+        <div class="text-[11px] text-slate-500 font-mono hidden sm:block pr-3">
+            Target Headcount &amp; KJ Matrix
+        </div>
+    </div>
+
     <!-- 2. Scope Indicator & Summary Cards (Interaktif mengikuti Division/Department yang dipilih) -->
     <div class="space-y-2">
         <div class="flex items-center justify-between gap-2 px-0.5">

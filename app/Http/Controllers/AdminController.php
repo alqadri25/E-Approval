@@ -2711,6 +2711,141 @@ class AdminController extends Controller
         return redirect()->route($redirectRoute, ['tab' => 'kj'])->with('success', $msg);
     }
 
+    /**
+     * Halaman Target & Kuota Penilaian Divisi (Khusus Form 07-006 Seluruh Divisi)
+     */
+    public function targetDivisi(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Admin dan Superadmin.');
+        }
+
+        // Build / refresh rows for targetdivision table and spreadsheet
+        $divisionRows = GoogleSyncService::buildTargetDivisionRows();
+
+        $allKaryawan = $this->repository->all('karyawan');
+        $allDocs = $this->repository->all('dokumen');
+        $docsByNrp = [];
+        foreach ($allDocs as $d) {
+            if (!empty($d['nrp'])) {
+                $docsByNrp[(string)$d['nrp']] = $d;
+            }
+        }
+
+        // Filter only Form 07-006 employees
+        $all07006 = [];
+        foreach ($allKaryawan as $k) {
+            $nrp = (string)($k['nrp'] ?? '');
+            $doc = $docsByNrp[$nrp] ?? null;
+            $kf = strtoupper(trim((string)($doc['kode_form'] ?? PenilaianController::determineKodeForm($k))));
+            if (str_starts_with($kf, '07-006')) {
+                $all07006[] = $k;
+            }
+        }
+
+        $totalKaryawan07006 = count($all07006);
+
+        // Fetch current global target from pengaturan (or default proportional)
+        $savedDivTargetRaw = DB::table('pengaturan')->where('key', 'target_kuota_divisi_07006')->value('value');
+        $savedDivTarget = $savedDivTargetRaw ? json_decode($savedDivTargetRaw, true) : null;
+
+        $targetS = $savedDivTarget['S'] ?? max(0, (int)round($totalKaryawan07006 * 0.10));
+        $targetA = $savedDivTarget['A'] ?? max(0, (int)round($totalKaryawan07006 * 0.30));
+        $targetB = $savedDivTarget['B'] ?? max(0, (int)round($totalKaryawan07006 * 0.30));
+        $targetC = $savedDivTarget['C'] ?? max(0, (int)round($totalKaryawan07006 * 0.20));
+        $targetK = $savedDivTarget['K'] ?? max(0, $totalKaryawan07006 - ($targetS + $targetA + $targetB + $targetC));
+        $totalTarget = $targetS + $targetA + $targetB + $targetC + $targetK;
+
+        $globalTarget = [
+            'S' => $targetS,
+            'A' => $targetA,
+            'B' => $targetB,
+            'C' => $targetC,
+            'K' => $targetK,
+            'total' => $totalTarget,
+        ];
+
+        // Retrieve Division breakdown from database table targetdivision
+        $dbDivRows = DB::table('targetdivision')->where('divisi', '!=', 'TOTAL')->orderBy('divisi')->get();
+        $totalRow = DB::table('targetdivision')->where('divisi', 'TOTAL')->first();
+
+        $totalActual = $totalRow ? (int)$totalRow->total_actual : 0;
+        $totalBelum = max(0, $totalKaryawan07006 - $totalActual);
+        $totalDivisi = $dbDivRows->count();
+        $terakhirUpdate = $totalRow ? date('d-m-Y H:i', strtotime($totalRow->updated_at ?? now())) : date('d-m-Y H:i');
+
+        return view('admin.target_divisi', compact(
+            'user',
+            'divisionRows',
+            'dbDivRows',
+            'totalRow',
+            'globalTarget',
+            'totalKaryawan07006',
+            'totalActual',
+            'totalBelum',
+            'totalDivisi',
+            'terakhirUpdate'
+        ));
+    }
+
+    /**
+     * Simpan Target Kuota Divisi (Form 07-006)
+     */
+    public function simpanTargetDivisi(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        if (!$user->isAdmin() && !$user->isSuperadmin()) {
+            abort(403, 'Akses terbatas untuk Admin dan Superadmin.');
+        }
+
+        $s = max(0, (int)$request->input('target_s', 0));
+        $a = max(0, (int)$request->input('target_a', 0));
+        $b = max(0, (int)$request->input('target_b', 0));
+        $c = max(0, (int)$request->input('target_c', 0));
+        $k = max(0, (int)$request->input('target_k', 0));
+        $total = $s + $a + $b + $c + $k;
+
+        $targetPayload = json_encode([
+            'S' => $s,
+            'A' => $a,
+            'B' => $b,
+            'C' => $c,
+            'K' => $k,
+            'total' => $total,
+        ]);
+
+        DB::table('pengaturan')->updateOrInsert(
+            ['key' => 'target_kuota_divisi_07006'],
+            ['value' => $targetPayload, 'updated_at' => now()]
+        );
+
+        // Update targetdivision database table & sync with Google Spreadsheet
+        GoogleSyncService::buildTargetDivisionRows();
+        try {
+            GoogleSyncService::syncTargetDivision();
+        } catch (\Throwable $e) {}
+
+        // Log audit
+        DB::table('audit_log')->insert([
+            'waktu' => now(),
+            'user_id' => $user->id,
+            'aksi' => 'update_target_divisi',
+            'dokumen_id' => null,
+            'detail' => "Admin {$user->nama} memperbarui Target Divisi Form 07-006: S={$s}, A={$a}, B={$b}, C={$c}, K={$k} (Total: {$total})",
+        ]);
+
+        $this->repository->clearCache();
+
+        $redirectRoute = request()->is('superadmin*') ? 'superadmin.targetDivisi' : 'admin.targetDivisi';
+        return redirect()->route($redirectRoute)->with(
+            'success',
+            "Target Kuota Divisi Form 07-006 berhasil disimpan (S: {$s}, A: {$a}, B: {$b}, C: {$c}, K: {$k} — Total: {$total} Orang) dan disinkronkan ke sheet TARGETDIVISION."
+        );
+    }
+
     public function pengaturanForm(Request $request)
     {
         /** @var User $user */

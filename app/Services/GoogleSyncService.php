@@ -697,10 +697,11 @@ class GoogleSyncService
             return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
         }
 
-        // Pastikan Dokumen_Dinilai dan Target_Pemantauan selalu ikut tersinkronisasi bila karyawan atau dokumen diperbarui / dihapus
+        // Pastikan Dokumen_Dinilai, Target_Pemantauan, dan TARGETDIVISION selalu ikut tersinkronisasi bila karyawan atau dokumen diperbarui / dihapus
         if (in_array('karyawan', $tables) || in_array('dokumen', $tables)) {
             if (!in_array('Dokumen_Dinilai', $tables)) $tables[] = 'Dokumen_Dinilai';
             if (!in_array('Target_Pemantauan', $tables)) $tables[] = 'Target_Pemantauan';
+            if (!in_array('TARGETDIVISION', $tables)) $tables[] = 'TARGETDIVISION';
         }
 
         $payload = [];
@@ -716,6 +717,8 @@ class GoogleSyncService
                 $rows = self::buildDokumenDinilaiRows();
             } elseif ($table === 'Target_Pemantauan') {
                 $rows = self::buildTargetPemantauanRows();
+            } elseif ($table === 'TARGETDIVISION') {
+                $rows = self::buildTargetDivisionRows();
             } elseif (Schema::hasTable($localTable)) {
                 if ($localTable === 'app_users') {
                     $rows = DB::table('app_users')
@@ -1830,10 +1833,253 @@ class GoogleSyncService
         }
 
         try {
+            $divRows = self::buildTargetDivisionRows();
             $response = Http::timeout(20)->withoutVerifying()->post($targetAppscript, [
                 'action' => 'push_all',
                 'data' => [
-                    'Target_Pemantauan' => $rows
+                    'Target_Pemantauan' => $rows,
+                    'TARGETDIVISION' => $divRows,
+                ]
+            ]);
+
+            return [
+                'success' => $response->successful(),
+                'total_rows' => count($rows),
+                'response' => $response->json(),
+            ];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Build rows for TARGETDIVISION sheet matching Form 07-006 across all divisions
+     */
+    public static function buildTargetDivisionRows(): array
+    {
+        $allKaryawan = DB::table('karyawan')->get()->map(fn($k) => (array)$k)->toArray();
+        if (empty($allKaryawan)) {
+            return [];
+        }
+
+        $allDocs = DB::table('dokumen')->get()->map(fn($d) => (array)$d)->toArray();
+        $docsByNrp = [];
+        foreach ($allDocs as $d) {
+            $docsByNrp[(string)$d['nrp']] = $d;
+        }
+
+        $allNilai = Schema::hasTable('nilai') ? DB::table('nilai')->get()->toArray() : [];
+        $nilaiGrouped = [];
+        foreach ($allNilai as $n) {
+            $docId = $n->dokumen_id ?? ($n['dokumen_id'] ?? null);
+            $lvl = $n->level ?? ($n['level'] ?? 'foreman');
+            $aspek = $n->aspek_kode ?? ($n['aspek_kode'] ?? '');
+            $skor = (float)($n->skor ?? ($n['skor'] ?? 0));
+            if ($docId && $aspek) {
+                $nilaiGrouped[$docId][$lvl][$aspek] = $skor;
+            }
+        }
+
+        $calcService = app(\App\Services\AppraisalCalculationService::class);
+
+        // Fetch Saved Target from pengaturan (or default proportional)
+        $savedDivTargetRaw = DB::table('pengaturan')->where('key', 'target_kuota_divisi_07006')->value('value');
+        $savedDivTarget = $savedDivTargetRaw ? json_decode($savedDivTargetRaw, true) : null;
+
+        // Group Form 07-006 by Division
+        $divStats = [];
+        $all07006 = [];
+
+        foreach ($allKaryawan as $k) {
+            $nrp = (string)($k['nrp'] ?? '');
+            $doc = $docsByNrp[$nrp] ?? null;
+            $kf = strtoupper(trim((string)($doc['kode_form'] ?? \App\Http\Controllers\PenilaianController::determineKodeForm($k))));
+            if (!str_starts_with($kf, '07-006')) {
+                continue;
+            }
+
+            $div = trim((string)($k['division'] ?? ''));
+            if (!$div || $div === '-') {
+                $div = 'GENERAL AFFAIRS DIV';
+            }
+
+            if (!isset($divStats[$div])) {
+                $divStats[$div] = [
+                    'total' => 0,
+                    'S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0,
+                    'sudah_dinilai' => 0
+                ];
+            }
+            $divStats[$div]['total']++;
+            $all07006[] = $k;
+
+            $docId = $doc['id'] ?? null;
+            $score = 0;
+            $grade = '-';
+
+            if ($doc && !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0) {
+                $score = (float)$doc['total_nilai'];
+                $grade = $doc['docking_final'] ?? ($doc['grade_original'] ?? $calcService->scoreToGrade($score));
+            } elseif ($docId && isset($nilaiGrouped[$docId])) {
+                foreach (['div_head', 'dept_head', 'section_head', 'foreman'] as $lvl) {
+                    if (!empty($nilaiGrouped[$docId][$lvl])) {
+                        $calc = $calcService->calculate($kf, $nilaiGrouped[$docId][$lvl]);
+                        if ($calc['grand_total'] > 0) {
+                            $score = $calc['grand_total'];
+                            $grade = $calcService->scoreToGrade($score);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $gradeUpper = strtoupper(trim((string)$grade));
+            if (in_array($gradeUpper, ['S', 'A', 'B', 'C', 'K'])) {
+                $divStats[$div][$gradeUpper]++;
+                $divStats[$div]['sudah_dinilai']++;
+            }
+        }
+
+        ksort($divStats);
+
+        $totCompany07006 = count($all07006);
+        $globalTargetS = $savedDivTarget['S'] ?? max(0, (int)round($totCompany07006 * 0.10));
+        $globalTargetA = $savedDivTarget['A'] ?? max(0, (int)round($totCompany07006 * 0.30));
+        $globalTargetB = $savedDivTarget['B'] ?? max(0, (int)round($totCompany07006 * 0.30));
+        $globalTargetC = $savedDivTarget['C'] ?? max(0, (int)round($totCompany07006 * 0.20));
+        $globalTargetK = $savedDivTarget['K'] ?? max(0, $totCompany07006 - ($globalTargetS + $globalTargetA + $globalTargetB + $globalTargetC));
+        $globalTotalTarget = $globalTargetS + $globalTargetA + $globalTargetB + $globalTargetC + $globalTargetK;
+
+        $rows = [];
+        $no = 1;
+        $nowStr = date('d-m-Y H:i:s');
+        $sumActualS = 0; $sumActualA = 0; $sumActualB = 0; $sumActualC = 0; $sumActualK = 0; $sumActualTotal = 0;
+
+        foreach ($divStats as $divName => $st) {
+            $divTot = $st['total'];
+            $pctDiv = $totCompany07006 > 0 ? ($divTot / $totCompany07006) : 0;
+            // Proportional division target guide based on global targets
+            $dT_S = (int)round($globalTargetS * $pctDiv);
+            $dT_A = (int)round($globalTargetA * $pctDiv);
+            $dT_B = (int)round($globalTargetB * $pctDiv);
+            $dT_C = (int)round($globalTargetC * $pctDiv);
+            $dT_K = max(0, $divTot - ($dT_S + $dT_A + $dT_B + $dT_C));
+            $dTotTarget = $dT_S + $dT_A + $dT_B + $dT_C + $dT_K;
+
+            $rows[] = [
+                'No' => $no++,
+                'Division' => $divName,
+                'Target_S' => $dT_S,
+                'Target_A' => $dT_A,
+                'Target_B' => $dT_B,
+                'Target_C' => $dT_C,
+                'Target_K' => $dT_K,
+                'Total_Target' => $dTotTarget,
+                'Actual_S' => $st['S'],
+                'Actual_A' => $st['A'],
+                'Actual_B' => $st['B'],
+                'Actual_C' => $st['C'],
+                'Actual_K' => $st['K'],
+                'Total_Actual' => $st['sudah_dinilai'],
+                'Total_Karyawan_07006' => $divTot,
+                'Terakhir_Update' => $nowStr,
+            ];
+
+            $sumActualS += $st['S'];
+            $sumActualA += $st['A'];
+            $sumActualB += $st['B'];
+            $sumActualC += $st['C'];
+            $sumActualK += $st['K'];
+            $sumActualTotal += $st['sudah_dinilai'];
+
+            // Also update SQLite targetdivision table for this division
+            if (Schema::hasTable('targetdivision')) {
+                DB::table('targetdivision')->updateOrInsert(
+                    ['divisi' => $divName],
+                    [
+                        'target_s' => $dT_S,
+                        'target_a' => $dT_A,
+                        'target_b' => $dT_B,
+                        'target_c' => $dT_C,
+                        'target_k' => $dT_K,
+                        'total_target' => $dTotTarget,
+                        'actual_s' => $st['S'],
+                        'actual_a' => $st['A'],
+                        'actual_b' => $st['B'],
+                        'actual_c' => $st['C'],
+                        'actual_k' => $st['K'],
+                        'total_actual' => $st['sudah_dinilai'],
+                        'total_karyawan_07006' => $divTot,
+                        'updated_at' => now(),
+                    ]
+                );
+            }
+        }
+
+        // Summary row for TOTAL (All Divisions / Target Admin)
+        $rows[] = [
+            'No' => 'TOTAL',
+            'Division' => 'TOTAL (SEMUA DIVISI)',
+            'Target_S' => $globalTargetS,
+            'Target_A' => $globalTargetA,
+            'Target_B' => $globalTargetB,
+            'Target_C' => $globalTargetC,
+            'Target_K' => $globalTargetK,
+            'Total_Target' => $globalTotalTarget,
+            'Actual_S' => $sumActualS,
+            'Actual_A' => $sumActualA,
+            'Actual_B' => $sumActualB,
+            'Actual_C' => $sumActualC,
+            'Actual_K' => $sumActualK,
+            'Total_Actual' => $sumActualTotal,
+            'Total_Karyawan_07006' => $totCompany07006,
+            'Terakhir_Update' => $nowStr,
+        ];
+
+        // Store TOTAL in SQLite targetdivision as well
+        if (Schema::hasTable('targetdivision')) {
+            DB::table('targetdivision')->updateOrInsert(
+                ['divisi' => 'TOTAL'],
+                [
+                    'target_s' => $globalTargetS,
+                    'target_a' => $globalTargetA,
+                    'target_b' => $globalTargetB,
+                    'target_c' => $globalTargetC,
+                    'target_k' => $globalTargetK,
+                    'total_target' => $globalTotalTarget,
+                    'actual_s' => $sumActualS,
+                    'actual_a' => $sumActualA,
+                    'actual_b' => $sumActualB,
+                    'actual_c' => $sumActualC,
+                    'actual_k' => $sumActualK,
+                    'total_actual' => $sumActualTotal,
+                    'total_karyawan_07006' => $totCompany07006,
+                    'updated_at' => now(),
+                ]
+            );
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Push specifically TARGETDIVISION to Google Spreadsheet
+     */
+    public static function syncTargetDivision(?string $appscriptUrl = null): array
+    {
+        $config = self::getConfig();
+        $targetAppscript = $appscriptUrl ?: $config['appscript_url'];
+        $rows = self::buildTargetDivisionRows();
+
+        if (empty($targetAppscript) || !filter_var($targetAppscript, FILTER_VALIDATE_URL)) {
+            return ['success' => false, 'message' => 'Apps Script Web App URL tidak terkonfigurasi.'];
+        }
+
+        try {
+            $response = Http::timeout(20)->withoutVerifying()->post($targetAppscript, [
+                'action' => 'push_all',
+                'data' => [
+                    'TARGETDIVISION' => $rows
                 ]
             ]);
 

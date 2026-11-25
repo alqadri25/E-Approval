@@ -1672,24 +1672,38 @@ class DashboardController extends Controller
             }
             $divActualGradeTotal = array_sum($divActualGradeCounts);
 
-            // Target counts aligned with all Form 07-006 employees company-wide
+            // Target counts aligned with all Form 07-006 employees company-wide (Read saved Admin target if present)
             $totAll07006 = count($allForm07006);
-            $pctS = (float)($targetPercentages['S'] ?? 10);
-            $pctA = (float)($targetPercentages['A'] ?? 30);
-            $pctB = (float)($targetPercentages['B'] ?? 30);
-            $pctC = (float)($targetPercentages['C'] ?? 20);
+            $savedAdminDivTargetRaw = DB::table('pengaturan')->where('key', 'target_kuota_divisi_07006')->value('value');
+            $savedAdminDivTarget = $savedAdminDivTargetRaw ? json_decode($savedAdminDivTargetRaw, true) : null;
 
-            $targetS = max(0, (int)round($totAll07006 * ($pctS / 100)));
-            $targetA = max(0, (int)round($totAll07006 * ($pctA / 100)));
-            $targetB = max(0, (int)round($totAll07006 * ($pctB / 100)));
-            $targetC = max(0, (int)round($totAll07006 * ($pctC / 100)));
-            $targetK = max(0, $totAll07006 - ($targetS + $targetA + $targetB + $targetC));
-            if ($targetK < 0) {
-                $targetK = 0;
-                $targetB = max(0, $totAll07006 - ($targetS + $targetA + $targetC));
+            if ($savedAdminDivTarget && isset($savedAdminDivTarget['S'])) {
+                $divTargetCounts = [
+                    'S' => (int)($savedAdminDivTarget['S'] ?? 0),
+                    'A' => (int)($savedAdminDivTarget['A'] ?? 0),
+                    'B' => (int)($savedAdminDivTarget['B'] ?? 0),
+                    'C' => (int)($savedAdminDivTarget['C'] ?? 0),
+                    'K' => (int)($savedAdminDivTarget['K'] ?? 0),
+                ];
+                $totalTargetDiv = array_sum($divTargetCounts);
+            } else {
+                $pctS = (float)($targetPercentages['S'] ?? 10);
+                $pctA = (float)($targetPercentages['A'] ?? 30);
+                $pctB = (float)($targetPercentages['B'] ?? 30);
+                $pctC = (float)($targetPercentages['C'] ?? 20);
+
+                $targetS = max(0, (int)round($totAll07006 * ($pctS / 100)));
+                $targetA = max(0, (int)round($totAll07006 * ($pctA / 100)));
+                $targetB = max(0, (int)round($totAll07006 * ($pctB / 100)));
+                $targetC = max(0, (int)round($totAll07006 * ($pctC / 100)));
+                $targetK = max(0, $totAll07006 - ($targetS + $targetA + $targetB + $targetC));
+                if ($targetK < 0) {
+                    $targetK = 0;
+                    $targetB = max(0, $totAll07006 - ($targetS + $targetA + $targetC));
+                }
+                $divTargetCounts = ['S' => $targetS, 'A' => $targetA, 'B' => $targetB, 'C' => $targetC, 'K' => $targetK];
+                $totalTargetDiv = $totAll07006;
             }
-            $divTargetCounts = ['S' => $targetS, 'A' => $targetA, 'B' => $targetB, 'C' => $targetC, 'K' => $targetK];
-            $totalTargetDiv = $totAll07006;
 
             // Self evaluation metrics specifically for Division Head Penilaian Mandiri Card
             $selfKaryawan = DB::table('karyawan')->where('nrp', $user->nrp)->first();
