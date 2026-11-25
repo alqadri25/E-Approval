@@ -290,7 +290,7 @@
                 @else
                 <!-- Col 6: Foreman / Kary Ybs / Section Head Header -->
                 @if($subFormVariant === 'div_head')
-                <td style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; background: #ffffff;">&nbsp;</td>
+                <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; background-color: #bfbfbf !important;">&nbsp;</td>
                 @else
                 <td class="bg-gray-header text-center font-bold" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; font-size: 5.5pt; vertical-align: middle; line-height: 1.15;">
                     @if($subFormVariant === 'karyawan_gol4')
@@ -305,7 +305,7 @@
 
                 <!-- Col 7: Section Head / Atasan Langsung / Dept Head Header -->
                 @if($subFormVariant === 'div_head')
-                <td style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; background: #ffffff;">&nbsp;</td>
+                <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; background-color: #bfbfbf !important;">&nbsp;</td>
                 @elseif($subFormVariant === 'dept_head')
                 <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
                 @else
@@ -385,7 +385,7 @@
                 @else
                 <!-- Col 6: Foreman / Kary Ybs / Section Head Signature (rowspan 2 for rows 2 & 3) -->
                 @if($subFormVariant === 'div_head')
-                <td rowspan="2" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background: #ffffff;">&nbsp;</td>
+                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;">&nbsp;</td>
                 @else
                 <td rowspan="2" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php
@@ -409,7 +409,7 @@
 
                 <!-- Col 7: Section Head / Atasan Langsung / Dept Head Signature (rowspan 2 for rows 2 & 3) -->
                 @if($subFormVariant === 'div_head')
-                <td rowspan="2" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background: #ffffff;">&nbsp;</td>
+                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;">&nbsp;</td>
                 @elseif($subFormVariant === 'dept_head')
                 <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
                 @else
@@ -576,7 +576,7 @@
                 @else
                 <!-- Col 6: Foreman / Kary Ybs / Section Head Name (rowspan 2 for rows 4 & 5) -->
                 @if($subFormVariant === 'div_head')
-                <td rowspan="2" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background: #ffffff;">&nbsp;</td>
+                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;">&nbsp;</td>
                 @else
                 <td rowspan="2" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
                     @php 
@@ -602,7 +602,7 @@
                 @endif
                 <!-- Col 7: Section Head / Dept Head Name (rowspan 2 for rows 4 & 5) -->
                 @if($subFormVariant === 'div_head')
-                <td rowspan="2" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background: #ffffff;">&nbsp;</td>
+                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;">&nbsp;</td>
                 @elseif($subFormVariant === 'dept_head')
                 <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
                 @else

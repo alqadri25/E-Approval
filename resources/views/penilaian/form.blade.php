@@ -196,7 +196,7 @@
             <button type="button" @click="copySectionHeadScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor sebagai acuan dasar (dapat Anda modifikasi)">
                 <span>📋</span> {{ $subFormVariant === 'karyawan_gol4' ? 'Sama dg Section Head' : ($isGol4Up ? 'Sama dg Dept Head' : 'Sama dg Section Head') }}
             </button>
-            @elseif($canEditDivHead)
+            @elseif($canEditDivHead && $subFormVariant !== 'div_head')
             <button type="button" @click="copyDeptHeadScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor Dept Head sebagai acuan dasar (dapat Anda modifikasi)">
                 <span>📋</span> Sama dg Dept Head
             </button>
@@ -729,7 +729,7 @@
             };
             $col3Title = match($subFormVariant) {
                 'dept_and_div' => '',
-                'div_head' => 'Mandiri / 自分',
+                'div_head' => 'Division Head',
                 'karyawan_gol4' => 'Div. Head',
                 'dept_head', 'section_head' => 'Div. Head',
                 default => 'Dept. Head (Final)',
@@ -872,7 +872,7 @@
                 @else
                 <!-- Col 6: Header Col 1 -->
                 @if($subFormVariant === 'div_head')
-                <td class="w-[8%] bg-white border-b border-r border-slate-900"></td>
+                <td class="w-[8%] bg-[#bfbfbf] border-b border-r border-slate-900"></td>
                 @else
                 <td class="w-[8%] bg-[#d9d9d9] border-b border-r border-slate-900 font-bold text-[10px] sm:text-[11px] text-center p-1 text-slate-900 align-middle">
                     @if($subFormVariant === 'karyawan_gol4')
@@ -885,7 +885,7 @@
 
                 <!-- Col 7: Header Col 2 -->
                 @if($subFormVariant === 'div_head')
-                <td class="w-[8%] bg-white border-b border-r border-slate-900"></td>
+                <td class="w-[8%] bg-[#bfbfbf] border-b border-r border-slate-900"></td>
                 @elseif($subFormVariant === 'dept_head')
                 <td class="w-[8%] bg-[#bfbfbf] border-b border-r border-slate-900"></td>
                 @else
@@ -969,7 +969,7 @@
                 @else
                 <!-- Col 6: Signature Col 1 (rowspan 2 for rows 2 & 3) -->
                 @if($subFormVariant === 'div_head')
-                <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white"></td>
+                <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-[#bfbfbf]"></td>
                 @else
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
@@ -995,7 +995,7 @@
 
                 <!-- Col 7: Signature Col 2 (rowspan 2 for rows 2 & 3) -->
                 @if($subFormVariant === 'div_head')
-                <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white"></td>
+                <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-[#bfbfbf]"></td>
                 @elseif($subFormVariant === 'dept_head')
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-[#bfbfbf]"></td>
                 @else
@@ -1176,7 +1176,7 @@
                 @else
                 <!-- Col 6: Foreman / Kary Ybs / Section Head Name (rowspan 2 for rows 4 & 5) -->
                 @if($subFormVariant === 'div_head')
-                <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 bg-white"></td>
+                <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 bg-[#bfbfbf]"></td>
                 @else
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 text-center align-middle bg-white">
                     @php
@@ -1201,7 +1201,7 @@
 
                 <!-- Col 7: Section Head / Dept Head Name (rowspan 2 for rows 4 & 5) -->
                 @if($subFormVariant === 'div_head')
-                <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 bg-white"></td>
+                <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 bg-[#bfbfbf]"></td>
                 @elseif($subFormVariant === 'dept_head')
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 bg-[#bfbfbf]"></td>
                 @else
@@ -2160,7 +2160,7 @@
                                 <td class="border-none p-0"></td>
                                 <td class="border-none p-0 pr-1.5 font-bold whitespace-nowrap align-top text-slate-700 w-4">2.</td>
                                 <td class="border-none p-0 align-top">
-                                    {{ $formSettings['catatan_2'] ?? 'Pembulatan : ≤ 0,5 pembulatan ke bawah ; > 0,5 pembulatan ke atas.' }}
+                                    {{ html_entity_decode(html_entity_decode($formSettings['catatan_2'] ?? 'Pembulatan : ≤ 0,5 pembulatan ke bawah ; > 0,5 pembulatan ke atas.')) }}
                                     @if($isGol4Up)<div class="text-[8.5px] not-italic">2. 四捨五入の目安は0.5まで切り捨て、0.5を超えると切り上げます</div>@endif
                                 </td>
                             </tr>
@@ -2283,7 +2283,7 @@
                         <div class="p-3 border-b border-slate-300 bg-slate-50/50">
                             <span class="font-bold text-[11px] block text-slate-900 mb-1">{{ $isGol4Up ? 'Petunjuk Pengisian / 記入方法' : 'Petunjuk Pengisian.' }}</span>
                             <p class="text-[10px] text-slate-700 leading-relaxed text-justify">
-                                {{ $formSettings['petunjuk_evaluasi_potensi'] ?? 'Setiap Atasan diharapkan mengisi dengan seksama kolom ini untuk mengetahui seberapa jauh potensi karyawan dapat dikembangkan ke posisi & tanggung jawab yang lebih besar sesuai dengan ketentuan yang berlaku dan selagi ada kesempatan dalam struktur organisasi.' }}
+                                {{ html_entity_decode(html_entity_decode($formSettings['petunjuk_evaluasi_potensi'] ?? 'Setiap Atasan diharapkan mengisi dengan seksama kolom ini untuk mengetahui seberapa jauh potensi karyawan dapat dikembangkan ke posisi & tanggung jawab yang lebih besar sesuai dengan ketentuan yang berlaku dan selagi ada kesempatan dalam struktur organisasi.')) }}
                             </p>
                             @if($isGol4Up)
                             <p class="text-[9.5px] text-slate-600 mt-1 leading-snug">

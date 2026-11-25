@@ -3191,9 +3191,13 @@ class AdminController extends Controller
 
         // 1. Update pengaturan table
         foreach ($validated as $key => $val) {
+            $cleanVal = (string)$val;
+            while (strpos($cleanVal, '&amp;') !== false || strpos($cleanVal, '&gt;') !== false || strpos($cleanVal, '&lt;') !== false) {
+                $cleanVal = html_entity_decode($cleanVal, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            }
             DB::table('pengaturan')->updateOrInsert(
                 ['key' => $key],
-                ['value' => (string)$val, 'updated_at' => now()]
+                ['value' => $cleanVal, 'updated_at' => now()]
             );
         }
 
