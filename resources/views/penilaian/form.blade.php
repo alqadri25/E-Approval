@@ -192,7 +192,7 @@
             <button type="button" @click="copyForemanScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor sebagai acuan dasar (dapat Anda modifikasi)">
                 <span>📋</span> {{ $isGol4Up ? 'Sama dg Mandiri' : 'Sama dg Foreman' }}
             </button>
-            @elseif($canEditDeptHead)
+            @elseif($canEditDeptHead && $subFormVariant !== 'dept_and_div')
             <button type="button" @click="copySectionHeadScores()" class="min-btn inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 shadow-sm transition-all whitespace-nowrap flex-shrink-0" title="Salin semua skor sebagai acuan dasar (dapat Anda modifikasi)">
                 <span>📋</span> {{ $subFormVariant === 'karyawan_gol4' ? 'Sama dg Section Head' : ($isGol4Up ? 'Sama dg Dept Head' : 'Sama dg Section Head') }}
             </button>
@@ -797,14 +797,9 @@
                 <col style="width: 17%;">
                 <col style="width: 15.5%;">
                 <col style="width: 15.5%;">
-                @if($subFormVariant === 'dept_and_div')
-                <col style="width: 12%;">
-                <col style="width: 12%;">
-                @else
                 <col style="width: 8%;">
                 <col style="width: 8%;">
                 <col style="width: 8%;">
-                @endif
             </colgroup>
 
             <!-- ROW 1 -->
@@ -862,16 +857,7 @@
                 @endif
 
                 <!-- Col 6: Header Col 1 -->
-                @if($subFormVariant === 'dept_and_div')
-                <td class="w-[12%] bg-[#d9d9d9] border-b border-r border-slate-900 font-bold text-[10px] sm:text-[11px] text-center p-1 text-slate-900 align-middle">
-                    Department Head
-                </td>
-                <td class="w-[12%] bg-[#d9d9d9] border-b border-slate-900 font-bold text-[10px] sm:text-[11px] text-center p-1 text-slate-900 align-middle">
-                    Division Head
-                </td>
-                @else
-                <!-- Col 6: Header Col 1 -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
                 <td class="w-[8%] bg-[#bfbfbf] border-b border-r border-slate-900"></td>
                 @else
                 <td class="w-[8%] bg-[#d9d9d9] border-b border-r border-slate-900 font-bold text-[10px] sm:text-[11px] text-center p-1 text-slate-900 align-middle">
@@ -888,6 +874,10 @@
                 <td class="w-[8%] bg-[#bfbfbf] border-b border-r border-slate-900"></td>
                 @elseif($subFormVariant === 'dept_head')
                 <td class="w-[8%] bg-[#bfbfbf] border-b border-r border-slate-900"></td>
+                @elseif($subFormVariant === 'dept_and_div')
+                <td class="w-[8%] bg-[#d9d9d9] border-b border-r border-slate-900 font-bold text-[10px] sm:text-[11px] text-center p-1 text-slate-900 align-middle">
+                    Department Head
+                </td>
                 @else
                 <td class="w-[8%] bg-[#d9d9d9] border-b border-r border-slate-900 font-bold text-[9.5px] sm:text-[10px] text-center p-1 text-slate-900 align-middle">
                     @if($subFormVariant === 'karyawan_gol4')
@@ -899,7 +889,7 @@
                 @endif
 
                 <!-- Col 8: Header Col 3 -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
                 <td class="w-[8%] bg-[#d9d9d9] border-b border-slate-900 font-bold text-[9.5px] sm:text-[10px] text-center p-1 text-slate-900 align-middle">
                     Division Head
                 </td>
@@ -911,7 +901,6 @@
                         {{ $isGol4Up ? 'Penilai Final 最終審査員' : 'Department Head' }}
                     @endif
                 </td>
-                @endif
                 @endif
             </tr>
 
@@ -934,41 +923,8 @@
                 @endif
                 <!-- If $isGol4Up, Col 4 & 5 are covered by rowspan="2" from Row 1! -->
 
-                @if($subFormVariant === 'dept_and_div')
-                <!-- Col 6: Signature Dept Head (rowspan 2 for rows 2 & 3) -->
-                <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
-                    <div class="flex items-center justify-center h-full min-h-[46px]">
-                        @php
-                            $dhImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
-                        @endphp
-                        @if(!empty($dhImg))
-                            <div class="p-0.5 flex items-center justify-center w-full h-full">
-                                <img src="{{ $dhImg }}" alt="Barcode TTD Dept Head" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
-                            </div>
-                        @else
-                            <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
-                        @endif
-                    </div>
-                </td>
-
-                <!-- Col 7: Signature Div Head (rowspan 2 for rows 2 & 3) -->
-                <td rowspan="2" class="p-1 border-b border-slate-900 align-middle text-center bg-white">
-                    <div class="flex items-center justify-center h-full min-h-[46px]">
-                        @php
-                            $divImg = $ttdByLevel['div_head']['ttd_base64'] ?? $ttdByLevel['div_head']['ttd_image'] ?? null;
-                        @endphp
-                        @if(!empty($divImg))
-                            <div class="p-0.5 flex items-center justify-center w-full h-full">
-                                <img src="{{ $divImg }}" alt="Barcode TTD Div Head" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
-                            </div>
-                        @else
-                            <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
-                        @endif
-                    </div>
-                </td>
-                @else
                 <!-- Col 6: Signature Col 1 (rowspan 2 for rows 2 & 3) -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-[#bfbfbf]"></td>
                 @else
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
@@ -998,6 +954,21 @@
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-[#bfbfbf]"></td>
                 @elseif($subFormVariant === 'dept_head')
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-[#bfbfbf]"></td>
+                @elseif($subFormVariant === 'dept_and_div')
+                <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
+                    <div class="flex items-center justify-center h-full min-h-[46px]">
+                        @php
+                            $dhImg = $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image'] ?? null;
+                        @endphp
+                        @if(!empty($dhImg))
+                            <div class="p-0.5 flex items-center justify-center w-full h-full">
+                                <img src="{{ $dhImg }}" alt="Barcode TTD Dept Head" class="w-full h-full max-h-[82px] max-w-[82px] object-contain mx-auto p-1">
+                            </div>
+                        @else
+                            <span class="text-[11px] text-slate-300 italic font-medium">Belum TTD</span>
+                        @endif
+                    </div>
+                </td>
                 @else
                 <td rowspan="2" class="p-1 border-r border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
@@ -1020,7 +991,7 @@
                 @endif
 
                 <!-- Col 8: Signature Col 3 (rowspan 2 for rows 2 & 3) -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
                 <td rowspan="2" class="p-1 border-b border-slate-900 align-middle text-center bg-white">
                     <div class="flex items-center justify-center h-full min-h-[46px]">
                         @php
@@ -1054,7 +1025,6 @@
                         @endif
                     </div>
                 </td>
-                @endif
                 @endif
             </tr>
 
@@ -1145,37 +1115,8 @@
                 </td>
                 @endif
 
-                @if($subFormVariant === 'dept_and_div')
-                <!-- Col 6: Dept Head Name (rowspan 2 for rows 4 & 5) -->
-                <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 text-center align-middle bg-white">
-                    @php
-                        $rawSignDh = $ttdByLevel['dept_head']['user']['nama'] ?? '';
-                        $col6Name = !empty($rawSignDh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDh)) : $dhNama;
-                    @endphp
-                    @if(!empty($col6Name))
-                        <span class="text-[10px] sm:text-[11px] text-slate-900 font-bold block leading-tight">{{ $col6Name }}</span>
-                    @else
-                        <span class="text-[10px] text-slate-400 italic font-medium">-</span>
-                    @endif
-                    <span class="text-[8.5px] text-slate-500 font-medium block">Dept. Head</span>
-                </td>
-
-                <!-- Col 7: Div Head Name (rowspan 2 for rows 4 & 5) -->
-                <td rowspan="2" class="px-1 py-1 border-b-2 border-slate-900 text-center align-middle bg-white">
-                    @php
-                        $rawSignDiv = $ttdByLevel['div_head']['user']['nama'] ?? '';
-                        $col7Name = !empty($rawSignDiv) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDiv)) : $divHeadNama;
-                    @endphp
-                    @if(!empty($col7Name))
-                        <span class="text-[10px] sm:text-[11px] text-slate-900 font-bold block leading-tight">{{ $col7Name }}</span>
-                    @else
-                        <span class="text-[10px] text-slate-400 italic font-medium">-</span>
-                    @endif
-                    <span class="text-[8.5px] text-slate-500 font-medium block">Div. Head</span>
-                </td>
-                @else
                 <!-- Col 6: Foreman / Kary Ybs / Section Head Name (rowspan 2 for rows 4 & 5) -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 bg-[#bfbfbf]"></td>
                 @else
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 text-center align-middle bg-white">
@@ -1204,6 +1145,19 @@
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 bg-[#bfbfbf]"></td>
                 @elseif($subFormVariant === 'dept_head')
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 bg-[#bfbfbf]"></td>
+                @elseif($subFormVariant === 'dept_and_div')
+                <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 text-center align-middle bg-white">
+                    @php
+                        $rawSignDh = $ttdByLevel['dept_head']['user']['nama'] ?? '';
+                        $col7Name = !empty($rawSignDh) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignDh)) : $dhNama;
+                    @endphp
+                    @if(!empty($col7Name))
+                        <span class="text-[10px] sm:text-[11px] text-slate-900 font-bold block leading-tight">{{ $col7Name }}</span>
+                    @else
+                        <span class="text-[10px] text-slate-400 italic font-medium">-</span>
+                    @endif
+                    <span class="text-[8.5px] text-slate-500 font-medium block">Dept. Head</span>
+                </td>
                 @else
                 <td rowspan="2" class="px-1 py-1 border-r border-b-2 border-slate-900 text-center align-middle bg-white">
                     @php
@@ -1225,7 +1179,7 @@
                 @endif
 
                 <!-- Col 8: Dept Head / Div Head Name (rowspan 2 for rows 4 & 5) -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
                 <td rowspan="2" class="px-1 py-1 border-b-2 border-slate-900 text-center align-middle bg-white">
                     @php
                         $rawSignDiv = $ttdByLevel['div_head']['user']['nama'] ?? '';
@@ -1256,7 +1210,6 @@
                     @endif
                     @if($isGol4Up || $subFormVariant === 'karyawan_gol4')<span class="text-[8.5px] text-slate-500 font-medium block">Div. Head</span>@endif
                 </td>
-                @endif
                 @endif
             </tr>
 
@@ -1294,16 +1247,17 @@
                                 <th colspan="2" rowspan="2" class="border-r border-slate-900 p-2 w-7/12 text-center uppercase tracking-wider">
                                     {{ $isGol4Up ? 'ASPEK PENILAIAN / 評価項目' : 'ASPEK PENILAIAN' }}
                                 </th>
-                                <th colspan="{{ $subFormVariant === 'dept_and_div' ? '2' : '3' }}" class="border-b border-slate-900 p-1.5 uppercase text-center w-5/12">
+                                <th colspan="3" class="border-b border-slate-900 p-1.5 uppercase text-center w-5/12">
                                     {{ $isGol4Up ? 'PENILAIAN / 点数' : 'PENILAIAN' }}
                                 </th>
                             </tr>
                             <tr class="bg-slate-100 border-b border-slate-900 font-bold text-slate-800 text-[10px] text-center">
                                 @if($subFormVariant === 'dept_and_div')
-                                <th class="border-r border-slate-900 p-1.5 w-2.5/12 {{ $canEditDeptHead ? 'bg-emerald-100 text-emerald-950 font-black' : '' }}">
+                                <th class="border-r border-slate-900 p-1.5 w-1/12 bg-[#bfbfbf]"></th>
+                                <th class="border-r border-slate-900 p-1.5 w-2/12 {{ $canEditDeptHead ? 'bg-emerald-100 text-emerald-950 font-black' : '' }}">
                                     Dept. Head
                                 </th>
-                                <th class="p-1.5 w-2.5/12 {{ $canEditDivHead ? 'bg-emerald-100 text-emerald-950 font-black' : '' }}">
+                                <th class="p-1.5 w-2/12 {{ $canEditDivHead ? 'bg-emerald-100 text-emerald-950 font-black' : '' }}">
                                     Div. Head
                                 </th>
                                 @elseif($subFormVariant === 'karyawan_gol4')
@@ -1393,7 +1347,10 @@
 
                                     <!-- Score Columns -->
                                     @if($subFormVariant === 'dept_and_div')
-                                    <!-- Col 1: Dept Head -->
+                                    <!-- Col 1: Blocked Gray -->
+                                    <td class="border-r border-slate-900 bg-[#bfbfbf]"></td>
+
+                                    <!-- Col 2: Dept Head -->
                                     <td class="border-r border-slate-900 p-1 text-center align-middle {{ $canEditDeptHead ? 'bg-[#e2efda] hover:bg-[#d5ebd0] cursor-pointer' : 'bg-white' }}"
                                         @if($canEditDeptHead)
                                         @click.stop="openRubrikModal('{{ $aspectCode }}', '{{ addslashes($aspectName) }}', 'dept_head')"
@@ -1846,6 +1803,7 @@
                                         {{ $isGol4Up ? 'TOTAL 合計' : 'TOTAL' }}
                                     </td>
                                     @if($subFormVariant === 'dept_and_div')
+                                    <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 text-center font-mono font-bold text-slate-900">
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
@@ -1956,6 +1914,7 @@
                                         {{ $rataTitle }}
                                     </td>
                                     @if($subFormVariant === 'dept_and_div')
+                                    <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 text-center font-mono text-slate-900">
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
@@ -2049,6 +2008,7 @@
                                         {{ $nilaiAkhirTitle }}
                                     </td>
                                     @if($subFormVariant === 'dept_and_div')
+                                    <td class="border-r border-slate-900 p-1 bg-[#bfbfbf]"></td>
                                     <td class="border-r border-slate-900 p-1 text-center font-mono font-black text-slate-900 bg-slate-100">
                                         @if(!$canViewDeptHead)
                                             <span class="text-slate-400 font-normal">-</span>
