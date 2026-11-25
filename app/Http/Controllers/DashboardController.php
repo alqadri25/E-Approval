@@ -107,11 +107,12 @@ class DashboardController extends Controller
                 $maxDocId++;
                 $expectedKodeForm = PenilaianController::determineKodeForm($k);
                 $isDivEmp = $expectedKodeForm === '07-006-DIV' || str_contains(strtoupper($k['jabatan'] ?? ''), 'DIV HEAD') || str_contains(strtoupper($k['jabatan'] ?? ''), 'DIVISION HEAD');
+                $isSecretaryEmp = str_contains(strtoupper($k['seksi'] ?? ''), 'SECRETARY') || str_contains(strtoupper($k['jabatan'] ?? ''), 'SECRETARY') || in_array((string)($k['nrp'] ?? ''), ['268', '1237']);
                 $isDeptEmp = $expectedKodeForm === '07-006-DH' || ((str_contains(strtoupper($k['jabatan'] ?? ''), 'DEPT HEAD') || str_contains(strtoupper($k['jabatan'] ?? ''), 'DEPARTMENT HEAD') || str_contains(strtoupper($k['jabatan'] ?? ''), 'MANAGER')) && !str_contains(strtoupper($k['jabatan'] ?? ''), 'NON KASIE'));
 
                 if ($isDivEmp) {
                     $status = 'menunggu_div_head';
-                } elseif ($isDeptEmp) {
+                } elseif ($isDeptEmp || $isSecretaryEmp) {
                     $status = 'menunggu_dept_head';
                 } elseif (!empty($k['nrp_foreman'])) {
                     $status = 'menunggu_foreman';
@@ -775,10 +776,17 @@ class DashboardController extends Controller
 
         if ($user->isDepartmentHead()) {
             // Subordinates directly connected to this Dept Head (including self for total department team)
-            $deptSubordinates = array_values(array_filter(
-                $allKaryawan,
-                fn ($k) => $user->matchesDeptHeadScope($k) || (!empty($user->nrp) && strcasecmp((string)($k['nrp'] ?? ''), (string)$user->nrp) === 0)
-            ));
+            if ($user->isSecretary()) {
+                $deptSubordinates = array_values(array_filter(
+                    $allKaryawan,
+                    fn ($k) => !empty($user->nrp) && strcasecmp((string)($k['nrp'] ?? ''), (string)$user->nrp) === 0
+                ));
+            } else {
+                $deptSubordinates = array_values(array_filter(
+                    $allKaryawan,
+                    fn ($k) => $user->matchesDeptHeadScope($k) || (!empty($user->nrp) && strcasecmp((string)($k['nrp'] ?? ''), (string)$user->nrp) === 0)
+                ));
+            }
             // Pin Dept Head self-evaluation (07-006-DH) first so dashboard matches /penilaian/dept & /penilaian/cari
             usort($deptSubordinates, function ($a, $b) use ($user) {
                 $aSelf = !empty($user->nrp) && strcasecmp((string)($a['nrp'] ?? ''), (string)$user->nrp) === 0;
@@ -930,58 +938,87 @@ class DashboardController extends Controller
                     }
                 } else {
                     // Pipeline Department WITHOUT Foreman:
-                    // Tahap 1: Penilaian Section Head
-                    // Tahap 2: Tinjauan Dept Head
-                    // Tahap 3: Approval Div Head
-                    // Tahap 4: Selesai & Terarsip
-                    if ($status === 'selesai') {
-                        $stageKey = 'tahap4';
-                        $deptStageCounts['tahap4_selesai']++;
-                        $stageLabel = 'Selesai (Final)';
-                        $badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-                        $actionType = 'sudah_dikirim';
-                        $actionLabel = 'Selesai & Arsip';
-                        $deptDoneCount++;
-                    } elseif ($status === 'menunggu_div_head') {
-                        $stageKey = 'tahap3';
-                        $deptStageCounts['tahap3_div']++;
-                        $stageLabel = 'Division Head';
-                        $badgeClass = 'bg-indigo-100 text-indigo-800 border-indigo-300';
-                        $actionType = 'sudah_dikirim';
-                        $actionLabel = 'Review Div Head';
-                        $deptDoneCount++;
-                    } elseif ($status === 'menunggu_dept_head') {
-                        $stageKey = 'tahap2';
-                        $deptStageCounts['tahap2_dept']++;
-                        $stageLabel = 'Department Head (To-Do)';
-                        $badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
-                        $actionType = 'todo';
-                        $actionLabel = 'Perlu Review / TTD';
-                        $deptNeedActionCount++;
-                    } elseif ($status === 'revisi') {
-                        $stageKey = 'tahap1';
-                        $deptStageCounts['tahap1_section']++;
-                        $deptStageCounts['revisi_sh']++;
-                        $stageLabel = 'Revisi ke Section Head';
-                        $badgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
-                        $actionType = 'revisi';
-                        $actionLabel = 'Perlu Revisi';
-                    } elseif ($status === 'draft') {
-                        $stageKey = 'tahap1';
-                        $deptStageCounts['tahap1_section']++;
-                        $deptStageCounts['draft_sh']++;
-                        $stageLabel = 'Draft Section Head';
-                        $badgeClass = 'bg-slate-100 text-slate-700 border-slate-300';
-                        $actionType = 'draft';
-                        $actionLabel = 'Draft Section Head';
+                    if ($user->isSecretary()) {
+                        if ($status === 'selesai') {
+                            $stageKey = 'tahap4';
+                            $deptStageCounts['tahap4_selesai']++;
+                            $stageLabel = 'Selesai (Final)';
+                            $badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                            $actionType = 'selesai';
+                            $actionLabel = 'Selesai Final';
+                            $deptDoneCount++;
+                        } elseif ($status === 'menunggu_div_head') {
+                            $stageKey = 'tahap3';
+                            $deptStageCounts['tahap3_div']++;
+                            $stageLabel = 'Division Head';
+                            $badgeClass = 'bg-indigo-100 text-indigo-800 border-indigo-300';
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Review Div Head';
+                            $deptDoneCount++;
+                        } else {
+                            // Belum dinilai Secretary (menunggu_dept_head, draft, revisi, menunggu_section_head, dll)
+                            $stageKey = 'tahap2';
+                            $deptStageCounts['tahap2_dept']++;
+                            $stageLabel = 'Evaluasi Mandiri';
+                            $badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+                            $actionType = 'todo';
+                            $actionLabel = 'Perlu Evaluasi Mandiri';
+                            $deptNeedActionCount++;
+                        }
                     } else {
-                        $stageKey = 'tahap1';
-                        $deptStageCounts['tahap1_section']++;
-                        $deptStageCounts['belum_dinilai_sh']++;
-                        $stageLabel = 'Section Head';
-                        $badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
-                        $actionType = 'belum_dinilai';
-                        $actionLabel = 'Menunggu Section Head';
+                        // Tahap 1: Penilaian Section Head
+                        // Tahap 2: Tinjauan Dept Head
+                        // Tahap 3: Approval Div Head
+                        // Tahap 4: Selesai & Terarsip
+                        if ($status === 'selesai') {
+                            $stageKey = 'tahap4';
+                            $deptStageCounts['tahap4_selesai']++;
+                            $stageLabel = 'Selesai (Final)';
+                            $badgeClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Selesai & Arsip';
+                            $deptDoneCount++;
+                        } elseif ($status === 'menunggu_div_head') {
+                            $stageKey = 'tahap3';
+                            $deptStageCounts['tahap3_div']++;
+                            $stageLabel = 'Division Head';
+                            $badgeClass = 'bg-indigo-100 text-indigo-800 border-indigo-300';
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Review Div Head';
+                            $deptDoneCount++;
+                        } elseif ($status === 'menunggu_dept_head') {
+                            $stageKey = 'tahap2';
+                            $deptStageCounts['tahap2_dept']++;
+                            $stageLabel = 'Department Head (To-Do)';
+                            $badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+                            $actionType = 'todo';
+                            $actionLabel = 'Perlu Review / TTD';
+                            $deptNeedActionCount++;
+                        } elseif ($status === 'revisi') {
+                            $stageKey = 'tahap1';
+                            $deptStageCounts['tahap1_section']++;
+                            $deptStageCounts['revisi_sh']++;
+                            $stageLabel = 'Revisi ke Section Head';
+                            $badgeClass = 'bg-rose-100 text-rose-800 border-rose-300';
+                            $actionType = 'revisi';
+                            $actionLabel = 'Perlu Revisi';
+                        } elseif ($status === 'draft') {
+                            $stageKey = 'tahap1';
+                            $deptStageCounts['tahap1_section']++;
+                            $deptStageCounts['draft_sh']++;
+                            $stageLabel = 'Draft Section Head';
+                            $badgeClass = 'bg-slate-100 text-slate-700 border-slate-300';
+                            $actionType = 'draft';
+                            $actionLabel = 'Draft Section Head';
+                        } else {
+                            $stageKey = 'tahap1';
+                            $deptStageCounts['tahap1_section']++;
+                            $deptStageCounts['belum_dinilai_sh']++;
+                            $stageLabel = 'Section Head';
+                            $badgeClass = 'bg-slate-100 text-slate-600 border-slate-200';
+                            $actionType = 'belum_dinilai';
+                            $actionLabel = 'Menunggu Section Head';
+                        }
                     }
                 }
 

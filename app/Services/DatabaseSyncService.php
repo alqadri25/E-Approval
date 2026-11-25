@@ -143,10 +143,14 @@ class DatabaseSyncService
 
             $isDirectDiv = \App\Http\Controllers\PenilaianController::isDirectDivSubordinate((array)$k);
             $isDirectDeptDiv = \App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate((array)$k);
+            $isSecretary = str_contains($seksiUpper, 'SECRETARY') || str_contains($posUpper, 'SECRETARY') || in_array((string)$nrp, ['268', '1237']);
             if ($isDirectDiv) {
                 $kodeForm = '07-006-DIV';
                 $status = 'menunggu_div_head';
             } elseif ($isDirectDeptDiv) {
+                $kodeForm = '07-006-DH';
+                $status = 'menunggu_dept_head';
+            } elseif ($isSecretary) {
                 $kodeForm = '07-006-DH';
                 $status = 'menunggu_dept_head';
             } elseif ($isDiv) {
@@ -289,6 +293,8 @@ class DatabaseSyncService
 
             $isDirectDiv = \App\Http\Controllers\PenilaianController::isDirectDivSubordinate($k, (array)$d);
             $isDirectDeptDiv = \App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate($k, (array)$d);
+            $seksi = strtoupper(trim((string)($k->seksi ?? '')));
+            $isSecretary = str_contains($seksi, 'SECRETARY') || str_contains($jab, 'SECRETARY') || in_array((string)$k->nrp, ['268', '1237']);
             $targetStatus = 'menunggu_section_head';
             if ($isDirectDiv) {
                 $targetStatus = 'menunggu_div_head';
@@ -296,6 +302,11 @@ class DatabaseSyncService
                     DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DIV']);
                 }
             } elseif ($isDirectDeptDiv) {
+                $targetStatus = 'menunggu_dept_head';
+                if ($d->kode_form !== '07-006-DH') {
+                    DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DH']);
+                }
+            } elseif ($isSecretary) {
                 $targetStatus = 'menunggu_dept_head';
                 if ($d->kode_form !== '07-006-DH') {
                     DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DH']);
