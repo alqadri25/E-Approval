@@ -189,15 +189,8 @@ class DashboardController extends Controller
             $isForemanAbove5 = $userKaryawan ? PenilaianController::isForemanAboveKj5($userKaryawan) : false;
 
             // Filter strictly to subordinates of this specific Foreman (termasuk evaluasi diri sendiri jika KJ <= 5)
-            $mySubordinates = array_values(array_filter($allKaryawan, function ($k) use ($user, $isForemanAbove5) {
-                if (!empty($k['nrp_foreman']) && strcasecmp($k['nrp_foreman'], $user->nrp) === 0) {
-                    return true;
-                }
-                // Jika Foreman KJ 5 ke atas (KJ > 5), dinilai langsung oleh Section Head dan tidak tampil di dashboard dirinya sendiri
-                if ($isForemanAbove5) {
-                    return false;
-                }
-                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0;
+            $mySubordinates = array_values(array_filter($allKaryawan, function ($k) use ($user) {
+                return $user->matchesForemanScope($k);
             }));
 
             foreach ($mySubordinates as $k) {
@@ -1871,6 +1864,7 @@ class DashboardController extends Controller
                 $user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']) => $user->matchesDivisionHeadScope($karyawan),
                 $user->isDepartmentHead() => $user->matchesDeptHeadScope($karyawan),
                 $user->isSectionHead() => $user->matchesSectionHeadScope($karyawan),
+                $user->isForeman() => $user->matchesForemanScope($karyawan),
                 default => $user->canAccessDepartment($docDept) || strcasecmp($karyawan['nrp'] ?? '', $user->nrp) === 0,
             };
             if (!$isAccessible) continue;
@@ -1879,7 +1873,7 @@ class DashboardController extends Controller
             $status = $doc['status'] ?? 'draft';
             $needsMySign = false;
 
-            if ($status === 'menunggu_foreman' && $user->isForeman() && strcasecmp($user->departemen, $docDept) === 0) {
+            if ($status === 'menunggu_foreman' && $user->isForeman() && $user->matchesForemanScope($karyawan)) {
                 $needsMySign = true;
             } elseif ($status === 'menunggu_section_head' && $user->isSectionHead() && $user->matchesSectionHeadScope($karyawan)) {
                 $needsMySign = true;

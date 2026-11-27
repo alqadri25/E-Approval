@@ -462,7 +462,7 @@ class User extends Authenticatable
                 if ($this->isDivisionHead() && $this->matchesDivisionHeadScope($k)) {
                     return true;
                 }
-                if ($this->isForeman() && !empty($k['nrp_foreman']) && strcasecmp($k['nrp_foreman'], $this->nrp) === 0) {
+                if ($this->isForeman() && $this->matchesForemanScope($k)) {
                     return true;
                 }
             }
@@ -553,6 +553,90 @@ class User extends Authenticatable
             }
         }
         return '';
+    }
+
+    /**
+     * Get Line Category for this user (derived from karyawan record)
+     */
+    public function getLineCategory(): string
+    {
+        $lineCat = trim((string)($this->karyawan?->line_category ?? ''));
+        if ($lineCat !== '' && $lineCat !== '-' && strtolower($lineCat) !== 'null') {
+            return $lineCat;
+        }
+        $nrp = trim((string)$this->nrp);
+        if ($nrp !== '') {
+            $emp = \Illuminate\Support\Facades\DB::table('karyawan')->where('nrp', $nrp)->first();
+            if ($emp) {
+                $lc = trim((string)($emp->line_category ?? ''));
+                if ($lc !== '' && $lc !== '-' && strtolower($lc) !== 'null') {
+                    return $lc;
+                }
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Check whether an employee record falls under this Foreman's supervisory scope.
+     * Matches if:
+     * 1. Self-evaluation: Only for Foreman with KJ <= 5 (Foreman with KJ > 5 is evaluated directly by Section Head and excluded from own table/dashboard).
+     * 2. Explicit nrp_foreman assignment matches this user's NRP.
+     * 3. Matching line_category (e.g. FM1, FM2) in the same department/section for non-managerial subordinates (Operators, Leaders, Staff).
+     */
+    public function matchesForemanScope(array $karyawan): bool
+    {
+        $empNrp = trim((string)($karyawan['nrp'] ?? ''));
+        $myNrp = trim((string)($this->nrp ?? ''));
+
+        // 1. Diri sendiri:
+        if ($empNrp !== '' && $myNrp !== '' && strcasecmp($empNrp, $myNrp) === 0) {
+            // Foreman dengan KJ > 5 dinilai langsung oleh Section Head,
+            // sehingga tidak masuk dalam daftar evaluasi/tabel dirinya sendiri
+            $userKaryawan = $this->karyawan;
+            $isAbove5 = $userKaryawan ? \App\Http\Controllers\PenilaianController::isForemanAboveKj5($userKaryawan) : false;
+            return !$isAbove5;
+        }
+
+        // 2. Explicit nrp_foreman match
+        if (!empty($karyawan['nrp_foreman']) && trim((string)$karyawan['nrp_foreman']) !== '-') {
+            return strcasecmp(trim((string)$karyawan['nrp_foreman']), $myNrp) === 0;
+        }
+
+        // 3. Line Category match (jika nrp_foreman kosong atau '-')
+        $myLineCat = $this->getLineCategory();
+        $empLineCat = trim((string)($karyawan['line_category'] ?? ''));
+
+        if ($myLineCat !== '' && $empLineCat !== '' && $empLineCat !== '-' && strtolower($empLineCat) !== 'null') {
+            if (strcasecmp($myLineCat, $empLineCat) === 0) {
+                // Karyawan bukan atasan atau sesama foreman
+                $empJab = strtoupper(trim((string)($karyawan['jabatan'] ?? '')));
+                $empLevel = strtoupper(trim((string)($karyawan['level_form'] ?? '')));
+
+                $isUpperOrPeer = str_contains($empJab, 'FOREMAN') ||
+                    str_contains($empLevel, 'FOREMAN') ||
+                    str_contains($empJab, 'SECTION HEAD') ||
+                    str_contains($empJab, 'SECT HEAD') ||
+                    str_contains($empJab, 'DEPUTY SECTION HEAD') ||
+                    str_contains($empJab, 'KASIE') ||
+                    str_contains($empJab, 'DEPT HEAD') ||
+                    str_contains($empJab, 'DEPARTMENT HEAD') ||
+                    str_contains($empJab, 'MANAGER') ||
+                    str_contains($empJab, 'MANAJER') ||
+                    str_contains($empJab, 'DIV HEAD') ||
+                    str_contains($empJab, 'DIVISION HEAD');
+
+                if (!$isUpperOrPeer) {
+                    $empDept = trim((string)($karyawan['departemen'] ?? ''));
+                    $myDept = trim((string)($this->departemen ?: ($this->karyawan?->departemen ?? '')));
+                    if ($myDept === '' || $empDept === '' || strcasecmp($myDept, $empDept) === 0 || $this->canAccessDepartment($empDept)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

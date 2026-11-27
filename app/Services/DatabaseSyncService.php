@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\SheetRepositoryInterface;
 use App\Http\Controllers\PenilaianController;
+use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -91,6 +92,36 @@ class DatabaseSyncService
             }
         }
 
+        // Map Foremen by [line_category]
+        $fmMap = [];
+        foreach ($allKaryawan as $emp) {
+            $pos = strtoupper(trim((string)$emp->jabatan));
+            $isForemanEmp = (str_contains($pos, 'FOREMAN') || str_contains(strtoupper((string)($emp->level_form ?? '')), 'FOREMAN'))
+                && !str_contains($pos, 'SECTION HEAD')
+                && !str_contains($pos, 'SECT HEAD')
+                && !str_contains($pos, 'DEPT HEAD')
+                && !str_contains($pos, 'MANAGER')
+                && !str_contains($pos, 'DIV HEAD');
+
+            if ($isForemanEmp) {
+                $lc = strtoupper(trim((string)($emp->line_category ?? '')));
+                if ($lc !== '' && $lc !== '-' && $lc !== 'NULL') {
+                    $deptNorm = User::normalizeDepartmentName($emp->departemen ?? '');
+                    $sectNorm = strtoupper(trim(preg_replace('/\s*(SEC|SECTION)\.?$/i', '', (string)($emp->seksi ?: ($emp->nama_sect ?: '')))));
+
+                    if ($sectNorm !== '') {
+                        $fmMap[$sectNorm . '|' . $lc] = $emp;
+                    }
+                    if ($deptNorm !== '') {
+                        $fmMap[$deptNorm . '|' . $lc] = $emp;
+                    }
+                    if (!isset($fmMap[$lc])) {
+                        $fmMap[$lc] = $emp;
+                    }
+                }
+            }
+        }
+
         $docsCreated = 0;
         foreach ($allKaryawan as $k) {
             $kArray = (array)$k;
@@ -99,7 +130,9 @@ class DatabaseSyncService
 
             // Check if employee has no line category and matches a Section Head in the same section
             $lineCat = trim((string)($k->line_category ?? ''));
-            $noLineCat = ($lineCat === '' || $lineCat === '-' || strtolower($lineCat) === 'null');
+            $lineCatUpper = strtoupper($lineCat);
+            $hasLineCat = ($lineCatUpper !== '' && $lineCatUpper !== '-' && $lineCatUpper !== 'NULL');
+            $noLineCat = !$hasLineCat;
             $posUpper = strtoupper(trim((string)($k->jabatan ?? '')));
             $isUpper = (
                 str_contains($posUpper, 'SECTION HEAD') ||
@@ -135,6 +168,28 @@ class DatabaseSyncService
                 }
             }
 
+            // Check if employee has a line_category matching a Foreman
+            $resolvedFmNrp = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' ? trim((string)$k->nrp_foreman) : null;
+            $resolvedFmNama = null;
+
+            if ($hasLineCat && !$isUpper && empty($resolvedFmNrp)) {
+                $s = strtoupper(trim((string)($k->seksi ?: ($k->nama_sect ?: ''))));
+                $normS = strtoupper(trim(preg_replace('/\s*(SEC|SECTION)\.?$/i', '', $s)));
+                $d = User::normalizeDepartmentName($k->departemen ?? '');
+
+                $matchedFm = $fmMap[$normS . '|' . $lineCatUpper] ?? ($fmMap[$d . '|' . $lineCatUpper] ?? ($fmMap[$lineCatUpper] ?? null));
+                if ($matchedFm && strcasecmp($matchedFm->nrp, $nrp) !== 0) {
+                    $resolvedFmNrp = $matchedFm->nrp;
+                    $resolvedFmNama = $matchedFm->nama_lengkap;
+
+                    // Update karyawan table
+                    DB::table('karyawan')->where('nrp', $nrp)->update([
+                        'nrp_foreman' => $resolvedFmNrp,
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
             $isDiv = $kodeForm === '07-006-DIV' || ($k->level_form ?? '') === 'DIV_HEAD' || str_contains($posUpper, 'DIV HEAD') || str_contains($posUpper, 'DIVISION HEAD');
             $isDept = $kodeForm === '07-006-DH' || ($k->level_form ?? '') === 'DEPT_HEAD' || str_contains($posUpper, 'DEPT HEAD') || str_contains($posUpper, 'DEPARTMENT HEAD');
             $isActualSH = (str_contains($posUpper, 'SECTION HEAD') || str_contains($posUpper, 'SECT HEAD') || str_contains($posUpper, 'DEPUTY SECTION HEAD')) && !str_contains($posUpper, 'NON KASIE');
@@ -163,10 +218,8 @@ class DatabaseSyncService
                 // Form 07-006-KARYAWAN (KJ 5+ non-Section Head): Dinilai pertama oleh Section Head!
                 $status = 'menunggu_section_head';
             } else {
-                $hasAssignedForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
                 $kArray = (array)$k;
-                $isForemanKjUnderEqual5 = !PenilaianController::isForemanAboveKj5($kArray, $kodeForm) && (str_contains(strtoupper($k->jabatan ?? ''), 'FOREMAN') || str_contains(strtoupper($k->level_form ?? ''), 'FOREMAN') || $kodeForm === '07-004');
-                $hasForeman = ($hasAssignedForeman || $isForemanKjUnderEqual5) && !PenilaianController::isForm07006($kodeForm);
+                $hasForeman = PenilaianController::requiresForemanStage($kArray, $kodeForm);
                 $status = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
             }
 
@@ -184,6 +237,8 @@ class DatabaseSyncService
                     'hash_dokumen' => null,
                     'kode_verifikasi' => 'PK-' . $periodeTahun . '-' . $nrp . '-' . strtoupper(Str::random(6)),
                     'version' => 1,
+                    'nrp_foreman' => $resolvedFmNrp,
+                    'nama_foreman' => $resolvedFmNama,
                     'nrp_section_head' => $resolvedShNrp,
                     'nama_section_head' => $resolvedShNama,
                     'created_at' => now(),
@@ -196,23 +251,27 @@ class DatabaseSyncService
                     'kode_form' => $kodeForm,
                     'updated_at' => now(),
                 ];
+                if ($resolvedFmNrp) {
+                    $docUpdate['nrp_foreman'] = $resolvedFmNrp;
+                    if ($resolvedFmNama) {
+                        $docUpdate['nama_foreman'] = $resolvedFmNama;
+                    }
+                }
                 if ($resolvedShNrp) {
                     $docUpdate['nrp_section_head'] = $resolvedShNrp;
                     if ($resolvedShNama) {
                         $docUpdate['nama_section_head'] = $resolvedShNama;
                     }
                 }
-                // Dokumen yang belum ditandatangani Section Head: jika bukan Dept Head / Div Head, posisinya masih di Section Head
+                // Dokumen yang belum ditandatangani Section Head: jika bukan Dept Head / Div Head, posisinya masih di Section Head atau Foreman
                 $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->first();
                 if ($existingDoc && !$isDiv && !$isDept && !$isDirectDeptDiv) {
                     $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
                     $hasShScore = DB::table('nilai')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
                     $hasTotalScore = !empty($existingDoc->total_nilai);
-                    if (!$hasShTtd && !$hasShScore && !$hasTotalScore && in_array($existingDoc->status, ['draft', 'menunggu_dept_head'])) {
-                        $hasAssignedForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
+                    if (!$hasShTtd && !$hasShScore && !$hasTotalScore && in_array($existingDoc->status, ['draft', 'menunggu_dept_head', 'menunggu_section_head'])) {
                         $kArray = (array)$k;
-                        $isForemanKjUnderEqual5 = !PenilaianController::isForemanAboveKj5($kArray, $kodeForm) && (str_contains(strtoupper($k->jabatan ?? ''), 'FOREMAN') || str_contains(strtoupper($k->level_form ?? ''), 'FOREMAN') || $kodeForm === '07-004');
-                        $hasForemanEmp = ($hasAssignedForeman || $isForemanKjUnderEqual5) && !PenilaianController::isForm07006($kodeForm);
+                        $hasForemanEmp = PenilaianController::requiresForemanStage($kArray, $kodeForm);
                         $docUpdate['status'] = $hasForemanEmp ? 'menunggu_foreman' : 'menunggu_section_head';
                     }
                 } elseif ($existingDoc && $isDirectDeptDiv) {
@@ -272,6 +331,8 @@ class DatabaseSyncService
             return 0;
         }
 
+        self::resolveForemanSubordinates();
+
         $docs = DB::table('dokumen')->get();
         $healed = 0;
 
@@ -295,7 +356,7 @@ class DatabaseSyncService
             $jab = strtoupper(trim((string)$k->jabatan));
             $isDiv = str_contains($jab, 'DIVISION HEAD') || str_contains($jab, 'DIV HEAD');
             $isDept = (str_contains($jab, 'DEPARTMENT HEAD') || str_contains($jab, 'DEPT HEAD') || str_contains($jab, 'DEPT. HEAD') || str_contains($jab, 'MANAGER') || str_contains($jab, 'MANAJER')) && !str_contains($jab, 'NON KASIE');
-            $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $k->nrp) !== 0;
+            $hasForeman = PenilaianController::requiresForemanStage((array)$k, $d->kode_form);
 
             $isDirectDiv = \App\Http\Controllers\PenilaianController::isDirectDivSubordinate($k, (array)$d);
             $isDirectDeptDiv = \App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate($k, (array)$d);
@@ -327,11 +388,21 @@ class DatabaseSyncService
                 $targetStatus = 'menunggu_section_head';
             }
 
+            $docUpdate = [];
             if ($d->status !== $targetStatus) {
-                DB::table('dokumen')->where('id', $d->id)->update([
-                    'status' => $targetStatus,
-                    'updated_at' => now(),
-                ]);
+                $docUpdate['status'] = $targetStatus;
+            }
+            if (empty($d->nrp_foreman) && !empty($k->nrp_foreman)) {
+                $docUpdate['nrp_foreman'] = $k->nrp_foreman;
+                $fmUser = DB::table('karyawan')->where('nrp', $k->nrp_foreman)->first();
+                if ($fmUser) {
+                    $docUpdate['nama_foreman'] = $fmUser->nama_lengkap;
+                }
+            }
+
+            if (!empty($docUpdate)) {
+                $docUpdate['updated_at'] = now();
+                DB::table('dokumen')->where('id', $d->id)->update($docUpdate);
                 $healed++;
             }
         }
@@ -343,5 +414,128 @@ class DatabaseSyncService
         }
 
         return $healed;
+    }
+
+    /**
+     * Resolusi otomatis relasi Foreman untuk karyawan yang memiliki line_category (FM1, FM2, dll.)
+     */
+    public static function resolveForemanSubordinates(): int
+    {
+        if (!\Illuminate\Support\Facades\Schema::hasTable('karyawan') || !\Illuminate\Support\Facades\Schema::hasTable('dokumen')) {
+            return 0;
+        }
+
+        $allKaryawan = DB::table('karyawan')->get();
+        if ($allKaryawan->isEmpty()) {
+            return 0;
+        }
+
+        // Map Foremen by [line_category]
+        $fmMap = [];
+        foreach ($allKaryawan as $emp) {
+            $pos = strtoupper(trim((string)$emp->jabatan));
+            $isForemanEmp = (str_contains($pos, 'FOREMAN') || str_contains(strtoupper((string)($emp->level_form ?? '')), 'FOREMAN'))
+                && !str_contains($pos, 'SECTION HEAD')
+                && !str_contains($pos, 'SECT HEAD')
+                && !str_contains($pos, 'DEPT HEAD')
+                && !str_contains($pos, 'MANAGER')
+                && !str_contains($pos, 'DIV HEAD');
+
+            if ($isForemanEmp) {
+                $lc = strtoupper(trim((string)($emp->line_category ?? '')));
+                if ($lc !== '' && $lc !== '-' && $lc !== 'NULL') {
+                    $deptNorm = User::normalizeDepartmentName($emp->departemen ?? '');
+                    $sectNorm = strtoupper(trim(preg_replace('/\s*(SEC|SECTION)\.?$/i', '', (string)($emp->seksi ?: ($emp->nama_sect ?: '')))));
+
+                    if ($sectNorm !== '') {
+                        $fmMap[$sectNorm . '|' . $lc] = $emp;
+                    }
+                    if ($deptNorm !== '') {
+                        $fmMap[$deptNorm . '|' . $lc] = $emp;
+                    }
+                    if (!isset($fmMap[$lc])) {
+                        $fmMap[$lc] = $emp;
+                    }
+                }
+            }
+        }
+
+        if (empty($fmMap)) {
+            return 0;
+        }
+
+        $resolvedCount = 0;
+        foreach ($allKaryawan as $k) {
+            $nrp = trim((string)$k->nrp);
+            $posUpper = strtoupper(trim((string)($k->jabatan ?? '')));
+            $isUpper = str_contains($posUpper, 'FOREMAN') ||
+                str_contains($posUpper, 'SECTION HEAD') ||
+                str_contains($posUpper, 'SECT HEAD') ||
+                str_contains($posUpper, 'DEPUTY SECTION HEAD') ||
+                str_contains($posUpper, 'KASIE') ||
+                str_contains($posUpper, 'DEPT HEAD') ||
+                str_contains($posUpper, 'DEPARTMENT HEAD') ||
+                str_contains($posUpper, 'DIV HEAD') ||
+                str_contains($posUpper, 'DIVISION HEAD') ||
+                str_contains($posUpper, 'MANAGER') ||
+                str_contains($posUpper, 'MANAJER');
+
+            if ($isUpper) {
+                continue;
+            }
+
+            $lineCat = strtoupper(trim((string)($k->line_category ?? '')));
+            if ($lineCat === '' || $lineCat === '-' || $lineCat === 'NULL') {
+                continue;
+            }
+
+            $currentFmNrp = trim((string)($k->nrp_foreman ?? ''));
+            if ($currentFmNrp !== '' && $currentFmNrp !== '-') {
+                continue;
+            }
+
+            $s = strtoupper(trim((string)($k->seksi ?: ($k->nama_sect ?: ''))));
+            $normS = strtoupper(trim(preg_replace('/\s*(SEC|SECTION)\.?$/i', '', $s)));
+            $d = User::normalizeDepartmentName($k->departemen ?? '');
+
+            $matchedFm = $fmMap[$normS . '|' . $lineCat] ?? ($fmMap[$d . '|' . $lineCat] ?? ($fmMap[$lineCat] ?? null));
+            if ($matchedFm && strcasecmp($matchedFm->nrp, $nrp) !== 0) {
+                // Update karyawan table
+                DB::table('karyawan')->where('nrp', $nrp)->update([
+                    'nrp_foreman' => $matchedFm->nrp,
+                    'updated_at' => now(),
+                ]);
+
+                // Update dokumen if exists and not evaluated
+                $existingDoc = DB::table('dokumen')->where('nrp', $nrp)->first();
+                if ($existingDoc) {
+                    $hasShTtd = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
+                    $hasFmTtd = DB::table('tanda_tangan')->where('dokumen_id', $existingDoc->id)->where('level', 'foreman')->exists();
+                    $hasScore = DB::table('nilai')->where('dokumen_id', $existingDoc->id)->exists();
+
+                    $updateDoc = [
+                        'nrp_foreman' => $matchedFm->nrp,
+                        'nama_foreman' => $matchedFm->nama_lengkap,
+                        'updated_at' => now(),
+                    ];
+
+                    if (!$hasShTtd && !$hasFmTtd && !$hasScore && empty($existingDoc->total_nilai)) {
+                        $updateDoc['status'] = 'menunggu_foreman';
+                    }
+
+                    DB::table('dokumen')->where('id', $existingDoc->id)->update($updateDoc);
+                }
+                $resolvedCount++;
+            }
+        }
+
+        if ($resolvedCount > 0) {
+            try {
+                app(\App\Repositories\SheetRepository::class)->clearCache('karyawan');
+                app(\App\Repositories\SheetRepository::class)->clearCache('dokumen');
+            } catch (\Throwable $e) {}
+        }
+
+        return $resolvedCount;
     }
 }

@@ -1252,7 +1252,31 @@ class PenilaianController extends Controller
         $hasAssignedForeman = !empty($kArr['nrp_foreman']) && trim((string)$kArr['nrp_foreman']) !== '-' && strcasecmp(trim((string)$kArr['nrp_foreman']), (string)($kArr['nrp'] ?? '')) !== 0;
         $isForemanUnderEqual5 = !self::isForemanAboveKj5($kArr, $kf) && (str_contains(strtoupper($kArr['jabatan'] ?? ''), 'FOREMAN') || str_contains(strtoupper($kArr['level_form'] ?? ''), 'FOREMAN') || $kf === '07-004');
 
-        return $hasAssignedForeman || $isForemanUnderEqual5;
+        if ($hasAssignedForeman || $isForemanUnderEqual5) {
+            return true;
+        }
+
+        // Karyawan dengan line_category (misal FM1, FM2) dan bukan manajemen atas memerlukan tahap penilaian Foreman
+        $lineCat = trim((string)($kArr['line_category'] ?? ''));
+        if ($lineCat !== '' && $lineCat !== '-' && strtolower($lineCat) !== 'null') {
+            $empJab = strtoupper(trim((string)($kArr['jabatan'] ?? '')));
+            $isUpper = str_contains($empJab, 'FOREMAN') ||
+                str_contains($empJab, 'SECTION HEAD') ||
+                str_contains($empJab, 'SECT HEAD') ||
+                str_contains($empJab, 'DEPUTY SECTION HEAD') ||
+                str_contains($empJab, 'KASIE') ||
+                str_contains($empJab, 'DEPT HEAD') ||
+                str_contains($empJab, 'DEPARTMENT HEAD') ||
+                str_contains($empJab, 'DIV HEAD') ||
+                str_contains($empJab, 'DIVISION HEAD') ||
+                str_contains($empJab, 'MANAGER') ||
+                str_contains($empJab, 'MANAJER');
+            if (!$isUpper) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1748,7 +1772,7 @@ class PenilaianController extends Controller
         }
 
         if ($user->isForeman() || in_array($user->role, ['foreman', 'ketua'])) {
-            return !empty($karyawan['nrp_foreman']) && strcasecmp($karyawan['nrp_foreman'], $user->nrp) === 0;
+            return $user->matchesForemanScope($karyawan);
         }
 
         return false;
@@ -3163,8 +3187,10 @@ class PenilaianController extends Controller
         }
 
         // 10. Determine Role Permissions for Editing
+        $isForemanSubordinate = ($user->isForeman() || in_array($user->role, ['foreman', 'ketua'])) && $user->matchesForemanScope($karyawan);
         $isDirectSubordinate = (!empty($karyawan['nrp_section_head']) && strcasecmp($karyawan['nrp_section_head'], $user->nrp) === 0)
-            || ($user->isSectionHead() && $user->matchesSectionHeadScope($karyawan));
+            || ($user->isSectionHead() && $user->matchesSectionHeadScope($karyawan))
+            || $isForemanSubordinate;
         $isSectionHeadWithoutForeman = $user->isSectionHead() && !$user->hasForemanSubordinates();
         $isDeptHeadSubordinate = ($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) && !empty($karyawan['nrp_dept_head']) && strcasecmp($karyawan['nrp_dept_head'], $user->nrp) === 0;
         $isDivHeadSubordinate = ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) && !empty($karyawan['nrp_div_head']) && strcasecmp($karyawan['nrp_div_head'], $user->nrp) === 0;
@@ -3173,7 +3199,8 @@ class PenilaianController extends Controller
             || $user->canAccessDepartment($karyawanDept)
             || ($isSectionHeadWithoutForeman && $isDirectSubordinate)
             || $isDeptHeadSubordinate
-            || $isDivHeadSubordinate;
+            || $isDivHeadSubordinate
+            || $isForemanSubordinate;
 
         $isPenilaiAkhir = self::isUserPenilaiAkhir($user, $dokumen, $karyawan);
 
@@ -8653,7 +8680,8 @@ class PenilaianController extends Controller
             foreach ($missingDocEmployees as $k) {
                 $maxDocId++;
                 $status = 'menunggu_section_head';
-                if (!empty($k['nrp_foreman'])) {
+                $requiresFm = self::requiresForemanStage($k);
+                if (!empty($k['nrp_foreman']) || $requiresFm) {
                     $status = 'menunggu_foreman';
                 } elseif (!empty($k['nrp_section_head'])) {
                     $status = 'menunggu_section_head';
@@ -8717,17 +8745,7 @@ class PenilaianController extends Controller
             }
             if ($user->isForeman()) {
                 $totalKaryawanSubtitle = 'Anggota Foreman';
-                $userKaryawan = DB::table('karyawan')->where('nrp', $user->nrp)->first();
-                $isForemanAbove5 = $userKaryawan ? self::isForemanAboveKj5($userKaryawan) : false;
-
-                if (!empty($k['nrp_foreman']) && strcasecmp($k['nrp_foreman'], $user->nrp) === 0) {
-                    return true;
-                }
-                // Jika Foreman KJ 5 ke atas (KJ > 5), dia TIDAK boleh melihat penilaian dirinya sendiri!
-                if ($isForemanAbove5) {
-                    return false;
-                }
-                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0;
+                return $user->matchesForemanScope($k);
             }
             return strcasecmp($k['departemen'] ?? '', $user->departemen ?? '') === 0;
         }));

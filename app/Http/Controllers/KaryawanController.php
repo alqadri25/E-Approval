@@ -491,19 +491,7 @@ class KaryawanController extends Controller
     private static function scopeByUser(User $user, array $allKaryawan): array
     {
         if ($user->isForeman()) {
-            $userKaryawan = \Illuminate\Support\Facades\DB::table('karyawan')->where('nrp', $user->nrp)->first();
-            $isForemanAbove5 = $userKaryawan ? PenilaianController::isForemanAboveKj5($userKaryawan) : false;
-
-            return array_values(array_filter($allKaryawan, function ($k) use ($user, $isForemanAbove5) {
-                if (!empty($k['nrp_foreman']) && strcasecmp($k['nrp_foreman'], $user->nrp) === 0) {
-                    return true;
-                }
-                // Jika Foreman KJ 5 ke atas (KJ > 5), dinilai langsung oleh Section Head dan tidak tampil di tabel dirinya sendiri
-                if ($isForemanAbove5) {
-                    return false;
-                }
-                return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0;
-            }));
+            return array_values(array_filter($allKaryawan, fn ($k) => $user->matchesForemanScope($k)));
         }
 
         if ($user->isSectionHead()) {
