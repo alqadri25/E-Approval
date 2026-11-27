@@ -144,8 +144,8 @@
         </div>
     @endif
 
-    <!-- 3. Key Stat Cards in a Row (4 Columns Informing What Has Been Done & What Needs To Be Done) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- 3. Key Stat Cards in a Row (3 Columns: Total Karyawan, Total Dinilai, Terkirim ke Section Head) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <!-- 1. Total Karyawan (Klik: Scroll ke tabel filter semua) -->
         <div @click="scrollToSection('section-data-karyawan', 'all')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
@@ -157,7 +157,24 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Karyawan</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ count($foremanSubordinates) }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota Foreman</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">
+                        @php
+                            $fMandiriCount = $foremanMandiriCount ?? count(array_filter($foremanSubordinates ?? [], fn($s) => strcasecmp($s['nrp'] ?? '', $user->nrp ?? '') === 0));
+                            $fAnggotaCount = $foremanAnggotaCount ?? count(array_filter($foremanSubordinates ?? [], fn($s) => strcasecmp($s['nrp'] ?? '', $user->nrp ?? '') !== 0));
+                            $isFmAbove5 = $isForemanAbove5 ?? false;
+                        @endphp
+                        @if($isFmAbove5)
+                            Anggota Foreman
+                        @else
+                            @if($fMandiriCount > 0 && $fAnggotaCount > 0)
+                                {{ $fMandiriCount }} Mandiri, {{ $fAnggotaCount }} Anggota
+                            @elseif($fMandiriCount > 0)
+                                {{ $fMandiriCount }} Mandiri
+                            @else
+                                Anggota Foreman
+                            @endif
+                        @endif
+                    </p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-none border border-slate-200">
@@ -165,26 +182,7 @@
             </span>
         </div>
 
-        <!-- 2. Total Target (Klik: Scroll ke grafik Target Penilaian) -->
-        <div @click="scrollToSection('chart-target-kategori')" 
-             class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
-             title="Klik untuk melihat grafik Target Penilaian berdasarkan kategori">
-            <div class="flex items-center gap-3.5">
-                <div class="w-10 h-10 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-sm flex-shrink-0 border border-[#92302e]/20 group-hover:bg-[#92302e] group-hover:text-white transition-colors">
-                    T
-                </div>
-                <div>
-                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Target</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ count($foremanSubordinates) }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Karyawan yang dinilai</p>
-                </div>
-            </div>
-            <span class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-none border border-blue-200">
-                Target Kerja
-            </span>
-        </div>
-
-        <!-- 3. Total Dinilai (Klik: Scroll ke tabel filter sudah dinilai) -->
+        <!-- 2. Total Dinilai (Klik: Scroll ke tabel filter sudah dinilai) -->
         <div @click="scrollToSection('section-data-karyawan', 'evaluated')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-emerald-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
              title="Klik untuk melihat karyawan yang sudah dinilai (draft & terkirim) di tabel">
@@ -205,7 +203,7 @@
             </span>
         </div>
 
-        <!-- 4. Terkirim ke Section Head (Klik: Scroll ke tabel filter terkirim) -->
+        <!-- 3. Terkirim ke Section Head (Klik: Scroll ke tabel filter terkirim) -->
         <div @click="scrollToSection('section-data-karyawan', 'done')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-blue-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
              title="Klik untuk melihat dokumen yang telah terkirim ke Section Head di tabel">

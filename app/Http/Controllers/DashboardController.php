@@ -180,6 +180,9 @@ class DashboardController extends Controller
         $foremanSudahDinilaiCount = 0;
         $foremanShSudahDinilai = 0;
         $foremanShBelumDinilai = 0;
+        $isForemanAbove5 = false;
+        $foremanMandiriCount = 0;
+        $foremanAnggotaCount = 0;
 
         if ($user->isForeman()) {
             $userKaryawan = \Illuminate\Support\Facades\DB::table('karyawan')->where('nrp', $user->nrp)->first();
@@ -406,6 +409,9 @@ class DashboardController extends Controller
             $foremanSudahDinilaiCount = count(array_filter($foremanSubordinates, function ($sub) {
                 return in_array($sub['action_type'], ['draft', 'sudah_dikirim']) || !empty($sub['is_evaluated']);
             }));
+
+            $foremanMandiriCount = count(array_filter($foremanSubordinates, fn($s) => strcasecmp($s['nrp'] ?? '', $user->nrp ?? '') === 0));
+            $foremanAnggotaCount = count(array_filter($foremanSubordinates, fn($s) => strcasecmp($s['nrp'] ?? '', $user->nrp ?? '') !== 0));
 
             // Target distribution calculation (constrained by Admin HR quotas per KJ; non-07-006 only)
             $quotaForemanSubs = array_values(array_filter(
@@ -2572,6 +2578,9 @@ class DashboardController extends Controller
             'foremanSudahDinilaiCount',
             'foremanShSudahDinilai',
             'foremanShBelumDinilai',
+            'isForemanAbove5',
+            'foremanMandiriCount',
+            'foremanAnggotaCount',
             'incomingDocsSectionHead',
             'incomingDocsDeptHead',
             'sectionSubordinates',
