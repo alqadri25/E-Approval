@@ -2735,7 +2735,7 @@ class PenilaianController extends Controller
         // For Division Head self-evaluation (Form 07-006-DIV / subFormVariant 'div_head'):
         // The signature for 'Kary. Ybs' can be recorded under 'foreman' or 'div_head'.
         // Ensure both keys are mirrored so views rendering 'foreman' or 'div_head' find the signature!
-        $isDivHeadForm = ($subFormVariant === 'div_head' || ($dokumen['kode_form'] ?? '') === '07-006-DIV' || (($karyawan['level_form'] ?? '') === 'DIV_HEAD'));
+        $isDivHeadForm = (($dokumen['kode_form'] ?? '') === '07-006-DIV' || (($karyawan['level_form'] ?? '') === 'DIV_HEAD') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION'));
         if ($isDivHeadForm) {
             if (!empty($result['foreman']) && empty($result['div_head'])) {
                 $result['div_head'] = $result['foreman'];
