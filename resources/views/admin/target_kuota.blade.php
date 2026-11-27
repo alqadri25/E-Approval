@@ -438,43 +438,42 @@
         <!-- 4. Formulir Matrix Target Kuota per KJ (All secara default, atau per Departemen terpilih) -->
         <div class="bg-white rounded-none border border-slate-300 shadow-sm" id="matrixTargetKj">
             
-            <!-- Header Bar Merah Musashi -->
-            <div class="bg-[#92302e] text-white px-5 py-3.5 rounded-none border-b border-[#7a2423] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-none bg-white/10 flex items-center justify-center border border-white/20">
-                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">
-                            Pengaturan Target Departemen per Golongan/KJ
-                        </h2>
-                        <p class="text-[11px] text-red-100 font-medium">
-                            @if($isDeptSelected)
-                                Tentukan jumlah orang target grade S, A, B, C, K untuk tiap jenjang KJ di departemen ini
-                            @else
-                                Tampilan semua departemen (All) &bull; Pilih Division dan Departemen di atas untuk mengatur kuota spesifik
-                            @endif
-                        </p>
-                    </div>
+            <!-- Clean Header matching Target Divisi -->
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>Pengaturan Target Kuota Departemen per Jenjang KJ</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded-none bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 uppercase tracking-wider">
+                            Bebas Disesuaikan
+                        </span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        @if($isDeptSelected)
+                            Tentukan jumlah orang target grade S, A, B, C, K untuk tiap jenjang KJ di departemen {{ $currentDept }}.
+                        @else
+                            Tampilan seluruh departemen (All) &bull; Pilih Division dan Departemen di atas untuk mengatur kuota spesifik.
+                        @endif
+                    </p>
                 </div>
 
-                @if($isDeptSelected)
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="px-3 py-1 rounded-none text-xs font-black border bg-white text-[#92302e] border-white">
+                <div class="flex items-center gap-2 flex-wrap">
+                    @if($isDeptSelected)
+                        <span class="px-2.5 py-1 rounded-none text-xs font-bold border bg-white text-[#92302e] border-slate-300">
                             Departemen: {{ $currentDept }} ({{ $activeDeptStat['headcount'] }} Karyawan)
                         </span>
-                        <span class="px-3 py-1 rounded-none text-xs font-black border"
-                              :class="getDeptTotalTarget() === {{ $activeDeptStat['headcount'] }} ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-amber-400 text-slate-900 border-amber-300'">
+                        <span class="px-2.5 py-1 rounded-none text-xs font-bold border"
+                              :class="getDeptTotalTarget() === {{ $activeDeptStat['headcount'] }} ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-amber-50 text-amber-900 border-amber-300'">
                             <span x-text="'Total Kuota: ' + getDeptTotalTarget() + ' / {{ $activeDeptStat['headcount'] }} Org'"></span>
                         </span>
                         <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota') }}"
-                           class="px-2.5 py-1 rounded-none text-[11px] font-bold bg-white/15 hover:bg-white/25 text-white border border-white/30 transition">
+                           class="px-2.5 py-1 rounded-none text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition shadow-2xs">
                             ↺ Semua (All)
                         </a>
+                    @endif
+                    <div class="text-xs font-mono font-bold text-slate-600 bg-white px-2.5 py-1 rounded-none border border-slate-300">
+                        Terakhir Update: <span id="realtimeClock">{{ $terakhirUpdate }}</span>
                     </div>
-                @endif
+                </div>
             </div>
 
             <!-- Single Batch Form to Save All KJ Quotas in This Department -->
@@ -489,7 +488,7 @@
                 <div class="overflow-x-auto border border-slate-300">
                     <table class="w-full text-xs text-left border-collapse">
                         <thead>
-                            <tr class="bg-[#d1d5db] border-b border-slate-900 text-slate-900 font-black uppercase text-[11px]">
+                            <tr class="border-b border-slate-300 text-slate-700 font-bold bg-slate-100 text-[11px] uppercase tracking-wider">
                                 <th class="p-3 border-r border-slate-300 min-w-[200px]">Jenjang KJ / Golongan</th>
                                 <th class="p-3 text-center border-r border-slate-300 text-emerald-800 bg-emerald-100/60 min-w-[100px]">
                                     S (Sangat Baik)
@@ -689,19 +688,24 @@
 
         <!-- 5. Tabel Rekapitulasi Rincian Target Kuota Seluruh Departemen -->
         <div class="bg-white rounded-none border border-slate-300 shadow-sm">
-            <div class="bg-[#d1d5db] border-b border-slate-900 px-4 py-2.5 flex items-center justify-between">
-                <span class="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    📋 Rincian Pengaturan Target per KJ &amp; Departemen
-                </span>
-                <span class="text-[11px] font-bold text-slate-700">
-                    Total: {{ count($deptDefs) }} Departemen
-                </span>
+            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>Rincian Pengaturan Target per KJ &amp; Departemen</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded-none bg-blue-100 text-blue-800 font-bold border border-blue-200 uppercase tracking-wider">
+                            {{ count($deptDefs) }} Departemen
+                        </span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Ringkasan alokasi kuota per jenjang untuk seluruh departemen perusahaan.
+                    </p>
+                </div>
             </div>
 
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto border border-slate-300">
                 <table class="w-full text-xs text-left border-collapse whitespace-nowrap">
                     <thead>
-                        <tr class="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold uppercase text-[10.5px] whitespace-nowrap">
+                        <tr class="border-b border-slate-300 text-slate-700 font-bold bg-slate-100 text-[11px] uppercase tracking-wider whitespace-nowrap">
                             <th class="p-2.5 border-r border-slate-300 whitespace-nowrap">Kode Dept</th>
                             <th class="p-2.5 border-r border-slate-300 whitespace-nowrap">Divisi</th>
                             <th class="p-2.5 border-r border-slate-300 whitespace-nowrap">Departemen</th>
@@ -903,5 +907,19 @@ function targetKuotaApp() {
         }
     };
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    function updateWibClock() {
+        const el = document.getElementById('realtimeClock');
+        if (!el) return;
+        const now = new Date();
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const wib = new Date(utc + (3600000 * 7));
+        const pad = (n) => String(n).padStart(2, '0');
+        const str = pad(wib.getDate()) + '-' + pad(wib.getMonth() + 1) + '-' + wib.getFullYear() + ' ' + pad(wib.getHours()) + ':' + pad(wib.getMinutes()) + ' WIB';
+        el.innerText = str;
+    }
+    setInterval(updateWibClock, 10000);
+});
 </script>
 @endsection

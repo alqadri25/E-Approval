@@ -723,6 +723,11 @@ class AdminController extends Controller
             $selectedDivisi = '';
             $displayKjList = [];
             $targetPerusahaan = ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0];
+            $latestUpdate = (\Illuminate\Support\Facades\Schema::hasTable('kuota_departemen') ? DB::table('kuota_departemen')->max('updated_at') : null)
+                ?? (\Illuminate\Support\Facades\Schema::hasTable('targetdivision') ? DB::table('targetdivision')->max('updated_at') : null)
+                ?? (\Illuminate\Support\Facades\Schema::hasTable('dokumen') ? DB::table('dokumen')->max('updated_at') : null)
+                ?? now();
+            $terakhirUpdate = \Carbon\Carbon::parse($latestUpdate)->timezone('Asia/Jakarta')->format('d-m-Y H:i') . ' WIB';
 
             return view('admin.target_kuota', compact(
                 'user',
@@ -741,7 +746,8 @@ class AdminController extends Controller
                 'targetPerusahaan',
                 'displayKjList',
                 'currentDept',
-                'selectedDivisi'
+                'selectedDivisi',
+                'terakhirUpdate'
             ));
         }
 
@@ -1925,6 +1931,12 @@ class AdminController extends Controller
             );
         }
 
+        $latestUpdate = (\Illuminate\Support\Facades\Schema::hasTable('kuota_departemen') ? DB::table('kuota_departemen')->max('updated_at') : null)
+            ?? (\Illuminate\Support\Facades\Schema::hasTable('targetdivision') ? DB::table('targetdivision')->max('updated_at') : null)
+            ?? (\Illuminate\Support\Facades\Schema::hasTable('dokumen') ? DB::table('dokumen')->max('updated_at') : null)
+            ?? now();
+        $terakhirUpdate = \Carbon\Carbon::parse($latestUpdate)->timezone('Asia/Jakarta')->format('d-m-Y H:i') . ' WIB';
+
         return view('admin.target_kuota', compact(
             'user',
             'globalHeadcount',
@@ -1957,7 +1969,8 @@ class AdminController extends Controller
             'initialScope',
             'initialKjDept',
             'initialKj',
-            'initialTableTab'
+            'initialTableTab',
+            'terakhirUpdate'
         ));
     }
 
@@ -2774,7 +2787,8 @@ class AdminController extends Controller
         $totalActual = $totalRow ? (int)$totalRow->total_actual : 0;
         $totalBelum = max(0, $totalKaryawan07006 - $totalActual);
         $totalDivisi = $dbDivRows->count();
-        $terakhirUpdate = $totalRow ? date('d-m-Y H:i', strtotime($totalRow->updated_at ?? now())) : date('d-m-Y H:i');
+        $rawUpdate = $totalRow->updated_at ?? now();
+        $terakhirUpdate = \Carbon\Carbon::parse($rawUpdate)->timezone('Asia/Jakarta')->format('d-m-Y H:i') . ' WIB';
 
         return view('admin.target_divisi', compact(
             'user',

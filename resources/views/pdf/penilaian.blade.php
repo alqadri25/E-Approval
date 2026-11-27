@@ -275,7 +275,7 @@
                 @endif
 
                 <!-- Col 6: Foreman / Kary Ybs / Section Head Header -->
-                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
+                @if($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'dept_and_div')
                 <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; background-color: #bfbfbf !important;">&nbsp;</td>
                 @else
                 <td class="bg-gray-header text-center font-bold" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; font-size: 5.5pt; vertical-align: middle; line-height: 1.15;">
@@ -290,7 +290,7 @@
                 @endif
 
                 <!-- Col 7: Section Head / Atasan Langsung / Dept Head Header -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'div_head')
                 <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; padding: 2px 1px; background-color: #bfbfbf !important;">&nbsp;</td>
                 @elseif($subFormVariant === 'dept_head')
                 <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
@@ -311,7 +311,9 @@
                 @endif
 
                 <!-- Col 8: Dept Head / Penilai Final / Div Head Header -->
-                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
+                @if($subFormVariant === 'div_head')
+                <td class="bg-blocked-gray" style="width: 8%; border-bottom: 1px solid #000000; border-right: none; background-color: #bfbfbf !important;"></td>
+                @elseif($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'dept_and_div')
                 <td class="bg-gray-header text-center font-bold" style="width: 8%; border-bottom: 1px solid #000000; border-right: none; padding: 2px 1px; font-size: 5.5pt; vertical-align: middle; line-height: 1.15;">
                     Division Head
                 </td>
@@ -348,7 +350,7 @@
                 <!-- If $isGol4Up, Col 4 & 5 covered by rowspan="2" from Row 1! -->
 
                 <!-- Col 6: Foreman / Kary Ybs / Section Head Signature (rowspan 2 for rows 2 & 3) -->
-                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
+                @if($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'dept_and_div')
                 <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;">&nbsp;</td>
                 @else
                 <td rowspan="2" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
@@ -372,7 +374,7 @@
                 @endif
 
                 <!-- Col 7: Section Head / Atasan Langsung / Dept Head Signature (rowspan 2 for rows 2 & 3) -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'div_head')
                 <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;">&nbsp;</td>
                 @elseif($subFormVariant === 'dept_head')
                 <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
@@ -407,7 +409,9 @@
                 @endif
 
                 <!-- Col 8: Dept Head / Penilai Final / Div Head Signature (rowspan 2 for rows 2 & 3) -->
-                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
+                @if($subFormVariant === 'div_head')
+                <td rowspan="2" class="bg-blocked-gray" style="border-right: none; border-bottom: 1px solid #000000; background-color: #bfbfbf !important;"></td>
+                @elseif($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'dept_and_div')
                 <td rowspan="2" style="border-right: none; border-bottom: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px; background: #ffffff;">
                     @php
                         $divPdfImg = $ttdByLevel['div_head']['ttd_base64'] ?? $ttdByLevel['div_head']['ttd_image'] ?? null;
@@ -457,7 +461,7 @@
                 <td style="width: 15.5%; border-right: 1.2px solid #000000; border-bottom: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px 1px;">
                     <div style="font-size: 5pt; color: #64748b; font-weight: bold; text-transform: uppercase; line-height: 1;">DEPARTEMEN</div>
                 </td>
-                @elseif($subFormVariant === 'div_head')
+                @elseif($subFormVariant === 'div_head' || $subFormVariant === 'direct_div_subordinate')
                 <td colspan="2" style="width: 31%; border-right: 1.2px solid #000000; border-bottom: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px 1px;">
                     <div style="font-size: 5.5pt; color: #0f172a; font-weight: bold; letter-spacing: 0.5px;">DIVISION</div>
                 </td>
@@ -498,7 +502,7 @@
                 <td rowspan="2" style="border-right: 1.2px solid #000000; border-bottom: 1.5px solid #000000; text-align: center; vertical-align: middle; padding: 2px 1px;">
                     <div style="font-size: 6.2pt; font-weight: bold; line-height: 1.1; text-transform: uppercase;">{{ $karyawan['departemen'] }}</div>
                 </td>
-                @elseif($subFormVariant === 'div_head')
+                @elseif($subFormVariant === 'div_head' || $subFormVariant === 'direct_div_subordinate')
                 <td colspan="2" rowspan="2" style="border-right: 1.2px solid #000000; border-bottom: 1.5px solid #000000; text-align: center; vertical-align: middle; padding: 2px 1px;">
                     <div style="font-size: 6.5pt; font-weight: bold; line-height: 1.1; text-transform: uppercase;">{{ (!empty($karyawan['division']) && $karyawan['division'] !== '-') ? $karyawan['division'] : ($karyawan['departemen'] ?? 'PRODUCTION A DIV') }}</div>
                 </td>
@@ -519,7 +523,7 @@
                 @endif
 
                 <!-- Col 6: Foreman / Kary Ybs / Section Head Name (rowspan 2 for rows 4 & 5) -->
-                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
+                @if($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'dept_and_div')
                 <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;">&nbsp;</td>
                 @else
                 <td rowspan="2" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; text-align: center; vertical-align: middle; padding: 1px;">
@@ -545,7 +549,7 @@
                 </td>
                 @endif
                 <!-- Col 7: Section Head / Dept Head Name (rowspan 2 for rows 4 & 5) -->
-                @if($subFormVariant === 'div_head')
+                @if($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'div_head')
                 <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;">&nbsp;</td>
                 @elseif($subFormVariant === 'dept_head')
                 <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: 1px solid #000000; background-color: #bfbfbf !important;"></td>
@@ -588,7 +592,9 @@
                 </td>
                 @endif
                 <!-- Col 8: Dept Head / Div Head Name (rowspan 2 for rows 4 & 5) -->
-                @if($subFormVariant === 'div_head' || $subFormVariant === 'dept_and_div')
+                @if($subFormVariant === 'div_head')
+                <td rowspan="2" class="bg-blocked-gray" style="border-bottom: 1.5px solid #000000; border-right: none; background-color: #bfbfbf !important;"></td>
+                @elseif($subFormVariant === 'direct_div_subordinate' || $subFormVariant === 'dept_and_div')
                 <td rowspan="2" style="border-right: none; border-bottom: 1.5px solid #000000; text-align: center; vertical-align: middle; padding: 1px; background: #ffffff;">
                     @php
                         $rawSignDiv = $ttdByLevel['div_head']['signer_name'] ?? ($ttdByLevel['div_head']['user']['nama'] ?? '');
@@ -671,10 +677,14 @@
                             <th class="bg-blocked-gray" style="width: 12%; padding: 1px; background-color: #bfbfbf !important;"></th>
                             <th style="width: 13%; padding: 1px;">Dept. Head</th>
                             <th style="width: 13%; border-right: none; padding: 1px;">Div. Head</th>
-                            @elseif($subFormVariant === 'div_head')
+                            @elseif($subFormVariant === 'direct_div_subordinate')
                             <th class="bg-blocked-gray" style="width: 12%; padding: 1px; background-color: #bfbfbf !important;"></th>
                             <th class="bg-blocked-gray" style="width: 13%; padding: 1px; background-color: #bfbfbf !important;"></th>
                             <th style="width: 13%; border-right: none; padding: 1px;">Division Head</th>
+                            @elseif($subFormVariant === 'div_head')
+                            <th class="bg-blocked-gray" style="width: 12%; padding: 1px; background-color: #bfbfbf !important;"></th>
+                            <th class="bg-blocked-gray" style="width: 13%; padding: 1px; background-color: #bfbfbf !important;"></th>
+                            <th style="width: 13%; border-right: none; padding: 1px;">Mandiri / 自分</th>
                             @elseif($subFormVariant === 'karyawan_gol4')
                             <th style="width: 12%; padding: 1px;">Sect. Head</th>
                             <th style="width: 13%; padding: 1px;">Dept. head</th>
@@ -742,11 +752,17 @@
                                 <td class="text-center font-mono font-bold" style="font-size: 7pt; border-right: none; padding: 1px;">
                                     {{ $formatScoreCell($scoresByLevel['div_head'][$aspectCode] ?? null) }}
                                 </td>
+                                @elseif($subFormVariant === 'direct_div_subordinate')
+                                <td class="bg-blocked-gray" style="padding: 1px; background-color: #bfbfbf !important;"></td>
+                                <td class="bg-blocked-gray" style="padding: 1px; background-color: #bfbfbf !important;"></td>
+                                <td class="text-center font-mono font-bold" style="font-size: 7pt; border-right: none; padding: 1px;">
+                                    {{ $formatScoreCell($scoresByLevel['div_head'][$aspectCode] ?? null) }}
+                                </td>
                                 @elseif($subFormVariant === 'div_head')
                                 <td class="bg-blocked-gray" style="padding: 1px; background-color: #bfbfbf !important;"></td>
                                 <td class="bg-blocked-gray" style="padding: 1px; background-color: #bfbfbf !important;"></td>
                                 <td class="text-center font-mono font-bold" style="font-size: 7pt; border-right: none; padding: 1px;">
-                                    {{ $formatScoreCell($scoresByLevel['div_head'][$aspectCode] ?? ($scoresByLevel['dept_head'][$aspectCode] ?? null)) }}
+                                    {{ $formatScoreCell($scoresByLevel['dept_head'][$aspectCode] ?? ($scoresByLevel['foreman'][$aspectCode] ?? null)) }}
                                 </td>
                                 @elseif($subFormVariant === 'karyawan_gol4')
                                 <td class="text-center font-mono font-bold" style="font-size: 7pt; padding: 1px;">
@@ -797,10 +813,14 @@
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="font-mono">{{ $formatTotalCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
                                 <td class="font-mono" style="border-right: none;">{{ $formatTotalCell($calcDivHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
-                                @elseif($subFormVariant === 'div_head')
+                                @elseif($subFormVariant === 'direct_div_subordinate')
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="font-mono" style="border-right: none;">{{ $formatTotalCell($calcDivHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
+                                @elseif($subFormVariant === 'div_head')
+                                <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
+                                <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
+                                <td class="font-mono" style="border-right: none;">{{ $formatTotalCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
                                 @elseif($subFormVariant === 'karyawan_gol4')
                                 <td class="font-mono">{{ $formatTotalCell($calcSectionHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
                                 <td class="font-mono">{{ $formatTotalCell($calcDeptHead['groups'][$groupKey]['total_sum'] ?? null) }}</td>
@@ -846,10 +866,14 @@
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="font-mono">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['average'] ?? null) }}</td>
                                 <td class="font-mono" style="border-right: none;">{{ $formatDecimalCell($calcDivHead['groups'][$groupKey]['average'] ?? null) }}</td>
-                                @elseif($subFormVariant === 'div_head')
+                                @elseif($subFormVariant === 'direct_div_subordinate')
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="font-mono" style="border-right: none;">{{ $formatDecimalCell($calcDivHead['groups'][$groupKey]['average'] ?? null) }}</td>
+                                @elseif($subFormVariant === 'div_head')
+                                <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
+                                <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
+                                <td class="font-mono" style="border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['average'] ?? null) }}</td>
                                 @elseif($subFormVariant === 'karyawan_gol4')
                                 <td class="font-mono">{{ $formatDecimalCell($calcSectionHead['groups'][$groupKey]['average'] ?? null) }}</td>
                                 <td class="font-mono">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['average'] ?? null) }}</td>
@@ -878,10 +902,14 @@
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
                                 <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDivHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
-                                @elseif($subFormVariant === 'div_head')
+                                @elseif($subFormVariant === 'direct_div_subordinate')
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
                                 <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDivHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
+                                @elseif($subFormVariant === 'div_head')
+                                <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
+                                <td class="bg-blocked-gray" style="background-color: #bfbfbf !important;"></td>
+                                <td class="font-mono" style="background: #f1f5f9; border-right: none;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
                                 @elseif($subFormVariant === 'karyawan_gol4')
                                 <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcSectionHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>
                                 <td class="font-mono" style="background: #f1f5f9;">{{ $formatDecimalCell($calcDeptHead['groups'][$groupKey]['weighted_score'] ?? null) }}</td>

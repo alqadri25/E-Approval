@@ -110,11 +110,13 @@ class DashboardController extends Controller
                 $isSecretaryEmp = str_contains(strtoupper($k['seksi'] ?? ''), 'SECRETARY') || str_contains(strtoupper($k['jabatan'] ?? ''), 'SECRETARY') || in_array((string)($k['nrp'] ?? ''), ['268', '1237']);
                 $isDeptEmp = $expectedKodeForm === '07-006-DH' || ((str_contains(strtoupper($k['jabatan'] ?? ''), 'DEPT HEAD') || str_contains(strtoupper($k['jabatan'] ?? ''), 'DEPARTMENT HEAD') || str_contains(strtoupper($k['jabatan'] ?? ''), 'MANAGER')) && !str_contains(strtoupper($k['jabatan'] ?? ''), 'NON KASIE'));
 
+                $isForemanSelfEmp = ($expectedKodeForm === '07-004') || (!PenilaianController::isForm07006($expectedKodeForm) && (str_contains(strtoupper($k['jabatan'] ?? ''), 'FOREMAN') || str_contains(strtoupper($k['level_form'] ?? ''), 'FOREMAN')));
+
                 if ($isDivEmp) {
                     $status = 'menunggu_div_head';
                 } elseif ($isDeptEmp || $isSecretaryEmp) {
                     $status = 'menunggu_dept_head';
-                } elseif (!empty($k['nrp_foreman'])) {
+                } elseif (!empty($k['nrp_foreman']) || $isForemanSelfEmp) {
                     $status = 'menunggu_foreman';
                 } else {
                     $status = 'menunggu_section_head';
@@ -180,10 +182,17 @@ class DashboardController extends Controller
         $foremanShBelumDinilai = 0;
 
         if ($user->isForeman()) {
-            // Filter strictly to subordinates of this specific Foreman (termasuk evaluasi diri sendiri)
-            $mySubordinates = array_values(array_filter($allKaryawan, function ($k) use ($user) {
+            $userKaryawan = \Illuminate\Support\Facades\DB::table('karyawan')->where('nrp', $user->nrp)->first();
+            $isForemanAbove5 = $userKaryawan ? PenilaianController::isForemanAboveKj5($userKaryawan) : false;
+
+            // Filter strictly to subordinates of this specific Foreman (termasuk evaluasi diri sendiri jika KJ <= 5)
+            $mySubordinates = array_values(array_filter($allKaryawan, function ($k) use ($user, $isForemanAbove5) {
                 if (!empty($k['nrp_foreman']) && strcasecmp($k['nrp_foreman'], $user->nrp) === 0) {
                     return true;
+                }
+                // Jika Foreman KJ 5 ke atas (KJ > 5), dinilai langsung oleh Section Head dan tidak tampil di dashboard dirinya sendiri
+                if ($isForemanAbove5) {
+                    return false;
                 }
                 return strcasecmp($k['nrp'] ?? '', $user->nrp) === 0;
             }));
@@ -223,32 +232,83 @@ class DashboardController extends Controller
                 $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
 
                 if ($isSelf) {
-                    // Foreman KJ 5 ke atas (Form 07-006 / 07-004) dinilai langsung oleh Section Head -> Dept Head -> Div Head.
-                    // Dokumen Foreman tidak memerlukan tindakan penilaian mandiri oleh Foreman sendiri.
-                    if ($status === 'selesai') {
-                        $actionType = 'sudah_dikirim';
-                        $actionLabel = 'Selesai & Arsip';
-                        $stageLabel = 'Selesai (Disetujui)';
-                        $foremanDoneCount++;
-                        $foremanSelesaiCount++;
-                        $foremanShSudahDinilai++;
-                    } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
-                        $actionType = 'sudah_dikirim';
-                        $actionLabel = 'Proses Dept Head';
-                        $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
-                        $foremanDoneCount++;
-                        $foremanShSudahDinilai++;
-                    } else {
-                        // Menunggu Section Head
-                        $actionType = 'sudah_dikirim';
-                        $actionLabel = 'Terkirim ke Section Head';
-                        $stageLabel = 'Section Head';
-                        $foremanDoneCount++;
-                        $hasShScore = ($docId && isset($nilaiGrouped[$docId]['section_head']) && !empty($nilaiGrouped[$docId]['section_head']));
-                        if ($hasShScore) {
+                    $isForemanKjAbove5 = PenilaianController::isForemanAboveKj5($k, $doc['kode_form'] ?? null);
+
+                    if ($isForemanKjAbove5) {
+                        // Foreman KJ 5 ke atas (Form 07-006) dinilai langsung oleh Section Head -> Dept Head -> Div Head.
+                        // Dokumen Foreman KJ > 5 tidak memerlukan tindakan penilaian mandiri oleh Foreman sendiri.
+                        if ($status === 'selesai') {
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Selesai & Arsip';
+                            $stageLabel = 'Selesai (Disetujui)';
+                            $foremanDoneCount++;
+                            $foremanSelesaiCount++;
+                            $foremanShSudahDinilai++;
+                        } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Proses Dept Head';
+                            $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
+                            $foremanDoneCount++;
                             $foremanShSudahDinilai++;
                         } else {
-                            $foremanShBelumDinilai++;
+                            // Menunggu Section Head
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Terkirim ke Section Head';
+                            $stageLabel = 'Section Head';
+                            $foremanDoneCount++;
+                            $hasShScore = ($docId && isset($nilaiGrouped[$docId]['section_head']) && !empty($nilaiGrouped[$docId]['section_head']));
+                            if ($hasShScore) {
+                                $foremanShSudahDinilai++;
+                            } else {
+                                $foremanShBelumDinilai++;
+                            }
+                        }
+                    } else {
+                        // Foreman KJ <= 5 (Form 07-004, misal KJ 4 Rimuru Tempest 5):
+                        // DIA HARUS MENILAI DIRINYA SENDIRI DULU (Evaluasi Mandiri Foreman)!
+                        if ($status === 'revisi') {
+                            $actionType = 'revisi';
+                            $actionLabel = 'Perlu Revisi';
+                            $stageLabel = 'Revisi dari Section Head';
+                            $foremanRevisiCount++;
+                            $foremanNeedActionCount++;
+                        } elseif ($status === 'selesai') {
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Selesai & Arsip';
+                            $stageLabel = 'Selesai (Disetujui)';
+                            $foremanDoneCount++;
+                            $foremanSelesaiCount++;
+                            $foremanShSudahDinilai++;
+                        } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Proses Dept Head';
+                            $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
+                            $foremanDoneCount++;
+                            $foremanShSudahDinilai++;
+                        } elseif ($status === 'menunggu_section_head') {
+                            $actionType = 'sudah_dikirim';
+                            $actionLabel = 'Terkirim ke Section Head';
+                            $stageLabel = 'Section Head';
+                            $foremanDoneCount++;
+                            $hasShScore = ($docId && isset($nilaiGrouped[$docId]['section_head']) && !empty($nilaiGrouped[$docId]['section_head']));
+                            if ($hasShScore) {
+                                $foremanShSudahDinilai++;
+                            } else {
+                                $foremanShBelumDinilai++;
+                            }
+                        } elseif ($status === 'draft' || ($isEvaluated && ($status === 'menunggu_foreman' || $status === 'belum_ada'))) {
+                            $actionType = 'draft';
+                            $actionLabel = 'Draft Tersimpan';
+                            $stageLabel = 'Draft (Belum TTD)';
+                            $foremanDraftCount++;
+                            $foremanNeedActionCount++;
+                        } else {
+                            // Belum dinilai mandiri
+                            $actionType = 'belum_dinilai';
+                            $actionLabel = 'Belum Dinilai';
+                            $stageLabel = 'Penilaian Foreman (To-Do)';
+                            $foremanBelumCount++;
+                            $foremanNeedActionCount++;
                         }
                     }
                 } else {
@@ -458,18 +518,20 @@ class DashboardController extends Controller
                 $kodeFormDoc = $doc['kode_form'] ?? PenilaianController::determineKodeForm($k);
                 $isGol4UpDoc = PenilaianController::isForm07006($kodeFormDoc);
                 $isSelfDoc = (strcasecmp($user->nrp, $nrp) === 0);
+                $isForemanDoc = ($kodeFormDoc === '07-004') || (!PenilaianController::isForemanAboveKj5($k, $kodeFormDoc) && (str_contains(strtoupper($k['jabatan'] ?? ''), 'FOREMAN') || str_contains(strtoupper($k['level_form'] ?? ''), 'FOREMAN')));
+                $hasForemanEmp = (!empty($foremanNrp) || $isForemanDoc) && !$isGol4UpDoc && !$isSelfDoc;
 
-                // 1. Check Foreman evaluation (hanya jika karyawan memang memiliki Foreman pada form KJ 1-5)
-                $foremanScores = (!empty($foremanNrp) && !$isGol4UpDoc && !$isSelfDoc && $docId && isset($nilaiGrouped[$docId]['foreman'])) 
+                // 1. Check Foreman evaluation (hanya jika karyawan memang memiliki Foreman pada form KJ 1-5 atau form Foreman)
+                $foremanScores = ($hasForemanEmp && $docId && isset($nilaiGrouped[$docId]['foreman'])) 
                     ? $nilaiGrouped[$docId]['foreman'] 
                     : [];
                 $calcForeman = !empty($foremanScores) 
                     ? $this->calcService->calculate($kodeFormDoc, $foremanScores) 
                     : ['grand_total' => 0.00];
-                $fScore = (!empty($foremanNrp) && !$isGol4UpDoc && !$isSelfDoc)
+                $fScore = $hasForemanEmp
                     ? ($calcForeman['grand_total'] > 0 ? $calcForeman['grand_total'] : ($doc['total_nilai'] ?? 0))
                     : 0;
-                $isEvaluatedByForeman = !empty($foremanNrp) && !$isGol4UpDoc && !$isSelfDoc && (($status !== 'belum_ada' && $status !== 'draft' && $status !== 'menunggu_foreman') || ($fScore > 0));
+                $isEvaluatedByForeman = $hasForemanEmp && (($status !== 'belum_ada' && $status !== 'draft' && $status !== 'menunggu_foreman') || ($fScore > 0));
                 $foremanGrade = '-';
                 if ($isEvaluatedByForeman && $fScore > 0) {
                     $foremanGrade = $this->calcService->scoreToGrade($fScore);

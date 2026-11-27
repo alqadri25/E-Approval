@@ -23,7 +23,7 @@
                 Target &amp; Kuota Penilaian Divisi
             </h1>
             <p class="text-xs text-red-100 font-medium mt-1 max-w-3xl leading-relaxed">
-                Atur target kuota grade (S, A, B, C, K) untuk seluruh karyawan pemakai <strong>Form 07-006</strong> di seluruh divisi. Data target tersinkronisasi ke Google Spreadsheet sheet <strong>TARGETDIVISION</strong> dan tampil di dashboard Division Head.
+                Atur target kuota grade (S, A, B, C, K) untuk seluruh karyawan pemakai <strong>Form 07-006</strong> di seluruh divisi dan tampil di dashboard Division Head.
             </p>
         </div>
 
@@ -66,54 +66,46 @@
         </div>
     @endif
 
-    <!-- 3. KPI Top Stat Cards -->
+    <!-- 3. KPI Top Stat Cards (Clean Department Style) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <!-- Card 1: Total Karyawan Form 07-006 -->
-        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
-            <div class="flex items-center justify-between">
-                <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">Populasi 07-006</span>
-                <span class="w-6 h-6 rounded-none bg-red-100 text-[#92302e] flex items-center justify-center text-xs font-bold">👥</span>
+        <div class="bg-white rounded-none p-3.5 border border-slate-300 shadow-2xs">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Populasi 07-006</span>
+            <div class="mt-1 flex items-baseline gap-1.5">
+                <span class="text-2xl font-black text-slate-900">{{ $totalKaryawan07006 }}</span>
+                <span class="text-xs font-medium text-slate-500">karyawan</span>
             </div>
-            <div class="mt-2">
-                <div class="text-2xl font-black font-mono text-slate-900">{{ $totalKaryawan07006 }}</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">Karyawan Seluruh Divisi</div>
-            </div>
+            <span class="text-[10px] text-slate-500 mt-0.5 block truncate">Karyawan Seluruh Divisi</span>
         </div>
 
         <!-- Card 2: Total Target Kuota -->
-        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
-            <div class="flex items-center justify-between">
-                <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">Target Kuota Admin</span>
-                <span class="w-6 h-6 rounded-none bg-blue-100 text-blue-800 flex items-center justify-center text-xs font-bold">🎯</span>
+        <div class="bg-white rounded-none p-3.5 border border-slate-300 shadow-2xs">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Target Kuota Admin</span>
+            <div class="mt-1 flex items-baseline gap-1.5">
+                <span class="text-2xl font-black text-[#92302e]" x-text="totalTarget">{{ $globalTarget['total'] }}</span>
+                <span class="text-xs font-medium text-slate-500">orang</span>
             </div>
-            <div class="mt-2">
-                <div class="text-2xl font-black font-mono text-blue-900" x-text="totalTarget">{{ $globalTarget['total'] }}</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">Alokasi Target Predikat</div>
-            </div>
+            <span class="text-[10px] text-slate-500 mt-0.5 block truncate">Alokasi Target Predikat</span>
         </div>
 
         <!-- Card 3: Sudah Dinilai -->
-        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
-            <div class="flex items-center justify-between">
-                <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">Realisasi Nilai</span>
-                <span class="w-6 h-6 rounded-none bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">✓</span>
+        <div class="bg-white rounded-none p-3.5 border border-slate-300 shadow-2xs">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Realisasi Nilai</span>
+            <div class="mt-1 flex items-baseline gap-1.5">
+                <span class="text-2xl font-black text-emerald-700">{{ $totalActual }}</span>
+                <span class="text-xs font-medium text-slate-500">dinilai</span>
             </div>
-            <div class="mt-2">
-                <div class="text-2xl font-black font-mono text-emerald-700">{{ $totalActual }}</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">Karyawan Sudah Dinilai</div>
-            </div>
+            <span class="text-[10px] text-slate-500 mt-0.5 block truncate">Karyawan Sudah Dinilai</span>
         </div>
 
         <!-- Card 4: Total Divisi Terlibat -->
-        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
-            <div class="flex items-center justify-between">
-                <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500">Total Divisi</span>
-                <span class="w-6 h-6 rounded-none bg-amber-100 text-amber-900 flex items-center justify-center text-xs font-bold">🏢</span>
+        <div class="bg-white rounded-none p-3.5 border border-slate-300 shadow-2xs">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Divisi</span>
+            <div class="mt-1 flex items-baseline gap-1.5">
+                <span class="text-2xl font-black text-slate-800">{{ $totalDivisi }}</span>
+                <span class="text-xs font-medium text-slate-500">divisi</span>
             </div>
-            <div class="mt-2">
-                <div class="text-2xl font-black font-mono text-slate-900">{{ $totalDivisi }}</div>
-                <div class="text-[11px] text-slate-500 mt-0.5">Divisi Pemakai 07-006</div>
-            </div>
+            <span class="text-[10px] text-slate-500 mt-0.5 block truncate">Divisi Pemakai 07-006</span>
         </div>
     </div>
 
@@ -132,7 +124,7 @@
                 </p>
             </div>
             <div class="text-xs font-mono font-bold text-slate-600 bg-white px-2.5 py-1 rounded-none border border-slate-300">
-                Terakhir Update: {{ $terakhirUpdate }}
+                Terakhir Update: <span id="realtimeClock">{{ $terakhirUpdate }}</span>
             </div>
         </div>
 
@@ -374,7 +366,7 @@
                     </span>
                 </h3>
                 <p class="text-xs text-slate-500 mt-0.5">
-                    Rincian nilai aktual (S, A, B, C, K) dari tiap divisi yang digabungkan ke sheet <strong>TARGETDIVISION</strong> dan dashboard Division Head.
+                    Rincian nilai aktual (S, A, B, C, K) dari tiap divisi yang tampil di dashboard Division Head.
                 </p>
             </div>
         </div>
@@ -504,4 +496,20 @@
     </div>
 
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function updateWibClock() {
+        const el = document.getElementById('realtimeClock');
+        if (!el) return;
+        const now = new Date();
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const wib = new Date(utc + (3600000 * 7));
+        const pad = (n) => String(n).padStart(2, '0');
+        const str = pad(wib.getDate()) + '-' + pad(wib.getMonth() + 1) + '-' + wib.getFullYear() + ' ' + pad(wib.getHours()) + ':' + pad(wib.getMinutes()) + ' WIB';
+        el.innerText = str;
+    }
+    setInterval(updateWibClock, 10000);
+});
+</script>
 @endsection

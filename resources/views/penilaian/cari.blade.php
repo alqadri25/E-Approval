@@ -318,7 +318,7 @@
                             <button type="submit" 
                                     :class="matchedKaryawan.is_kj_locked && matchedKaryawan.status !== 'selesai' && !matchedKaryawan.is_self ? 'bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300' : 'bg-[#92302e] hover:bg-[#7e2524] text-white'"
                                     class="w-full sm:w-auto px-5 py-2.5 font-bold text-xs shadow-sm transition-colors flex items-center justify-center gap-2 rounded-none cursor-pointer">
-                                <span x-text="matchedKaryawan.is_kj_locked && matchedKaryawan.status !== 'selesai' && !matchedKaryawan.is_self ? ('🔒 Buka Form (Kuota ' + matchedKaryawan.kj + ' Penuh)') : (matchedKaryawan.is_self ? ('✍️ Buka Penilaian Mandiri (Form ' + (matchedKaryawan.kode_form || '07-006') + ')') : (isDivHead ? (matchedKaryawan.status === 'menunggu_div_head' ? '✍️ Tinjau & Final Approval' : (matchedKaryawan.status === 'selesai' ? '👁️ Lihat Form Penilaian' : '🔒 Buka Form (Terkunci)')) : (isDeptHead ? (matchedKaryawan.status === 'menunggu_dept_head' ? '✍️ Tinjau & Tetapkan Nilai Dept Head' : '🔒 Buka Form (Terkunci)') : (isSectionHead ? (matchedKaryawan.foreman_evaluated || !matchedKaryawan.nrp_foreman ? '✍️ Tinjau & Isi Nilai Section Head' : '🔒 Buka Form (Menunggu Foreman)') : '✍️ Mulai Penilaian Sekarang'))))"></span>
+                                <span x-text="matchedKaryawan.is_kj_locked && matchedKaryawan.status !== 'selesai' && !matchedKaryawan.is_self ? ('🔒 Buka Form (Kuota ' + matchedKaryawan.kj + ' Penuh)') : (matchedKaryawan.is_self ? ('✍️ Buka Penilaian Mandiri (Form ' + (matchedKaryawan.kode_form || '07-006') + ')') : (isDivHead ? (matchedKaryawan.status === 'menunggu_div_head' ? '✍️ Tinjau & Final Approval' : (matchedKaryawan.status === 'selesai' ? '👁️ Lihat Form Penilaian' : '🔒 Buka Form (Terkunci)')) : (isDeptHead ? (matchedKaryawan.status === 'menunggu_dept_head' ? '✍️ Tinjau & Tetapkan Nilai Dept Head' : '🔒 Buka Form (Terkunci)') : (isSectionHead ? (matchedKaryawan.status === 'menunggu_foreman' || matchedKaryawan.is_waiting_foreman ? '🔒 Buka Form (Menunggu Foreman)' : (matchedKaryawan.foreman_evaluated || (!matchedKaryawan.nrp_foreman && matchedKaryawan.kode_form !== '07-004') ? '✍️ Tinjau & Isi Nilai Section Head' : '🔒 Buka Form (Menunggu Foreman)')) : '✍️ Mulai Penilaian Sekarang'))))"></span>
                                 <span>&rarr;</span>
                             </button>
                         </form>
@@ -641,7 +641,13 @@
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-slate-100 text-slate-600 border border-slate-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Belum Dinilai</span>
                                         @endif
                                     @elseif($user->isSectionHead())
-                                        @if($sub['status'] === 'selesai')
+                                        @if($isSelf)
+                                            @if($sub['status'] === 'selesai' || $sub['section_head_evaluated'] || $sub['has_section_head_sign'])
+                                                <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Mandiri Terisi (Proses Dept Head)</span>
+                                            @else
+                                                <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">✍️ Evaluasi Mandiri (Belum Dinilai)</span>
+                                            @endif
+                                        @elseif($sub['status'] === 'selesai')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-none inline-flex items-center whitespace-nowrap">✓ Selesai</span>
                                         @elseif($sub['status'] === 'revisi')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-rose-50 text-rose-800 border border-rose-300 rounded-none inline-flex items-center whitespace-nowrap">↩️ Perlu Revisi</span>
@@ -650,7 +656,7 @@
                                         @elseif(!empty($sub['is_waiting_foreman']) || $sub['status'] === 'menunggu_foreman')
                                             <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">⏳ Menunggu Foreman</span>
                                         @else
-                                            @if(!empty($sub['nrp_foreman']) && ($sub['foreman_evaluated'] || $sub['has_foreman_sign']))
+                                            @if($sub['foreman_evaluated'] || $sub['has_foreman_sign'])
                                                 <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Perlu Dinilai Section Head (✓ Foreman Grade {{ $sub['foreman_grade'] ?? '✓' }})</span>
                                             @else
                                                 <span class="px-2 py-0.5 font-bold text-[10px] bg-amber-50 text-amber-800 border border-amber-300 rounded-none inline-flex items-center whitespace-nowrap">🔔 Perlu Dinilai Section Head</span>

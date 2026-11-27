@@ -163,7 +163,10 @@ class DatabaseSyncService
                 // Form 07-006-KARYAWAN (KJ 5+ non-Section Head): Dinilai pertama oleh Section Head!
                 $status = 'menunggu_section_head';
             } else {
-                $hasForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
+                $hasAssignedForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
+                $kArray = (array)$k;
+                $isForemanKjUnderEqual5 = !PenilaianController::isForemanAboveKj5($kArray, $kodeForm) && (str_contains(strtoupper($k->jabatan ?? ''), 'FOREMAN') || str_contains(strtoupper($k->level_form ?? ''), 'FOREMAN') || $kodeForm === '07-004');
+                $hasForeman = ($hasAssignedForeman || $isForemanKjUnderEqual5) && !PenilaianController::isForm07006($kodeForm);
                 $status = $hasForeman ? 'menunggu_foreman' : 'menunggu_section_head';
             }
 
@@ -206,7 +209,10 @@ class DatabaseSyncService
                     $hasShScore = DB::table('nilai')->where('dokumen_id', $existingDoc->id)->where('level', 'section_head')->exists();
                     $hasTotalScore = !empty($existingDoc->total_nilai);
                     if (!$hasShTtd && !$hasShScore && !$hasTotalScore && in_array($existingDoc->status, ['draft', 'menunggu_dept_head'])) {
-                        $hasForemanEmp = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
+                        $hasAssignedForeman = !empty($k->nrp_foreman) && trim((string)$k->nrp_foreman) !== '-' && strcasecmp(trim((string)$k->nrp_foreman), $nrp) !== 0;
+                        $kArray = (array)$k;
+                        $isForemanKjUnderEqual5 = !PenilaianController::isForemanAboveKj5($kArray, $kodeForm) && (str_contains(strtoupper($k->jabatan ?? ''), 'FOREMAN') || str_contains(strtoupper($k->level_form ?? ''), 'FOREMAN') || $kodeForm === '07-004');
+                        $hasForemanEmp = ($hasAssignedForeman || $isForemanKjUnderEqual5) && !PenilaianController::isForm07006($kodeForm);
                         $docUpdate['status'] = $hasForemanEmp ? 'menunggu_foreman' : 'menunggu_section_head';
                     }
                 } elseif ($existingDoc && $isDirectDeptDiv) {
