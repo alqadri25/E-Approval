@@ -377,14 +377,9 @@ class GoogleSyncService
                                 }
                             }
 
-                            // Hapus karyawan lokal yang sudah tidak ada / dihapus di Google Spreadsheet
-                            DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
-
-                            if (empty($sheetNrps)) {
-                                if (Schema::hasTable('dokumen')) DB::table('dokumen')->delete();
-                                if (Schema::hasTable('nilai')) DB::table('nilai')->delete();
-                                if (Schema::hasTable('indikator')) DB::table('indikator')->delete();
-                                if (Schema::hasTable('tanda_tangan')) DB::table('tanda_tangan')->delete();
+                            // Hapus karyawan lokal yang sudah tidak ada / dihapus di Google Spreadsheet (hanya jika data sheet valid & tidak kosong)
+                            if (!empty($sheetNrps)) {
+                                DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
                             }
                         });
 

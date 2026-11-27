@@ -943,6 +943,11 @@
                         @php
                             if ($subFormVariant === 'karyawan_gol4') {
                                 $foremanImg = $ttdByLevel['section_head']['ttd_base64'] ?? $ttdByLevel['section_head']['ttd_image'] ?? null;
+                            } elseif ($subFormVariant === 'div_head') {
+                                $foremanImg = $ttdByLevel['foreman']['ttd_base64'] ?? $ttdByLevel['foreman']['ttd_image']
+                                    ?? $ttdByLevel['div_head']['ttd_base64'] ?? $ttdByLevel['div_head']['ttd_image']
+                                    ?? $ttdByLevel['dept_head']['ttd_base64'] ?? $ttdByLevel['dept_head']['ttd_image']
+                                    ?? null;
                             } else {
                                 $foremanImg = $ttdByLevel['foreman']['ttd_base64'] ?? $ttdByLevel['foreman']['ttd_image'] ?? null;
                             }
@@ -1137,6 +1142,9 @@
                         if ($subFormVariant === 'karyawan_gol4') {
                             $rawSignCol6 = $ttdByLevel['section_head']['user']['nama'] ?? '';
                             $karyName = !empty($rawSignCol6) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignCol6)) : $shNama;
+                        } elseif ($subFormVariant === 'div_head') {
+                            $rawSignForeman = $ttdByLevel['foreman']['user']['nama'] ?? ($ttdByLevel['foreman']['signer_name'] ?? ($ttdByLevel['div_head']['user']['nama'] ?? ($ttdByLevel['div_head']['signer_name'] ?? '')));
+                            $karyName = !empty($rawSignForeman) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignForeman)) : $karyawan['nama_lengkap'];
                         } else {
                             $rawSignForeman = $ttdByLevel['foreman']['user']['nama'] ?? '';
                             $karyName = !empty($rawSignForeman) ? trim(preg_replace('/\s*\(.*?\)/', '', $rawSignForeman)) : ($isGol4Up ? $karyawan['nama_lengkap'] : ($isTanpaForemanStd ? '' : $foremanNama));
