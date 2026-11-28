@@ -300,19 +300,34 @@
         </div>
 
         <!-- Card 5: Approval Department Head -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['section_head']['menunggu_dept'] ?? 0) > 0 ? 'border-blue-300 bg-blue-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        @php
+            $shDhSudah = $roleWorkflowCards['section_head']['dh_sudah'] ?? 0;
+            $shDhBelum = $roleWorkflowCards['section_head']['dh_belum'] ?? 0;
+            $shDhTotal = $shDhSudah + $shDhBelum;
+        @endphp
+        <div class="bg-white rounded-none border {{ $shDhBelum > 0 ? 'border-amber-300 bg-amber-50/30' : ($shDhSudah > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300') }} p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Approval Department Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                    {{ $roleWorkflowCards['section_head']['menunggu_dept'] ?? 0 }}
+                    {{ $shDhTotal }}
                 </div>
-                <span class="text-[11px] text-slate-500 mt-1 block font-medium">
-                    {{ ($roleWorkflowCards['section_head']['menunggu_dept'] ?? 0) > 0 ? 'Sedang ditinjau Department Head' : 'Tidak ada antrean' }}
+                <span class="text-[11px] {{ $shDhBelum > 0 ? 'text-amber-700 font-bold' : ($shDhSudah > 0 ? 'text-emerald-700 font-bold' : 'text-slate-500 font-medium') }} mt-1 block">
+                    @if($shDhTotal === 0)
+                        Tidak ada antrean
+                    @elseif($shDhBelum > 0)
+                        Dalam antrean Department Head
+                    @else
+                        Sudah disetujui Department Head
+                    @endif
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-medium text-slate-500">{{ ($roleWorkflowCards['section_head']['menunggu_dept'] ?? 0) > 0 ? 'Proses review DH' : 'Selesai ditinjau' }}</span>
-                <span class="font-mono text-slate-400 text-[10px]">Tahap Dept</span>
+                <span class="font-bold text-slate-600">
+                    Sudah Dinilai: <span class="text-emerald-700">{{ $shDhSudah }}</span> &bull; Belum Dinilai: <span class="{{ $shDhBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $shDhBelum }}</span>
+                </span>
+                <span class="font-mono text-[10px] {{ $shDhBelum > 0 ? 'text-amber-700 font-bold' : ($shDhSudah > 0 ? 'text-emerald-700 font-bold' : 'text-slate-400') }}">
+                    {{ $shDhTotal === 0 ? 'Tahap Dept' : ($shDhBelum > 0 ? 'Antrean' : 'Disetujui') }}
+                </span>
             </div>
         </div>
     </div>
@@ -941,7 +956,7 @@
         $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan || $isSectionHeadLaporan);
         $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan);
         $showColDiv = $isSuperOrAdmin || $isDivHeadLaporan;
-        $showColFinal = !$isForemanLaporan;
+        $showColFinal = !$isForemanLaporan && !$isSectionHeadLaporan;
 
         // 17 kolom identitas & bobot + 1 kolom aksi + jumlah kolom nilai PK yang aktif
         $totalTableCols = 18 + ($showColForeman ? 1 : 0) + ($showColMandiri ? 1 : 0) + ($showColSect ? 1 : 0) + ($showColDept ? 1 : 0) + ($showColDiv ? 1 : 0) + ($showColFinal ? 1 : 0);
@@ -975,7 +990,7 @@
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK MANDIRI</th>
                         @endif
                         @if($showColSect)
-                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK SECT</th>
+                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">{{ $isSectionHeadLaporan ? 'NILAI PK SECTION HEAD' : 'NILAI PK SECT' }}</th>
                         @endif
                         @if($showColDept)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK DEPT</th>

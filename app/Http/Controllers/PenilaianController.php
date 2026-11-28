@@ -9840,6 +9840,8 @@ class PenilaianController extends Controller
         $shCountProsesForeman = 0;
         $shCountDiteruskanDept = 0;
         $shCountMenungguDept = 0;
+        $shCountDhSudah = 0;
+        $shCountDhBelum = 0;
         $shCountMenungguDiv = 0;
         $shCountSelesai = 0;
 
@@ -9909,6 +9911,12 @@ class PenilaianController extends Controller
             // Section Head metrics
             if (in_array($st, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
                 $shCountDiteruskanDept++;
+                $hasDhEval = $docId && (!empty($nilaiByDoc[$docId]['dept_head']) || !empty($ttdByDoc[$docId]['dept_head']));
+                if (in_array($st, ['menunggu_div_head', 'selesai']) || $hasDhEval) {
+                    $shCountDhSudah++;
+                } else {
+                    $shCountDhBelum++;
+                }
             }
             if ($st === 'menunggu_dept_head') {
                 $shCountMenungguDept++;
@@ -10000,6 +10008,8 @@ class PenilaianController extends Controller
                 'total_dinilai' => $sudahDinilai,
                 'diteruskan_dept' => $shCountDiteruskanDept,
                 'menunggu_dept' => $shCountMenungguDept,
+                'dh_sudah' => $shCountDhSudah,
+                'dh_belum' => $shCountDhBelum,
                 'menunggu_div' => $shCountMenungguDiv,
                 'selesai' => $shCountSelesai,
             ],
@@ -10341,7 +10351,7 @@ class PenilaianController extends Controller
         $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead || $isSectionHead);
         $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead);
         $showColDiv = $isSuperOrAdmin || $isDivHead;
-        $showColFinal = !$isForeman;
+        $showColFinal = !$isForeman && !$isSectionHead;
 
         $headers = [
             'NO',
@@ -10370,7 +10380,7 @@ class PenilaianController extends Controller
             $headers[] = 'NILAI PK MANDIRI';
         }
         if ($showColSect) {
-            $headers[] = 'NILAI PK SECT';
+            $headers[] = $isSectionHead ? 'NILAI PK SECTION HEAD' : 'NILAI PK SECT';
         }
         if ($showColDept) {
             $headers[] = 'NILAI PK DEPT';
