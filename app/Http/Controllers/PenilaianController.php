@@ -7513,8 +7513,18 @@ class PenilaianController extends Controller
             $latestPending = $rows[0];
         }
 
-        // Urutkan baris: yang sudah dinilai (is_done / Disahkan Final / memiliki nilai) paling atas
+        // Urutkan baris: baris yang memiliki aksi Nilai (siap dinilai / disahkan Div Head) paling atas
         usort($rows, function ($a, $b) {
+            $aActionable = !empty($a['can_evaluate_div']) || !empty($a['is_waiting_div']);
+            $bActionable = !empty($b['can_evaluate_div']) || !empty($b['is_waiting_div']);
+            if ($aActionable !== $bActionable) {
+                return $aActionable ? -1 : 1;
+            }
+
+            if (!empty($a['is_waiting_div']) !== !empty($b['is_waiting_div'])) {
+                return !empty($a['is_waiting_div']) ? -1 : 1;
+            }
+
             $aDone = !empty($a['is_done']) || ($a['status'] ?? '') === 'Disahkan Final';
             $bDone = !empty($b['is_done']) || ($b['status'] ?? '') === 'Disahkan Final';
             if ($aDone !== $bDone) {
@@ -7525,10 +7535,6 @@ class PenilaianController extends Controller
             $bHasScore = ($b['nilai_mandiri'] ?? '-') !== '-' || ($b['nilai_section'] ?? '-') !== '-' || ($b['nilai_dept'] ?? '-') !== '-' || !empty($b['nilai_div']);
             if ($aHasScore !== $bHasScore) {
                 return $aHasScore ? -1 : 1;
-            }
-
-            if (!empty($a['is_waiting_div']) !== !empty($b['is_waiting_div'])) {
-                return !empty($a['is_waiting_div']) ? -1 : 1;
             }
 
             if (!empty($a['is_self']) !== !empty($b['is_self'])) {
