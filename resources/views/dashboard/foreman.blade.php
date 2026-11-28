@@ -283,15 +283,15 @@
                     </div>
                     <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Section Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Section Head Melakukan Penilaian untuk bawahannya.
+                        Melakukan Penilaian untuk bawahannya.
                     </p>
                 </div>
-                <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
+                <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                     <span class="font-bold text-emerald-700">
-                        {{ $foremanShSudahDinilai ?? 0 }} Sudah dinilai
+                        Sudah Dinilai: {{ $foremanShSudahDinilai ?? 0 }}
                     </span>
                     <span class="font-bold text-slate-500">
-                        {{ $foremanShBelumDinilai ?? 0 }} Belum dinilai
+                        Belum Dinilai: {{ $foremanShBelumDinilai ?? 0 }}
                     </span>
                 </div>
             </div>
@@ -317,12 +317,12 @@
                         Telah disetujui Section Head, menunggu persetujuan Department Head.
                     </p>
                 </div>
-                <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
+                <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                     <span class="font-bold text-emerald-700">
-                        {{ $fmDhSudah }} Sudah dinilai
+                        Sudah Dinilai: {{ $fmDhSudah }}
                     </span>
                     <span class="font-bold text-slate-500">
-                        {{ $fmDhBelum }} Belum dinilai
+                        Belum Dinilai: {{ $fmDhBelum }}
                     </span>
                 </div>
             </div>
@@ -346,12 +346,12 @@
                         Penilaian disahkan penuh, PDF tersimpan dan nilai resmi tercatat.
                     </p>
                 </div>
-                <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
+                <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                     <span class="font-bold text-emerald-700">
-                        {{ $foremanSelesaiCount }} Disahkan
+                        Disahkan: {{ $foremanSelesaiCount }}
                     </span>
                     <span class="font-bold text-slate-500">
-                        {{ $fmTrackerBelumDisahkan }} Belum disahkan
+                        Belum Disahkan: {{ $fmTrackerBelumDisahkan }}
                     </span>
                 </div>
             </div>

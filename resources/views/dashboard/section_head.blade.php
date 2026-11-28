@@ -353,12 +353,12 @@
                             Foreman Melakukan Penilaian untuk bawahannya
                         </p>
                     </div>
-                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
+                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                         <span class="font-bold text-emerald-700">
-                            {{ $foremanDoneCount ?? 0 }} Sudah dinilai
+                            Sudah Dinilai: {{ $foremanDoneCount ?? 0 }}
                         </span>
                         <span class="font-bold text-slate-500">
-                            {{ $foremanStageCounts['tahap1'] ?? 0 }} Belum dinilai
+                            Belum Dinilai: {{ $foremanStageCounts['tahap1'] ?? 0 }}
                         </span>
                     </div>
                 </div>
@@ -376,7 +376,7 @@
                         </div>
                         <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Section Head</h4>
                         <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                            Section Head Melakukan Penilaian untuk bawahannya.
+                            Melakukan Penilaian untuk bawahannya.
                         </p>
                         <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                             {{ $sectionBelumCount ?? 0 }} belum dinilai &bull; {{ $sectionDraftCount ?? 0 }} draft tersimpan.
@@ -410,12 +410,12 @@
                             Telah disetujui Section Head, menunggu persetujuan Department Head.
                         </p>
                     </div>
-                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
+                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                         <span class="font-bold text-emerald-700">
-                            {{ $sectionDhSudahDinilai ?? 0 }} Sudah dinilai
+                            Sudah Dinilai: {{ $sectionDhSudahDinilai ?? 0 }}
                         </span>
                         <span class="font-bold text-slate-500">
-                            {{ $sectionDhBelumDinilai ?? 0 }} Belum dinilai
+                            Belum Dinilai: {{ $sectionDhBelumDinilai ?? 0 }}
                         </span>
                     </div>
                 </div>
@@ -440,12 +440,12 @@
                             Penilaian disahkan penuh, PDF tersimpan dan nilai resmi tercatat.
                         </p>
                     </div>
-                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
+                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                         <span class="font-bold text-emerald-700">
-                            {{ $shTrackerSelesai }} Disahkan
+                            Disahkan: {{ $shTrackerSelesai }}
                         </span>
                         <span class="font-bold text-slate-500">
-                            {{ $shTrackerBelumDisahkan }} Belum disahkan
+                            Belum Disahkan: {{ $shTrackerBelumDisahkan }}
                         </span>
                     </div>
                 </div>
