@@ -211,7 +211,47 @@
             </div>
         </div>
 
-        <!-- Card 2: Siap Disahkan (To-Do) -->
+        {{-- Card 2: Proses Foreman (or TOTAL DINILAI if no Foreman) --}}
+        @if(empty($hasForeman))
+        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
+            <div>
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">TOTAL DINILAI</span>
+                <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
+                    {{ $roleWorkflowCards['section_head']['total_dinilai'] ?? $sudahDinilai }}
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block font-medium">
+                    Pengerjaan FORM Section Head
+                </span>
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                <span class="font-medium text-slate-500">Proses Section</span>
+                <span class="font-mono text-slate-400 text-[10px]">Tahap Sect</span>
+            </div>
+        </div>
+        @else
+        <!-- Card 2: Proses Foreman -->
+        @php
+            $shFmSudah = $roleWorkflowCards['section_head']['fm_sudah'] ?? 0;
+            $shFmBelum = $roleWorkflowCards['section_head']['fm_belum'] ?? ($roleWorkflowCards['section_head']['proses_foreman'] ?? 0);
+        @endphp
+        <div class="bg-white rounded-none border {{ $shFmBelum > 0 ? 'border-blue-300 bg-blue-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+            <div>
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Proses Foreman</span>
+                <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
+                    {{ $roleWorkflowCards['section_head']['proses_foreman'] ?? 0 }}
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block font-medium">
+                    Pengerjaan Form Foreman
+                </span>
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $shFmSudah }}</span>
+                <span class="font-bold {{ $shFmBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">Belum Dinilai: {{ $shFmBelum }}</span>
+            </div>
+        </div>
+        @endif
+
+        <!-- Card 3: Siap Disahkan (To-Do) -->
         <div class="bg-white rounded-none border {{ ($roleWorkflowCards['section_head']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-1">
@@ -238,46 +278,6 @@
                 @endif
             </div>
         </div>
-
-        {{-- Card 3 --}}
-        @if(empty($hasForeman))
-        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
-            <div>
-                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">TOTAL DINILAI</span>
-                <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                    {{ $roleWorkflowCards['section_head']['total_dinilai'] ?? $sudahDinilai }}
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block font-medium">
-                    Pengerjaan FORM Section Head
-                </span>
-            </div>
-            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-medium text-slate-500">Proses Section</span>
-                <span class="font-mono text-slate-400 text-[10px]">Tahap Sect</span>
-            </div>
-        </div>
-        @else
-        <!-- Card 3: Proses Foreman -->
-        @php
-            $shFmSudah = $roleWorkflowCards['section_head']['fm_sudah'] ?? 0;
-            $shFmBelum = $roleWorkflowCards['section_head']['fm_belum'] ?? ($roleWorkflowCards['section_head']['proses_foreman'] ?? 0);
-        @endphp
-        <div class="bg-white rounded-none border {{ $shFmBelum > 0 ? 'border-blue-300 bg-blue-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
-            <div>
-                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Proses Foreman</span>
-                <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                    {{ $roleWorkflowCards['section_head']['proses_foreman'] ?? 0 }}
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block font-medium">
-                    Pengerjaan Form Foreman
-                </span>
-            </div>
-            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $shFmSudah }}</span>
-                <span class="font-bold {{ $shFmBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">Belum Dinilai: {{ $shFmBelum }}</span>
-            </div>
-        </div>
-        @endif
 
         <!-- Card 4: Diteruskan Ke Dept Head -->
         @php
@@ -314,7 +314,7 @@
                     {{ $shDivTotal }}
                 </div>
                 <span class="text-[11px] text-slate-500 mt-1 block font-medium">
-                    Telah diverifikasi Section Head
+                    Telah diverifikasi Department Head
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
