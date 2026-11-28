@@ -64,98 +64,68 @@
     </div>
 
     <!-- 2. Informative Assessment Stat Cards (5 Card Sejajar 1 Baris) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 {{ !$user->isSecretary() ? 'lg:grid-cols-5' : 'lg:grid-cols-3' }} gap-3 sm:gap-3.5 items-stretch">
+    <div class="grid grid-cols-1 sm:grid-cols-2 {{ !$user->isSecretary() ? 'lg:grid-cols-5' : 'lg:grid-cols-3' }} gap-3.5">
         <!-- Card 1: Total Anggota -->
-        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Total Karyawan</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countAll ?? count($rows) }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Anggota {{ $user->isSecretary() ? 'Secretary' : (($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head'])) ? 'Dept. Head' : ($user->departemen ?? 'Departemen')) }}</span>
-                </div>
-                <div class="w-9 h-9 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-xs border border-[#92302e]/20 shrink-0">
-                    K
-                </div>
+        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Total Karyawan</span>
+                <div class="text-2xl font-black text-slate-900 leading-none">{{ $countAll ?? count($rows) }}</div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Anggota {{ $user->isSecretary() ? 'Secretary' : 'Department Head' }}</span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countSelesai ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ max(0, ($countAll ?? count($rows)) - ($countSelesai ?? 0)) }}</span>
+            <div class="w-10 h-10 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-sm border border-[#92302e]/20 shrink-0">
+                K
             </div>
         </div>
 
         <!-- Card 2: Siap Dinilai (To-Do Dept Head) -->
-        <div class="bg-white rounded-none p-4 border {{ ($countSiap ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider {{ ($countSiap ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }} block">Siap Dinilai (To-Do)</span>
-                    <div class="text-2xl font-black {{ ($countSiap ?? 0) > 0 ? 'text-amber-900' : 'text-slate-900' }} leading-none mt-1.5">{{ $countSiap ?? 0 }}</div>
-                    <span class="text-[11px] {{ ($countSiap ?? 0) > 0 ? 'text-amber-700 font-bold' : 'text-slate-500' }} mt-1.5 block truncate">
-                        {{ ($countSiap ?? 0) > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
-                    </span>
-                </div>
-                <div class="w-9 h-9 rounded-none {{ ($countSiap ?? 0) > 0 ? 'bg-amber-200 text-amber-900 font-black animate-pulse' : 'bg-slate-100 text-slate-600' }} flex items-center justify-center text-xs font-bold border border-amber-300 shrink-0">
-                    !
-                </div>
+        <div class="bg-white rounded-none p-4 border {{ ($countSiap ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider {{ ($countSiap ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }} block mb-1">Siap Dinilai (To-Do)</span>
+                <div class="text-2xl font-black {{ ($countSiap ?? 0) > 0 ? 'text-amber-900' : 'text-slate-900' }} leading-none">{{ $countSiap ?? 0 }}</div>
+                <span class="text-[11px] {{ ($countSiap ?? 0) > 0 ? 'text-amber-700 font-bold' : 'text-slate-500' }} mt-1 block">
+                    {{ ($countSiap ?? 0) > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
+                </span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold {{ ($countSiap ?? 0) > 0 ? 'text-amber-700' : 'text-slate-500' }}">Siap Review: {{ $countSiap ?? 0 }}</span>
-                <span class="font-semibold text-slate-400">{{ $user->isSecretary() ? 'Secretary' : 'Dept Head' }}</span>
+            <div class="w-10 h-10 rounded-none {{ ($countSiap ?? 0) > 0 ? 'bg-amber-200 text-amber-900 font-black animate-pulse' : 'bg-slate-100 text-slate-600' }} flex items-center justify-center text-sm font-bold border border-amber-300 shrink-0">
+                !
             </div>
         </div>
 
         @if(!$user->isSecretary())
         <!-- Card 3: Proses Foreman -->
-        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Foreman</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countProsesForeman ?? 0 }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Foreman</span>
-                </div>
-                <div class="w-9 h-9 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-xs border border-blue-200 shrink-0">
-                    ⏳
-                </div>
+        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Proses Foreman</span>
+                <div class="text-2xl font-black text-slate-900 leading-none">{{ $countProsesForeman ?? 0 }}</div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Pengerjaan Form Foreman</span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countForemanSudah ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ $countProsesForeman ?? 0 }}</span>
+            <div class="w-10 h-10 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200 shrink-0">
+                ⏳
             </div>
         </div>
 
         <!-- Card 4: Proses Section Head -->
-        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Section Head</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countProsesSection ?? 0 }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Section Head</span>
-                </div>
-                <div class="w-9 h-9 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-xs border border-blue-200 shrink-0">
-                    ⏳
-                </div>
+        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Proses Section Head</span>
+                <div class="text-2xl font-black text-slate-900 leading-none">{{ $countProsesSection ?? 0 }}</div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Pengerjaan Form Section Head</span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countSectionSudah ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ $countProsesSection ?? 0 }}</span>
+            <div class="w-10 h-10 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200 shrink-0">
+                ⏳
             </div>
         </div>
         @endif
 
-        <!-- Card 5: Diteruskan / Selesai -->
-        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Diteruskan / Selesai</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countSelesai ?? 0 }}</div>
-                    <span class="text-[11px] text-emerald-700 font-bold mt-1.5 block truncate">Verifikasi {{ $user->isSecretary() ? 'Secretary' : 'Dept Head' }}</span>
-                </div>
-                <div class="w-9 h-9 rounded-none bg-emerald-50 text-emerald-700 font-black flex items-center justify-center text-xs border border-emerald-200 shrink-0">
-                    ✓
-                </div>
+        <!-- Card 5: Diteruskan Ke Division Head -->
+        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">{{ $user->isSecretary() ? 'Diteruskan Ke Division Head' : 'Diteruskan Ke Division Head' }}</span>
+                <div class="text-2xl font-black text-slate-900 leading-none">{{ $countSelesai ?? 0 }}</div>
+                <span class="text-[11px] text-emerald-700 font-bold mt-1 block">Telah diverifikasi {{ $user->isSecretary() ? 'Secretary' : 'Department Head' }}</span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countSelesai ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ max(0, ($countAll ?? count($rows)) - ($countSelesai ?? 0)) }}</span>
+            <div class="w-10 h-10 rounded-none bg-emerald-50 text-emerald-700 font-black flex items-center justify-center text-sm border border-emerald-200 shrink-0">
+                ✓
             </div>
         </div>
     </div>
