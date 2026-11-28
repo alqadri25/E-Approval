@@ -162,7 +162,15 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Karyawan</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $totKaryawan }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota Division Head</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">
+                        @if(($divMandiriCount ?? 0) > 0 && ($divAnggotaCount ?? 0) > 0)
+                            {{ $divMandiriCount }} Mandiri, {{ $divAnggotaCount }} Bawahan
+                        @elseif(($divAnggotaCount ?? 0) > 0)
+                            {{ $divAnggotaCount }} Anggota Tim
+                        @else
+                            Evaluasi Diri Mandiri
+                        @endif
+                    </p>
                 </div>
             </div>
             <div class="flex items-center">
@@ -172,7 +180,7 @@
             </div>
         </div>
 
-        <!-- 2. Dinilai Section Head (Tanpa Foreman) -->
+        <!-- 2. Dinilai Section Head -->
         <div onclick="filterDivKaryawan('sec_done')" 
              role="button"
              tabindex="0"
@@ -184,9 +192,9 @@
                 </div>
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-teal-700 transition-colors">Dinilai Section Head</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $divSectionTotalDinilai ?? 0 }}</p>
-                    <p class="text-[11px] text-teal-700 font-bold mt-1 leading-none">
-                        ({{ $pSec }}%) Diteruskan ke Dept Head
+                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ ($divSectionTotalDinilai ?? 0) + ($divSectionDraftCount ?? 0) }}</p>
+                    <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
+                        {{ $divSectionDraftCount ?? 0 }} draft, {{ $divSectionBelumCount ?? 0 }} belum dinilai
                     </p>
                 </div>
             </div>
@@ -197,21 +205,21 @@
             </div>
         </div>
 
-        <!-- 3. Dinilai Dept. Head -->
-        <div onclick="filterDivKaryawan('tahap2')" 
+        <!-- 3. Dinilai Department Head -->
+        <div onclick="filterDivKaryawan('dept_done')" 
              role="button"
              tabindex="0"
-             title="Klik untuk memfilter Data Karyawan pada Tahap Dept Head"
+             title="Klik untuk memfilter Data Karyawan yang telah dinilai Department Head"
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-emerald-600 hover:shadow-md transition-all flex items-center justify-between group cursor-pointer active:scale-[0.99]">
             <div class="flex items-center gap-3.5">
                 <div class="w-10 h-10 rounded-none bg-emerald-50 text-emerald-700 font-black flex items-center justify-center text-sm flex-shrink-0 border border-emerald-300 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                     ✓
                 </div>
                 <div>
-                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-emerald-700 transition-colors">Dinilai Dept. Head</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $divDeptTotalDinilai }}</p>
-                    <p class="text-[11px] text-emerald-600 font-bold mt-1 leading-none">
-                        ({{ $pDept }}%) Diverifikasi Dept
+                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-emerald-700 transition-colors">Dinilai Department Head</p>
+                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ ($divDeptTotalDinilai ?? 0) + ($divDeptDraftCount ?? 0) }}</p>
+                    <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
+                        {{ $divDeptDraftCount ?? 0 }} draft, {{ $divDeptBelumCount ?? 0 }} belum dinilai
                     </p>
                 </div>
             </div>
@@ -222,33 +230,36 @@
             </div>
         </div>
 
-        <!-- 4. Disahkan Div. Head -->
-        <div onclick="filterDivKaryawan('tahap3')" 
+        <!-- 4. Disahkan Division Head -->
+        @php
+            $divCardQueueTotal = ($divFinalTotalDinilai ?? 0) + ($pendingDiv ?? 0);
+        @endphp
+        <div onclick="filterDivKaryawan('div_queue')" 
              role="button"
              tabindex="0"
-             title="Klik untuk memfilter Data Karyawan pada Tahap Division Head (To-Do)"
+             title="Klik untuk memfilter Data Karyawan pada Tahap Division Head"
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-blue-600 hover:shadow-md transition-all flex items-center justify-between group cursor-pointer active:scale-[0.99]">
             <div class="flex items-center gap-3.5">
                 <div class="w-10 h-10 rounded-none bg-blue-50 text-blue-700 font-black flex items-center justify-center text-sm flex-shrink-0 border border-blue-300 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                     ✈
                 </div>
                 <div>
-                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-blue-700 transition-colors">Disahkan Div. Head</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $divFinalTotalDinilai }}</p>
-                    <p class="text-[11px] text-blue-600 font-bold mt-1 leading-none">
-                        {{ $pendingDiv }} Perlu Tindakan (To-Do)
+                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-blue-700 transition-colors">Disahkan Division Head</p>
+                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $divCardQueueTotal }}</p>
+                    <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
+                        {{ $divFinalTotalDinilai ?? 0 }} sudah dinilai, {{ $pendingDiv ?? 0 }} belum dinilai
                     </p>
                 </div>
             </div>
             <div class="flex items-center">
-                <span class="text-[10px] font-bold px-2 py-1 {{ $pendingDiv > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
-                    {{ $pendingDiv > 0 ? 'To-Do' : 'Tuntas' }}
+                <span class="text-[10px] font-bold px-2 py-1 {{ $divCardQueueTotal === 0 ? 'bg-slate-100 text-slate-600 border-slate-300' : (($pendingDiv ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300') }} rounded-none border">
+                    {{ $divCardQueueTotal === 0 ? 'Belum Ada' : (($pendingDiv ?? 0) > 0 ? 'To-Do' : 'Tuntas') }}
                 </span>
             </div>
         </div>
     </div>
 
-    <!-- 4. Visual Workflow Pipeline Tracker (Tahapan Penilaian Section Head -> Dept Head -> Division Head -> Selesai) -->
+    <!-- 4. Visual Workflow Pipeline Tracker (Foreman -> Section Head -> Department Head -> Division Head) -->
     <div class="bg-white rounded-none p-5 border border-slate-300 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
             <div>
@@ -256,117 +267,127 @@
                     Pelacakan Alur Status Dokumen
                 </h3>
                 <p class="text-xs text-slate-500">
-                    Memantau alur berkas penilaian karyawan dari tingkat Seksi, tinjauan Departemen, hingga pengesahan akhir Division Head
+                    Memantau posisi dokumen seluruh {{ $totKaryawan }} karyawan divisi di setiap tahapan sistem
                 </p>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-            <!-- Tahap 1: Penilaian Section Head -->
-            <div onclick="filterDivKaryawan('tahap1')"
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 items-stretch">
+            <!-- Tahap 1: Penilaian Foreman -->
+            <div onclick="filterDivKaryawan('foreman')"
                  role="button"
                  tabindex="0"
-                 title="Klik untuk memfilter dokumen pada tahap Penilaian Section Head"
-                 class="p-3.5 border {{ ($divStageCounts['tahap1_section'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between">
+                 title="Klik untuk memfilter dokumen pada tahap Penilaian Foreman"
+                 class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 1</span>
-                        <span class="text-xs font-black {{ ($divStageCounts['tahap1_section'] ?? 0) > 0 ? 'text-amber-800 bg-amber-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
-                            {{ $divStageCounts['tahap1_section'] ?? 0 }} Dokumen
+                        <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
+                            {{ $divStageCounts['tahap1_foreman'] ?? 0 }} Dokumen
                         </span>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">1. Penilaian Section Head</h4>
+                    <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        {{ $divStageCounts['belum_dinilai_sh'] ?? 0 }} belum dinilai &bull; {{ $divStageCounts['draft_sh'] ?? 0 }} draft tersimpan.
+                        Melakukan Penilaian untuk bawahannya.
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                    <span class="font-medium text-slate-500">
-                        {{ ($divStageCounts['tahap1_section'] ?? 0) > 0 ? 'Proses pengerjaan SH' : 'Selesai diinput SH' }}
-                    </span>
-                    <span class="font-mono text-slate-400 text-[10px]">Tingkat Seksi</span>
+                    <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $divStageCounts['foreman_done'] ?? 0 }}</span>
+                    <span class="font-bold text-slate-500">Belum Dinilai: {{ $divStageCounts['tahap1_foreman'] ?? 0 }}</span>
                 </div>
             </div>
 
-            <!-- Tahap 2: Tinjauan Dept. Head -->
-            <div onclick="filterDivKaryawan('tahap2')"
+            <!-- Tahap 2: Penilaian Section Head -->
+            <div onclick="filterDivKaryawan('section_only')"
                  role="button"
                  tabindex="0"
-                 title="Klik untuk memfilter dokumen pada tahap Tinjauan Dept. Head"
-                 class="p-3.5 border {{ ($divStageCounts['tahap2_dept'] ?? 0) > 0 ? 'border-blue-300 bg-blue-50/50 hover:border-blue-400' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between">
+                 title="Klik untuk memfilter dokumen pada tahap Penilaian Section Head"
+                 class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 2</span>
-                        <span class="text-xs font-black {{ ($divStageCounts['tahap2_dept'] ?? 0) > 0 ? 'text-blue-800 bg-blue-100' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
-                            {{ $divStageCounts['tahap2_dept'] ?? 0 }} Dokumen
+                        <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
+                            {{ $divStageCounts['tahap2_section_only'] ?? 0 }} Dokumen
                         </span>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Dept. Head</h4>
+                    <h4 class="text-xs font-bold text-slate-900">2. Penilaian Section Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Sedang diverifikasi &amp; ditandatangani oleh Department Head.
+                        Melakukan Penilaian untuk bawahannya.
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                    <span class="font-medium text-slate-500">
-                        {{ ($divStageCounts['tahap2_dept'] ?? 0) > 0 ? 'Proses Dept Head' : 'Tuntas diverifikasi' }}
-                    </span>
-                    <span class="font-mono text-slate-400 text-[10px]">Tingkat Departemen</span>
+                    <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $divStageCounts['section_done'] ?? 0 }}</span>
+                    <span class="font-bold text-slate-500">Belum Dinilai: {{ $divStageCounts['tahap2_section_only'] ?? 0 }}</span>
                 </div>
             </div>
 
-            <!-- Tahap 3: Persetujuan Division Head (To-Do Anda) -->
+            <!-- Tahap 3: Penilaian Department Head -->
+            @php
+                $divDhPendingCount = $divStageCounts['tahap2_dept'] ?? 0;
+                $divDhDraftCount = $divStageCounts['draft_dh'] ?? 0;
+                $divDhBelumCount = max(0, $divDhPendingCount - $divDhDraftCount);
+            @endphp
+            <div onclick="filterDivKaryawan('tahap2')"
+                 role="button"
+                 tabindex="0"
+                 title="Klik untuk memfilter dokumen pada tahap Penilaian Department Head"
+                 class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 3</span>
+                        <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
+                            {{ $divDhPendingCount }} Dokumen
+                        </span>
+                    </div>
+                    <h4 class="text-xs font-bold text-slate-900">3. Penilaian Department Head</h4>
+                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                        Telah disetujui Section Head, menunggu persetujuan Department Head.
+                    </p>
+                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                        {{ $divDhBelumCount }} belum dinilai &bull; {{ $divDhDraftCount }} draft tersimpan.
+                    </p>
+                </div>
+                <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
+                    <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $divStageCounts['dept_done'] ?? 0 }}</span>
+                    <span class="font-bold text-slate-500">Belum Dinilai: {{ $divDhPendingCount }}</span>
+                </div>
+            </div>
+
+            <!-- Tahap 4: Penilaian Division Head (Highlighted Amber for Division Head) -->
+            @php
+                $divTahap4Count = $divStageCounts['tahap3_div'] ?? 0;
+                $divTahap4Draft = $divStageCounts['draft_div'] ?? 0;
+                $divTahap4Belum = max(0, $divTahap4Count - $divTahap4Draft);
+            @endphp
             <div onclick="filterDivKaryawan('tahap3')"
                  role="button"
                  tabindex="0"
                  title="Klik untuk memfilter dokumen yang menunggu Persetujuan Division Head"
-                 class="p-3.5 border {{ ($pendingDiv > 0) ? 'border-amber-500 bg-amber-100/60 shadow-xs ring-1 ring-amber-400' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between">
+                 class="p-3.5 border {{ $divTahap4Count > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500 ring-1 ring-amber-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 3</span>
-                        <span class="text-xs font-black {{ ($pendingDiv > 0) ? 'text-amber-900 bg-amber-300' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
-                            {{ $pendingDiv }} Dokumen
+                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 4</span>
+                        <span class="text-xs font-black {{ $divTahap4Count > 0 ? 'text-amber-800 bg-amber-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
+                            {{ $divTahap4Count }} Dokumen
                         </span>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">3. Persetujuan Div. Head</h4>
+                    <h4 class="text-xs font-bold text-slate-900">4. Penilaian Division Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Masuk dari Dept Head. Menunggu peninjauan nilai akhir &amp; TTD Anda.
+                        Telah disetujui Department Head, menunggu persetujuan Division Head.
+                    </p>
+                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                        {{ $divTahap4Belum }} belum dinilai &bull; {{ $divTahap4Draft }} draft tersimpan.
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                    <span class="font-bold {{ ($pendingDiv > 0) ? 'text-amber-800' : 'text-slate-400' }}">
-                        {{ ($pendingDiv > 0) ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
+                    <span class="font-bold {{ $divTahap4Count > 0 ? 'text-amber-700' : 'text-slate-500' }}">
+                        {{ $divTahap4Count > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
                     </span>
-                    @if($pendingDiv > 0)
+                    @if($divTahap4Count > 0)
                     <a href="{{ route('penilaian.div') }}" onclick="event.stopPropagation()" class="text-[#92302e] font-bold hover:underline inline-flex items-center gap-1">
                         Kerjakan &rarr;
                     </a>
                     @endif
-                </div>
-            </div>
-
-            <!-- Tahap 4: Selesai & Terarsip -->
-            <div onclick="filterDivKaryawan('tahap4')"
-                 role="button"
-                 tabindex="0"
-                 title="Klik untuk memfilter dokumen yang telah Selesai & Terarsip"
-                 class="p-3.5 border {{ ($divStageCounts['tahap4_selesai'] ?? 0) > 0 ? 'border-emerald-300 bg-emerald-50/40 hover:border-emerald-400' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 4</span>
-                        <span class="text-xs font-black {{ ($divStageCounts['tahap4_selesai'] ?? 0) > 0 ? 'text-emerald-800 bg-emerald-100' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
-                            {{ $divStageCounts['tahap4_selesai'] ?? 0 }} Dokumen
-                        </span>
-                    </div>
-                    <h4 class="text-xs font-bold text-slate-900">4. Selesai &amp; Terarsip</h4>
-                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Penilaian disahkan penuh Division Head, nomor registrasi terbit &amp; PDF terarsip aman.
-                    </p>
-                </div>
-                <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                    <span class="font-bold text-emerald-700">
-                        {{ ($divStageCounts['tahap4_selesai'] ?? 0) > 0 ? 'Arsip final tersedia' : 'Belum selesai final' }}
-                    </span>
-                    <span class="font-mono text-emerald-600 text-[10px]">Tuntas</span>
                 </div>
             </div>
         </div>
@@ -547,6 +568,12 @@
                  if (this.activeTab !== 'all') {
                      if (this.activeTab === 'sec_done') {
                          if (!['tahap2', 'tahap3', 'tahap4'].includes(row.stage_key)) return false;
+                     } else if (this.activeTab === 'dept_done' || this.activeTab === 'div_queue') {
+                         if (!['tahap3', 'tahap4'].includes(row.stage_key)) return false;
+                     } else if (this.activeTab === 'foreman') {
+                         if (row.status !== 'menunggu_foreman') return false;
+                     } else if (this.activeTab === 'section_only') {
+                         if (row.status !== 'menunggu_section_head') return false;
                      } else if (this.activeTab === 'tahap1' && row.stage_key !== 'tahap1') {
                          return false;
                      } else if (this.activeTab === 'tahap2' && row.stage_key !== 'tahap2') {

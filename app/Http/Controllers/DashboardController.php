@@ -1420,16 +1420,29 @@ class DashboardController extends Controller
         $divSectionTotalDinilai = 0;
         $divDeptTotalDinilai = 0;
         $divFinalTotalDinilai = 0;
+        $divMandiriCount = 0;
+        $divAnggotaCount = 0;
+        $divSectionDraftCount = 0;
+        $divSectionBelumCount = 0;
+        $divDeptDraftCount = 0;
+        $divDeptBelumCount = 0;
         $divNeedActionCount = 0;
         $incomingDocsDivHead = [];
         $rekapDept = [];
         $divStageCounts = [
+            'tahap1_foreman' => 0,
+            'foreman_done' => 0,
             'tahap1_section' => 0,
+            'tahap2_section_only' => 0,
+            'section_done' => 0,
             'belum_dinilai_sh' => 0,
             'draft_sh' => 0,
             'revisi_sh' => 0,
             'tahap2_dept' => 0,
+            'draft_dh' => 0,
+            'dept_done' => 0,
             'tahap3_div' => 0,
+            'draft_div' => 0,
             'tahap4_selesai' => 0,
             'selesai' => 0,
         ];
@@ -1574,6 +1587,12 @@ class DashboardController extends Controller
                 $status = $doc['status'] ?? 'belum_ada';
                 $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
 
+                if ($isSelf) {
+                    $divMandiriCount++;
+                } else {
+                    $divAnggotaCount++;
+                }
+
                 if (!isset($deptGroups[$deptName])) {
                     $deptGroups[$deptName] = ['total' => 0, 'sec_dinilai' => 0, 'dept_dinilai' => 0, 'div_dinilai' => 0];
                 }
@@ -1605,11 +1624,15 @@ class DashboardController extends Controller
                     } elseif ($status === 'draft') {
                         $stageKey = 'tahap3';
                         $divStageCounts['tahap3_div']++;
+                        $divStageCounts['draft_div']++;
                         $stageLabel = 'Draft Mandiri Div. Head';
                         $badgeClass = 'bg-slate-100 text-slate-700 border-slate-300';
                     } else {
                         $stageKey = 'tahap3';
                         $divStageCounts['tahap3_div']++;
+                        if ($selfScore > 0) {
+                            $divStageCounts['draft_div']++;
+                        }
                         $stageLabel = 'Division Head (To-Do)';
                         $badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
                     }
@@ -1648,20 +1671,48 @@ class DashboardController extends Controller
                 }
 
                 // Subordinate Form Roles
-                $isSubDeptHead = ($doc['kode_form'] ?? '') === '07-006-DH' || ($k['level_form'] ?? '') === 'DEPT_HEAD';
-                $isSubSectionHead = ($doc['kode_form'] ?? '') === '07-006-SH' || ($k['level_form'] ?? '') === 'SECTION_HEAD';
+                $subKodeForm = $doc['kode_form'] ?? PenilaianController::determineKodeForm($k);
+                $isSubDeptHead = $subKodeForm === '07-006-DH' || ($k['level_form'] ?? '') === 'DEPT_HEAD';
+                $isSubSectionHead = $subKodeForm === '07-006-SH' || ($k['level_form'] ?? '') === 'SECTION_HEAD';
+                $isSecretarySub = str_contains(strtoupper((string)($k['seksi'] ?? ($k['nama_sect'] ?? ''))), 'SECRETARY')
+                    || str_contains(strtoupper((string)($k['jabatan'] ?? '')), 'SECRETARY');
                 $isSubQuotaExempt = PenilaianController::isQuotaExemptEmployee($k, $doc);
+                $requiresFmStage = PenilaianController::requiresForemanStage($k, $subKodeForm, $status);
+
+                if ($requiresFmStage) {
+                    $hasFmDone = in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'], true)
+                        || ($docId && !empty($ttdGrouped[$docId]['foreman']));
+                    if ($hasFmDone) {
+                        $divStageCounts['foreman_done']++;
+                    } else {
+                        $divStageCounts['tahap1_foreman']++;
+                    }
+                }
 
                 // 1. Section Head Evaluation
                 $secScores = ($docId && isset($nilaiGrouped[$docId]['section_head'])) ? $nilaiGrouped[$docId]['section_head'] : [];
                 if ($isSubSectionHead && empty($secScores) && isset($nilaiGrouped[$docId]['foreman'])) {
                     $secScores = $nilaiGrouped[$docId]['foreman'];
                 }
-                $calcSec = !empty($secScores) ? $this->calcService->calculate($doc['kode_form'] ?? '07-001', $secScores) : ['grand_total' => 0.00];
+                $calcSec = !empty($secScores) ? $this->calcService->calculate($subKodeForm, $secScores) : ['grand_total' => 0.00];
                 $sScore = $calcSec['grand_total'] > 0 ? $calcSec['grand_total'] : ($doc['total_nilai'] ?? 0);
                 $hasSecSign = isset($ttdGrouped[$docId]['section_head']) || ($isSubSectionHead && isset($ttdGrouped[$docId]['foreman']));
-                $isEvaluatedBySec = ($calcSec['grand_total'] > 0) || $hasSecSign || ($status === 'selesai' && (float)($doc['total_nilai'] ?? 0) > 0);
+                $isEvaluatedBySec = ($calcSec['grand_total'] > 0) || $hasSecSign || in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'], true);
                 $secGrade = '-';
+                if (!$isSubDeptHead && !$isSecretarySub) {
+                    $hasShDraftOnly = !$isEvaluatedBySec && $docId && !empty($nilaiGrouped[$docId]['section_head']);
+                    if ($isEvaluatedBySec && in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'], true)) {
+                        $divStageCounts['section_done']++;
+                    } elseif ($hasShDraftOnly) {
+                        $divSectionDraftCount++;
+                    } else {
+                        $divSectionBelumCount++;
+                    }
+                    if (!in_array($status, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'], true)
+                        && ($status === 'menunggu_section_head' || (!$requiresFmStage && in_array($status, ['belum_ada', 'draft', 'revisi', 'menunggu_foreman'], true)))) {
+                        $divStageCounts['tahap2_section_only']++;
+                    }
+                }
                 if ($isEvaluatedBySec && $sScore > 0) {
                     $secGrade = $this->calcService->scoreToGrade($sScore);
                     if (!$isSubQuotaExempt && isset($divSectionGradeCounts[$secGrade])) {
@@ -1676,10 +1727,24 @@ class DashboardController extends Controller
                 if ($isSubDeptHead && empty($deptScores) && isset($nilaiGrouped[$docId]['foreman'])) {
                     $deptScores = $nilaiGrouped[$docId]['foreman'];
                 }
-                $calcDept = !empty($deptScores) ? $this->calcService->calculate($doc['kode_form'] ?? '07-001', $deptScores) : ['grand_total' => 0.00];
+                $calcDept = !empty($deptScores) ? $this->calcService->calculate($subKodeForm, $deptScores) : ['grand_total' => 0.00];
                 $dScore = $calcDept['grand_total'] > 0 ? $calcDept['grand_total'] : ($doc['total_nilai'] ?? 0);
                 $hasDeptSign = isset($ttdGrouped[$docId]['dept_head']) || ($isSubDeptHead && isset($ttdGrouped[$docId]['foreman']));
                 $isEvaluatedByDept = ($calcDept['grand_total'] > 0) || $hasDeptSign || ($status === 'selesai' && (float)($doc['total_nilai'] ?? 0) > 0);
+                if (!$isSecretarySub) {
+                    $dhSubSlot = $isSubDeptHead ? 'foreman' : ($isSubSectionHead ? 'section_head' : 'dept_head');
+                    $hasDhSubDraft = $docId && !empty($nilaiGrouped[$docId][$dhSubSlot]) && !in_array($status, ['menunggu_div_head', 'selesai'], true);
+                    if (in_array($status, ['menunggu_div_head', 'selesai'], true)) {
+                        $divStageCounts['dept_done']++;
+                    } elseif ($hasDhSubDraft) {
+                        $divDeptDraftCount++;
+                        if ($status === 'menunggu_dept_head' || $isSubDeptHead) {
+                            $divStageCounts['draft_dh']++;
+                        }
+                    } else {
+                        $divDeptBelumCount++;
+                    }
+                }
                 $deptGrade = '-';
                 if ($isEvaluatedByDept && $dScore > 0) {
                     $deptGrade = $doc['docking_final'] ?? $this->calcService->scoreToGrade($dScore);
@@ -1722,6 +1787,9 @@ class DashboardController extends Controller
                 } elseif ($status === 'menunggu_div_head') {
                     $stageKey = 'tahap3';
                     $divStageCounts['tahap3_div']++;
+                    if ($docId && !empty($nilaiGrouped[$docId]['div_head'])) {
+                        $divStageCounts['draft_div']++;
+                    }
                     $divNeedActionCount++;
                     $stageLabel = 'Division Head (To-Do)';
                     $badgeClass = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
@@ -2765,6 +2833,12 @@ class DashboardController extends Controller
             'divSectionTotalDinilai',
             'divDeptTotalDinilai',
             'divFinalTotalDinilai',
+            'divMandiriCount',
+            'divAnggotaCount',
+            'divSectionDraftCount',
+            'divSectionBelumCount',
+            'divDeptDraftCount',
+            'divDeptBelumCount',
             'divStageCounts',
             'divSubordinateRows',
             'divActualGradeCounts',
