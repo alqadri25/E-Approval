@@ -9832,7 +9832,12 @@ class PenilaianController extends Controller
         // Workflow counts for Foreman, Section Head, Department Head, and Division Head Laporan Cards
         $fmCountSiap = 0;
         $fmCountDiteruskanSection = 0;
+        $fmCountShSudah = 0;
+        $fmCountShBelum = 0;
         $fmCountMenungguSection = 0;
+        $fmCountDiteruskanDept = 0;
+        $fmCountDhSudah = 0;
+        $fmCountDhBelum = 0;
         $fmCountMenungguDept = 0;
         $fmCountSelesai = 0;
 
@@ -9889,16 +9894,31 @@ class PenilaianController extends Controller
                 }
             }
 
-            // Foreman metrics (Alur hierarki: Foreman -> Section Head -> Department Head sebagai Tingkat Tertinggi)
+            // Foreman metrics (Alur hierarki: Foreman -> Section Head -> Department Head)
             if ($hasForemanKaryawan) {
                 if (in_array($st, ['belum_ada', '', null, 'draft', 'revisi', 'menunggu_foreman'])) {
                     $fmCountSiap++;
                 }
                 if (in_array($st, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
                     $fmCountDiteruskanSection++;
+                    $hasShEvalFm = $docId && (!empty($nilaiByDoc[$docId]['section_head']) || !empty($ttdByDoc[$docId]['section_head']));
+                    if (in_array($st, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']) || $hasShEvalFm) {
+                        $fmCountShSudah++;
+                    } else {
+                        $fmCountShBelum++;
+                    }
                 }
                 if ($st === 'menunggu_section_head') {
                     $fmCountMenungguSection++;
+                }
+                if (in_array($st, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
+                    $fmCountDiteruskanDept++;
+                    $hasDhEvalFm = $docId && (!empty($nilaiByDoc[$docId]['dept_head']) || !empty($ttdByDoc[$docId]['dept_head']));
+                    if (in_array($st, ['menunggu_div_head', 'selesai']) || $hasDhEvalFm) {
+                        $fmCountDhSudah++;
+                    } else {
+                        $fmCountDhBelum++;
+                    }
                 }
                 if (in_array($st, ['menunggu_dept_head', 'menunggu_div_head'])) {
                     $fmCountMenungguDept++;
@@ -9997,7 +10017,12 @@ class PenilaianController extends Controller
                 'total_karyawan' => $totalKaryawan,
                 'siap_disahkan' => $fmCountSiap,
                 'diteruskan_section' => $fmCountDiteruskanSection,
+                'sh_sudah' => $fmCountShSudah,
+                'sh_belum' => $fmCountShBelum,
                 'menunggu_section' => $fmCountMenungguSection,
+                'diteruskan_dept' => $fmCountDiteruskanDept,
+                'dh_sudah' => $fmCountDhSudah,
+                'dh_belum' => $fmCountDhBelum,
                 'menunggu_dept' => $fmCountMenungguDept,
                 'selesai' => $fmCountSelesai,
             ],

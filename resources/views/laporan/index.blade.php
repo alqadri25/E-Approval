@@ -89,8 +89,8 @@
     @endphp
 
     @if($user->isForeman())
-    <!-- 5 Workflow Progress Cards for Foreman (Alur: Foreman -> Section Head -> Department Head sebagai Tingkat Tertinggi) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+    <!-- 4 Workflow Progress Cards for Foreman -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <!-- Card 1: Total Karyawan -->
         <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
@@ -147,53 +147,48 @@
         </div>
 
         <!-- Card 3: Diteruskan Ke Section Head -->
-        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
+        @php
+            $fmShSudah = $roleWorkflowCards['foreman']['sh_sudah'] ?? 0;
+            $fmShBelum = $roleWorkflowCards['foreman']['sh_belum'] ?? 0;
+            $fmShTotal = $roleWorkflowCards['foreman']['diteruskan_section'] ?? ($fmShSudah + $fmShBelum);
+        @endphp
+        <div class="bg-white rounded-none border {{ $fmShBelum > 0 ? 'border-blue-300 bg-blue-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Section Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                    {{ $roleWorkflowCards['foreman']['diteruskan_section'] ?? 0 }}
+                    {{ $fmShTotal }}
                 </div>
                 <span class="text-[11px] text-slate-500 mt-1 block font-medium">
                     Telah diverifikasi Foreman
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-blue-700">Terkirim ke Section</span>
-                <span class="font-mono text-slate-400 text-[10px]">Alur Verifikasi</span>
+                <span class="font-bold text-slate-600">
+                    Sudah Dinilai: <span class="text-emerald-700">{{ $fmShSudah }}</span> &bull; Belum Dinilai: <span class="{{ $fmShBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $fmShBelum }}</span>
+                </span>
             </div>
         </div>
 
-        <!-- Card 4: Menunggu Section Head -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['foreman']['menunggu_section'] ?? 0) > 0 ? 'border-blue-300 bg-blue-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <!-- Card 4: Diteruskan Ke Department Head -->
+        @php
+            $fmDhSudah = $roleWorkflowCards['foreman']['dh_sudah'] ?? 0;
+            $fmDhBelum = $roleWorkflowCards['foreman']['dh_belum'] ?? 0;
+            $fmDhTotal = $roleWorkflowCards['foreman']['diteruskan_dept'] ?? ($fmDhSudah + $fmDhBelum);
+        @endphp
+        <div class="bg-white rounded-none border {{ $fmDhBelum > 0 ? 'border-indigo-300 bg-indigo-50/30' : ($fmDhSudah > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300') }} p-4 shadow-sm flex flex-col justify-between">
             <div>
-                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Menunggu Section Head</span>
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Department Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                    {{ $roleWorkflowCards['foreman']['menunggu_section'] ?? 0 }}
+                    {{ $fmDhTotal }}
                 </div>
                 <span class="text-[11px] text-slate-500 mt-1 block font-medium">
-                    {{ ($roleWorkflowCards['foreman']['menunggu_section'] ?? 0) > 0 ? 'Sedang ditinjau Section Head' : 'Tidak ada antrean' }}
+                    Telah diverifikasi Section Head
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-medium text-slate-500">{{ ($roleWorkflowCards['foreman']['menunggu_section'] ?? 0) > 0 ? 'Proses review SH' : 'Selesai ditinjau' }}</span>
-                <span class="font-mono text-slate-400 text-[10px]">Tahap Sect</span>
-            </div>
-        </div>
-
-        <!-- Card 5: Menunggu Department Head -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['foreman']['menunggu_dept'] ?? 0) > 0 ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
-            <div>
-                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Menunggu Department Head</span>
-                <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                    {{ $roleWorkflowCards['foreman']['menunggu_dept'] ?? 0 }}
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block font-medium">
-                    {{ ($roleWorkflowCards['foreman']['menunggu_dept'] ?? 0) > 0 ? 'Telah disetujui Section Head, menunggu Department Head' : 'Tidak ada antrean' }}
+                <span class="font-bold text-slate-600">
+                    Sudah Dinilai: <span class="text-emerald-700">{{ $fmDhSudah }}</span> &bull; Belum Dinilai: <span class="{{ $fmDhBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $fmDhBelum }}</span>
                 </span>
-            </div>
-            <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-medium text-slate-500">{{ ($roleWorkflowCards['foreman']['selesai'] ?? 0) > 0 ? ($roleWorkflowCards['foreman']['selesai'] . ' selesai final') : 'Tingkat Akhir' }}</span>
-                <span class="font-mono text-slate-400 text-[10px]">Tingkat Akhir</span>
             </div>
         </div>
     </div>

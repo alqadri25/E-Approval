@@ -357,9 +357,6 @@
                             Target Penilaian <span class="text-slate-400 font-normal text-xs">(berdasarkan kategori &amp; KJ)</span>
                         </h3>
                     </div>
-                    <span class="text-[11px] font-bold px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200">
-                        Total Target: {{ ($foremanTargetKjSummary['total'] ?? 0) > 0 ? $foremanTargetKjSummary['total'] : ($totalTargetForeman ?? count($foremanSubordinates)) }}
-                    </span>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -440,14 +437,6 @@
                     </table>
                 </div>
             </div>
-
-            <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                    Rencana target kuota perolehan kategori nilai per Klasifikasi Jabatan (KJ)
-                </span>
-                <span class="text-slate-400 text-[10px]">Tahun {{ date('Y') }}</span>
-            </div>
         </div>
 
         <!-- Table 2: Hasil Foreman (Realisasi Dinilai Foreman per KJ) -->
@@ -460,9 +449,6 @@
                             Hasil Foreman <span class="text-slate-400 font-normal text-xs">(nilai dari anda per KJ)</span>
                         </h3>
                     </div>
-                    <span class="text-[11px] font-bold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Total Dinilai: {{ $foremanActualKjSummary['total'] ?? ($stats['total_dinilai'] ?? 0) }}
-                    </span>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -542,14 +528,6 @@
                         </tfoot>
                     </table>
                 </div>
-            </div>
-
-            <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                    Realisasi perolehan nilai riil yang telah dinilai dan dikonfirmasi Foreman
-                </span>
-                <span class="text-slate-400 text-[10px]">{{ ($foremanActualKjSummary['total'] ?? ($stats['total_dinilai'] ?? 0)) . '/' . ($foremanTargetKjSummary['total'] ?? ($totalTargetForeman ?? count($foremanSubordinates))) }} Dinilai</span>
             </div>
         </div>
 

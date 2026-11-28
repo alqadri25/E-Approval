@@ -56,7 +56,11 @@
                         <span class="text-xs font-semibold text-slate-500">({{ $selfKaryawan['jabatan'] }} &bull; {{ $selfKaryawan['departemen'] }})</span>
                     </h2>
                     <p class="text-xs text-slate-600 mt-0.5 max-w-xl">
-                        Formulir penilaian karya resmi untuk evaluasi kinerja Anda sendiri. Isi kolom <strong>Mandiri / 自分</strong> dan bubuhkan tanda tangan digital Anda.
+                        @if($user->isForeman())
+                            Formulir penilaian karya resmi untuk evaluasi kinerja Anda sendiri.
+                        @else
+                            Formulir penilaian karya resmi untuk evaluasi kinerja Anda sendiri. Isi kolom <strong>Mandiri / 自分</strong> dan bubuhkan tanda tangan digital Anda.
+                        @endif
                     </p>
                 </div>
             </div>
