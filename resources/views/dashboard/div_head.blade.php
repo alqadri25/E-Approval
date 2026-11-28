@@ -393,162 +393,76 @@
         </div>
     </div>
 
-    <!-- 5. Target Penilaian Divisi (Full Width Table) -->
+    <!-- 5. Target Penilaian Divisi (Compact Summary Table - Form 07-006 Semua Divisi) -->
     <div class="bg-white rounded-none border border-slate-300 shadow-sm flex flex-col justify-between min-w-0">
         <div>
-            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50/70">
-                <h3 class="text-sm font-bold text-slate-900">
-                    Target Penilaian Divisi
-                </h3>
-                <p class="text-xs text-slate-500 mt-0.5">
-                    Target kuota perolehan kategori nilai (S, A, B, C, K) dari Administrator &amp; pencapaian hasil penilaian divisi
-                </p>
+            <div class="px-4 py-3 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">
+                        Target Penilaian Divisi
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Target kuota semua divisi (Form 07-006) untuk kategori nilai S, A, B, C, K &amp; jumlah yang sudah dinilai
+                    </p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-none bg-blue-50 text-blue-700 border border-blue-200">
+                        Target 07-006: {{ $sumDivTargets }} Orang
+                    </span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-none bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Sudah Dinilai: {{ $sumActual }} Orang
+                    </span>
+                </div>
             </div>
 
-            <div class="p-4 sm:p-5">
+            <div class="p-3.5">
                 <div class="overflow-x-auto border border-slate-300">
                     <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
                         <thead>
                             <tr class="border-b border-slate-300 text-slate-700 font-bold bg-slate-100 text-[11px] uppercase tracking-wider">
-                                <th class="py-3 px-4 border-r border-slate-300">Kategori Nilai</th>
-                                <th class="py-3 px-4 text-center border-r border-slate-300">Standar Predikat</th>
-                                <th class="py-3 px-4 text-center border-r border-slate-300">Target Kuota</th>
-                                <th class="py-3 px-4 text-center">Sudah Dinilai</th>
+                                <th class="py-2 px-3 border-r border-slate-300">Kategori Nilai</th>
+                                <th class="py-2 px-3 text-center border-r border-slate-300 w-36">Target Kuota</th>
+                                <th class="py-2 px-3 text-center w-36">Sudah Dinilai</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 bg-white">
-                            <!-- Grade S -->
+                            @php
+                                $divGradeRows = [
+                                    ['code' => 'S', 'label' => 'Grade S', 'badge' => 'bg-purple-100 text-purple-900 border-purple-300', 'actText' => 'text-purple-700', 'subText' => 'text-purple-900/60', 'target' => $targetS, 'actual' => $actS],
+                                    ['code' => 'A', 'label' => 'Grade A', 'badge' => 'bg-emerald-100 text-emerald-900 border-emerald-300', 'actText' => 'text-emerald-700', 'subText' => 'text-emerald-900/60', 'target' => $targetA, 'actual' => $actA],
+                                    ['code' => 'B', 'label' => 'Grade B', 'badge' => 'bg-blue-100 text-blue-900 border-blue-300', 'actText' => 'text-blue-700', 'subText' => 'text-blue-900/60', 'target' => $targetB, 'actual' => $actB],
+                                    ['code' => 'C', 'label' => 'Grade C', 'badge' => 'bg-amber-100 text-amber-900 border-amber-300', 'actText' => 'text-amber-700', 'subText' => 'text-amber-900/60', 'target' => $targetC, 'actual' => $actC],
+                                    ['code' => 'K', 'label' => 'Grade K', 'badge' => 'bg-rose-100 text-rose-900 border-rose-300', 'actText' => 'text-rose-700', 'subText' => 'text-rose-900/60', 'target' => $targetK, 'actual' => $actK],
+                                ];
+                            @endphp
+                            @foreach($divGradeRows as $gr)
                             <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="py-3.5 px-4 font-bold border-r border-slate-200">
+                                <td class="py-2 px-3 font-bold border-r border-slate-200">
                                     <div class="flex items-center gap-2">
-                                        <span class="w-7 h-7 rounded-none bg-purple-100 text-purple-900 border border-purple-300 flex items-center justify-center font-black text-xs font-mono">
-                                            S
+                                        <span class="w-6 h-6 rounded-none border flex items-center justify-center font-black text-[11px] font-mono {{ $gr['badge'] }}">
+                                            {{ $gr['code'] }}
                                         </span>
-                                        <div>
-                                            <div class="font-bold text-slate-900">Grade S</div>
-                                            <div class="text-[10px] text-slate-400">Istimewa</div>
-                                        </div>
+                                        <span class="font-bold text-slate-900">{{ $gr['label'] }}</span>
                                     </div>
                                 </td>
-                                <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                    91 - 100
+                                <td class="py-2 px-3 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-xs">
+                                    {{ $gr['target'] }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
                                 </td>
-                                <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
-                                    {{ $targetS }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
-                                </td>
-                                <td class="py-3.5 px-4 text-purple-700 font-black text-center font-mono text-sm">
-                                    {{ $actS }} <span class="text-[10px] text-purple-900/60 font-normal">Orang</span>
+                                <td class="py-2 px-3 {{ $gr['actText'] }} font-black text-center font-mono text-xs">
+                                    {{ $gr['actual'] }} <span class="text-[10px] {{ $gr['subText'] }} font-normal">Orang</span>
                                 </td>
                             </tr>
-
-                            <!-- Grade A -->
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="py-3.5 px-4 font-bold border-r border-slate-200">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-7 h-7 rounded-none bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center font-black text-xs font-mono">
-                                            A
-                                        </span>
-                                        <div>
-                                            <div class="font-bold text-slate-900">Grade A</div>
-                                            <div class="text-[10px] text-slate-400">Baik Sekali</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                    81 - 90
-                                </td>
-                                <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
-                                    {{ $targetA }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
-                                </td>
-                                <td class="py-3.5 px-4 text-emerald-700 font-black text-center font-mono text-sm">
-                                    {{ $actA }} <span class="text-[10px] text-emerald-900/60 font-normal">Orang</span>
-                                </td>
-                            </tr>
-
-                            <!-- Grade B -->
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="py-3.5 px-4 font-bold border-r border-slate-200">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-7 h-7 rounded-none bg-blue-100 text-blue-900 border border-blue-300 flex items-center justify-center font-black text-xs font-mono">
-                                            B
-                                        </span>
-                                        <div>
-                                            <div class="font-bold text-slate-900">Grade B</div>
-                                            <div class="text-[10px] text-slate-400">Baik / Standar</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                    71 - 80
-                                </td>
-                                <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
-                                    {{ $targetB }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
-                                </td>
-                                <td class="py-3.5 px-4 text-blue-700 font-black text-center font-mono text-sm">
-                                    {{ $actB }} <span class="text-[10px] text-blue-900/60 font-normal">Orang</span>
-                                </td>
-                            </tr>
-
-                            <!-- Grade C -->
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="py-3.5 px-4 font-bold border-r border-slate-200">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-7 h-7 rounded-none bg-amber-100 text-amber-900 border border-amber-300 flex items-center justify-center font-black text-xs font-mono">
-                                            C
-                                        </span>
-                                        <div>
-                                            <div class="font-bold text-slate-900">Grade C</div>
-                                            <div class="text-[10px] text-slate-400">Cukup / Kurang</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                    61 - 70
-                                </td>
-                                <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
-                                    {{ $targetC }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
-                                </td>
-                                <td class="py-3.5 px-4 text-amber-700 font-black text-center font-mono text-sm">
-                                    {{ $actC }} <span class="text-[10px] text-amber-900/60 font-normal">Orang</span>
-                                </td>
-                            </tr>
-
-                            <!-- Grade K -->
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="py-3.5 px-4 font-bold border-r border-slate-200">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-7 h-7 rounded-none bg-rose-100 text-rose-900 border border-rose-300 flex items-center justify-center font-black text-xs font-mono">
-                                            K
-                                        </span>
-                                        <div>
-                                            <div class="font-bold text-slate-900">Grade K</div>
-                                            <div class="text-[10px] text-slate-400">Kurang Sekali</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="py-3.5 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                    &le; 60
-                                </td>
-                                <td class="py-3.5 px-4 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-sm">
-                                    {{ $targetK }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
-                                </td>
-                                <td class="py-3.5 px-4 text-rose-700 font-black text-center font-mono text-sm">
-                                    {{ $actK }} <span class="text-[10px] text-rose-900/60 font-normal">Orang</span>
-                                </td>
-                            </tr>
+                            @endforeach
                         </tbody>
                         <tfoot class="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900">
                             <tr>
-                                <td class="py-3 px-4 border-r border-slate-300 uppercase tracking-wider text-[11px]">
-                                    TOTAL PENILAIAN
+                                <td class="py-2 px-3 border-r border-slate-300 uppercase tracking-wider text-[11px]">
+                                    TOTAL PENILAIAN (FORM 07-006)
                                 </td>
-                                <td class="py-3 px-4 text-center border-r border-slate-300 font-mono text-[11px] text-slate-600">
-                                    100% Karyawan
-                                </td>
-                                <td class="py-3 px-4 text-center border-r border-slate-300 font-mono text-sm text-slate-900">
+                                <td class="py-2 px-3 text-center border-r border-slate-300 font-mono text-xs text-slate-900">
                                     {{ $sumDivTargets }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
                                 </td>
-                                <td class="py-3 px-4 text-center font-mono text-sm text-[#92302e]">
+                                <td class="py-2 px-3 text-center font-mono text-xs text-[#92302e]">
                                     {{ $sumActual }} <span class="text-[10px] text-[#92302e]/60 font-normal">Orang</span>
                                 </td>
                             </tr>
