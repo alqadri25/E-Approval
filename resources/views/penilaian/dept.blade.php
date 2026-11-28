@@ -254,8 +254,8 @@
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">NILAI MANDIRI</th>
                         @if(!$user->isSecretary())
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300">NILAI SECTION HEAD</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">NILAI DEPARTMENT HEAD</th>
                         @endif
-                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">{{ $user->isSecretary() ? 'NILAI AKHIR MANDIRI' : 'NILAI DEPARTMENT HEAD' }}</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">STATUS ALUR</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-24">AKSI</th>
                     </tr>
@@ -447,6 +447,7 @@
                         @endif
 
                         <!-- 11. NILAI DEPARTMENT HEAD -->
+                        @if(!$user->isSecretary())
                         <td class="py-2 px-3 border-b border-r border-slate-200 text-center">
                             @if(!empty($row['is_self']))
                                 @if(!empty($row['nilai_akhir']))
@@ -485,6 +486,7 @@
                                 <span class="text-slate-400">-</span>
                             @endif
                         </td>
+                        @endif
 
                         <!-- 12. Status Alur -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
