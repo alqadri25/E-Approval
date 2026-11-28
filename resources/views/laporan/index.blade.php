@@ -334,8 +334,8 @@
     </div>
 
     @elseif($user->isDepartmentHead() || in_array($user->role, ['dept_head', 'department_head']))
-    <!-- 5 Workflow Progress Cards for Department Head -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+    <!-- Workflow Progress Cards for Department Head / Secretary -->
+    <div class="grid grid-cols-1 {{ $user->isSecretary() ? 'sm:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-5' }} gap-3">
         <!-- Card 1: Total Karyawan -->
         <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
@@ -353,6 +353,7 @@
             </div>
         </div>
 
+        @if(!$user->isSecretary())
         <!-- Card 2: Proses Foreman -->
         <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
@@ -386,6 +387,7 @@
                 <span class="font-bold text-slate-500">Belum Dinilai: {{ $roleWorkflowCards['dept_head']['proses_section_only'] ?? 0 }}</span>
             </div>
         </div>
+        @endif
 
         <!-- Card 4: Siap Disahkan (To-Do) -->
         <div class="rounded-none border {{ ($roleWorkflowCards['dept_head']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300 bg-white' }} p-4 shadow-sm flex flex-col justify-between">
