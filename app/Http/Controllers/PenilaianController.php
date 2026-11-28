@@ -1454,9 +1454,14 @@ class PenilaianController extends Controller
         if (self::isDirectDeptDivSubordinate($karyawan) || self::isDirectDivSubordinate($karyawan)) {
             return false;
         }
+        $seksiUpper = strtoupper(trim((string)($karyawan['seksi'] ?? ($karyawan['nama_sect'] ?? ''))));
+        $jabUpper = strtoupper(trim((string)($karyawan['jabatan'] ?? '')));
+        if (str_contains($seksiUpper, 'SECRETARY') || str_contains($jabUpper, 'SECRETARY') || in_array((string)($karyawan['nrp'] ?? ''), ['268', '1237', '99996'], true)) {
+            return false;
+        }
         $kf = $kodeForm ?? ($karyawan['kode_form'] ?? '');
         $kfUpper = strtoupper(trim($kf));
-        if ($kfUpper === '07-006-DH' || $kfUpper === '07-006-DIV' || $kfUpper === '07-006-SH') {
+        if ($kfUpper === '07-006-DH' || $kfUpper === '07-006-DIV' || $kfUpper === '07-006-SH' || $kfUpper === '07-006-SECRETARY' || $kfUpper === '07-006-DIRECT') {
             return false;
         }
         $is07006 = str_starts_with($kfUpper, '07-006');
@@ -2879,7 +2884,10 @@ class PenilaianController extends Controller
         $kodeFormCheck = (string)($dokumen['kode_form'] ?? '');
         $isDirectDivCheck = self::isDirectDivSubordinate($kCheckArr, $dokumen);
         $isDirectDeptDivCheck = self::isDirectDeptDivSubordinate($kCheckArr, $dokumen);
-        $isSubordinate07006Check = (($kodeFormCheck === '07-006-KARYAWAN') || self::isSubordinateForm07006($kCheckArr, $kodeFormCheck)) && !$isDirectDeptDivCheck && !$isDirectDivCheck;
+        $isSecretaryCheck = str_contains(strtoupper((string)($kCheckArr['seksi'] ?? ($kCheckArr['nama_sect'] ?? ''))), 'SECRETARY')
+            || str_contains(strtoupper((string)($kCheckArr['jabatan'] ?? '')), 'SECRETARY')
+            || in_array((string)($kCheckArr['nrp'] ?? ''), ['268', '1237', '99996'], true);
+        $isSubordinate07006Check = (($kodeFormCheck === '07-006-KARYAWAN') || self::isSubordinateForm07006($kCheckArr, $kodeFormCheck)) && !$isDirectDeptDivCheck && !$isDirectDivCheck && !$isSecretaryCheck;
 
         if ($isDirectDivCheck) {
             if (($dokumen['kode_form'] ?? '') !== '07-006-DIRECT') {
@@ -2891,10 +2899,7 @@ class PenilaianController extends Controller
             }
         }
 
-        $isSecretaryCheck = str_contains(strtoupper((string)($kCheckArr['seksi'] ?? ($kCheckArr['nama_sect'] ?? ''))), 'SECRETARY')
-            || str_contains(strtoupper((string)($kCheckArr['jabatan'] ?? '')), 'SECRETARY')
-            || in_array((string)($kCheckArr['nrp'] ?? ''), ['268', '1237'], true);
-        if ($isSecretaryCheck && in_array($dokumen['kode_form'] ?? '', ['', '07-006-DH'], true)) {
+        if ($isSecretaryCheck && ($dokumen['kode_form'] ?? '') !== '07-006-SECRETARY') {
             DB::table('dokumen')->where('id', $id)->update(['kode_form' => '07-006-SECRETARY']);
             $dokumen['kode_form'] = '07-006-SECRETARY';
             if ($dokumenRow) {
