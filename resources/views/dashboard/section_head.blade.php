@@ -327,15 +327,12 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
             <div>
                 <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">
-                    Pelacakan Alur Status Dokumen Tim
+                    Pelacakan Alur Status Dokumen
                 </h3>
                 <p class="text-xs text-slate-500">
                     Memantau posisi seluruh {{ count($sectionSubordinates) }} berkas penilaian di setiap tahapan sistem
                 </p>
             </div>
-            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-none border border-slate-200 self-start sm:self-auto">
-                {{ $sectionDoneCount }}/{{ count($sectionSubordinates) }} Telah Melewati Section Head
-            </span>
         </div>
 
         @if($hasForemanSubordinates)
