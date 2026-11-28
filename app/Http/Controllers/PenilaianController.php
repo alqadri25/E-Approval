@@ -9843,10 +9843,15 @@ class PenilaianController extends Controller
 
         $shCountSiap = 0;
         $shCountProsesForeman = 0;
+        $shCountFmSudah = 0;
+        $shCountFmBelum = 0;
         $shCountDiteruskanDept = 0;
         $shCountMenungguDept = 0;
         $shCountDhSudah = 0;
         $shCountDhBelum = 0;
+        $shCountDiteruskanDiv = 0;
+        $shCountDivSudah = 0;
+        $shCountDivBelum = 0;
         $shCountMenungguDiv = 0;
         $shCountSelesai = 0;
 
@@ -9938,6 +9943,15 @@ class PenilaianController extends Controller
                     $shCountDhBelum++;
                 }
             }
+            if (in_array($st, ['menunggu_div_head', 'selesai'])) {
+                $shCountDiteruskanDiv++;
+                $hasDivEvalSh = $docId && (!empty($nilaiByDoc[$docId]['div_head']) || !empty($ttdByDoc[$docId]['div_head']));
+                if ($st === 'selesai' || $hasDivEvalSh) {
+                    $shCountDivSudah++;
+                } else {
+                    $shCountDivBelum++;
+                }
+            }
             if ($st === 'menunggu_dept_head') {
                 $shCountMenungguDept++;
             }
@@ -9948,6 +9962,13 @@ class PenilaianController extends Controller
                 $shCountSelesai++;
             }
             if ($hasForemanKaryawan) {
+                $hasFmEvalSh = in_array($st, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
+                    || ($docId && (!empty($nilaiByDoc[$docId]['foreman']) || !empty($ttdByDoc[$docId]['foreman'])));
+                if ($hasFmEvalSh) {
+                    $shCountFmSudah++;
+                } else {
+                    $shCountFmBelum++;
+                }
                 if (in_array($st, ['menunggu_section_head', 'revisi'])) {
                     $shCountSiap++;
                 }
@@ -10030,11 +10051,16 @@ class PenilaianController extends Controller
                 'total_karyawan' => $totalKaryawan,
                 'siap_disahkan' => $shCountSiap,
                 'proses_foreman' => $shCountProsesForeman,
+                'fm_sudah' => $shCountFmSudah,
+                'fm_belum' => $shCountFmBelum,
                 'total_dinilai' => $sudahDinilai,
                 'diteruskan_dept' => $shCountDiteruskanDept,
                 'menunggu_dept' => $shCountMenungguDept,
                 'dh_sudah' => $shCountDhSudah,
                 'dh_belum' => $shCountDhBelum,
+                'diteruskan_div' => $shCountDiteruskanDiv,
+                'div_sudah' => $shCountDivSudah,
+                'div_belum' => $shCountDivBelum,
                 'menunggu_div' => $shCountMenungguDiv,
                 'selesai' => $shCountSelesai,
             ],

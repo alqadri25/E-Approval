@@ -101,10 +101,10 @@
             </div>
         </div>
 
-        <!-- Card 4: Diteruskan / Selesai -->
+        <!-- Card 4: Diteruskan Ke Dept Head -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
             <div>
-                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan / Selesai</span>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Dept Head</span>
                 <div class="text-2xl font-black text-slate-900 leading-none">{{ $countSelesai ?? 0 }}</div>
                 <span class="text-[11px] text-emerald-700 font-bold mt-1 block">Telah diverifikasi Section Head</span>
             </div>
@@ -445,24 +445,11 @@
             </table>
         </div>
 
-        <!-- 6. Bottom Form Action Buttons -->
+        <!-- 6. Bottom Table Footer Count -->
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200">
             <span class="text-xs text-slate-500 font-medium">
                 Menampilkan <strong class="text-slate-800">{{ $countAll ?? count($rows) }}</strong> karyawan anggota Section Head
             </span>
-            <div class="flex items-center gap-2.5 self-end sm:self-auto">
-                <button type="submit" 
-                        formaction="{{ route('penilaian.section.saveDraft') }}" 
-                        class="px-5 py-2.5 rounded-none border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs shadow-sm transition-colors">
-                    Simpan Draft
-                </button>
-                <button type="submit" 
-                        formaction="{{ route('penilaian.section.submitDept') }}" 
-                        class="px-6 py-2.5 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white font-bold text-xs shadow-sm transition-colors flex items-center gap-1.5">
-                    <span>Teruskan ke Dept. Head</span>
-                    <span>&rarr;</span>
-                </button>
-            </div>
         </div>
         </div>
     </form>

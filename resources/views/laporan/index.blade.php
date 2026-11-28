@@ -260,7 +260,11 @@
         </div>
         @else
         <!-- Card 3: Proses Foreman -->
-        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
+        @php
+            $shFmSudah = $roleWorkflowCards['section_head']['fm_sudah'] ?? 0;
+            $shFmBelum = $roleWorkflowCards['section_head']['fm_belum'] ?? ($roleWorkflowCards['section_head']['proses_foreman'] ?? 0);
+        @endphp
+        <div class="bg-white rounded-none border {{ $shFmBelum > 0 ? 'border-blue-300 bg-blue-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Proses Foreman</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
@@ -271,57 +275,55 @@
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-medium text-slate-500">Belum ke Section Head</span>
-                <span class="font-mono text-slate-400 text-[10px]">Proses Foreman</span>
+                <span class="font-bold text-slate-600">
+                    Sudah Dinilai: <span class="text-emerald-700">{{ $shFmSudah }}</span> &bull; Belum Dinilai: <span class="{{ $shFmBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $shFmBelum }}</span>
+                </span>
             </div>
         </div>
         @endif
 
-        <!-- Card 4: Diteruskan Dept Head -->
-        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
+        <!-- Card 4: Diteruskan Ke Dept Head -->
+        @php
+            $shDhSudah = $roleWorkflowCards['section_head']['dh_sudah'] ?? 0;
+            $shDhBelum = $roleWorkflowCards['section_head']['dh_belum'] ?? 0;
+            $shDhTotal = $roleWorkflowCards['section_head']['diteruskan_dept'] ?? ($shDhSudah + $shDhBelum);
+        @endphp
+        <div class="bg-white rounded-none border {{ $shDhBelum > 0 ? 'border-amber-300 bg-amber-50/30' : ($shDhSudah > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300') }} p-4 shadow-sm flex flex-col justify-between">
             <div>
-                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Dept Head</span>
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Dept Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                    {{ $roleWorkflowCards['section_head']['diteruskan_dept'] ?? 0 }}
+                    {{ $shDhTotal }}
                 </div>
                 <span class="text-[11px] text-slate-500 mt-1 block font-medium">
                     Telah diverifikasi Section Head
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-blue-700">Terkirim ke Dept</span>
-                <span class="font-mono text-slate-400 text-[10px]">Alur Verifikasi</span>
+                <span class="font-bold text-slate-600">
+                    Sudah Dinilai: <span class="text-emerald-700">{{ $shDhSudah }}</span> &bull; Belum Dinilai: <span class="{{ $shDhBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $shDhBelum }}</span>
+                </span>
             </div>
         </div>
 
-        <!-- Card 5: Approval Department Head -->
+        <!-- Card 5: Diteruskan Ke Division Head -->
         @php
-            $shDhSudah = $roleWorkflowCards['section_head']['dh_sudah'] ?? 0;
-            $shDhBelum = $roleWorkflowCards['section_head']['dh_belum'] ?? 0;
-            $shDhTotal = $shDhSudah + $shDhBelum;
+            $shDivSudah = $roleWorkflowCards['section_head']['div_sudah'] ?? 0;
+            $shDivBelum = $roleWorkflowCards['section_head']['div_belum'] ?? 0;
+            $shDivTotal = $roleWorkflowCards['section_head']['diteruskan_div'] ?? ($shDivSudah + $shDivBelum);
         @endphp
-        <div class="bg-white rounded-none border {{ $shDhBelum > 0 ? 'border-amber-300 bg-amber-50/30' : ($shDhSudah > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300') }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-white rounded-none border {{ $shDivBelum > 0 ? 'border-purple-300 bg-purple-50/30' : ($shDivSudah > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300') }} p-4 shadow-sm flex flex-col justify-between">
             <div>
-                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Approval Department Head</span>
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Division Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-                    {{ $shDhTotal }}
+                    {{ $shDivTotal }}
                 </div>
-                <span class="text-[11px] {{ $shDhBelum > 0 ? 'text-amber-700 font-bold' : ($shDhSudah > 0 ? 'text-emerald-700 font-bold' : 'text-slate-500 font-medium') }} mt-1 block">
-                    @if($shDhTotal === 0)
-                        Tidak ada antrean
-                    @elseif($shDhBelum > 0)
-                        Dalam antrean Department Head
-                    @else
-                        Sudah disetujui Department Head
-                    @endif
+                <span class="text-[11px] text-slate-500 mt-1 block font-medium">
+                    Telah diverifikasi Section Head
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
                 <span class="font-bold text-slate-600">
-                    Sudah Dinilai: <span class="text-emerald-700">{{ $shDhSudah }}</span> &bull; Belum Dinilai: <span class="{{ $shDhBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $shDhBelum }}</span>
-                </span>
-                <span class="font-mono text-[10px] {{ $shDhBelum > 0 ? 'text-amber-700 font-bold' : ($shDhSudah > 0 ? 'text-emerald-700 font-bold' : 'text-slate-400') }}">
-                    {{ $shDhTotal === 0 ? 'Tahap Dept' : ($shDhBelum > 0 ? 'Antrean' : 'Disetujui') }}
+                    Sudah Dinilai: <span class="text-emerald-700">{{ $shDivSudah }}</span> &bull; Belum Dinilai: <span class="{{ $shDivBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $shDivBelum }}</span>
                 </span>
             </div>
         </div>
