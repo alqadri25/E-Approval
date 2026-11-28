@@ -75,12 +75,12 @@
         <!-- ========================================================================= -->
         <div class="w-full space-y-6">
 
-            <!-- Selector 7 Jenis Formulir -->
+            <!-- Selector Template Formulir -->
             <div class="bg-white p-4 sm:p-5 border border-slate-300 shadow-sm rounded-none space-y-3">
                 <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
                     <div>
                         <h2 class="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
-                            <span>📑</span> Katalog 7 Template Form PK - Pilih Jenis Formulir yang Ingin Dikustomisasi:
+                            <span>📑</span> Katalog <span x-text="forms.length"></span> Template Form PK - Pilih Jenis Formulir yang Ingin Dikustomisasi:
                         </h2>
                         <p class="text-[11px] text-slate-500 mt-0.5">
                             Pilih salah satu template di bawah untuk mengedit aspek kriteria, bobot nilai, atau teks parameternya.
@@ -88,7 +88,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     <template x-for="f in forms" :key="f.kode">
                         <button type="button" 
                                 @click="selectForm(f.kode)"
@@ -758,19 +758,19 @@
                                 </td>
 
                                 <!-- Col 4 & 5: Subtitle boxes Seksi & Departemen -->
-                                <template x-if="selectedKode === '07-006-DIV'">
+                                <template x-if="selectedKode === '07-006-DIV' || selectedKode === '07-006-DIRECT'">
                                     <td colspan="2" class="text-center font-bold text-[8px] uppercase text-slate-600 border-r-2 border-b border-slate-900 p-0.5">
                                         DIVISION
                                     </td>
                                 </template>
-                                <template x-if="selectedKode !== '07-006-DIV'">
+                                <template x-if="selectedKode !== '07-006-DIV' && selectedKode !== '07-006-DIRECT'">
                                     <td class="text-center font-bold text-[8px] uppercase text-slate-600 border-r border-b border-slate-900 p-0.5">
-                                        <span x-text="currentFormMeta.is_bilingual ? (selectedKode === '07-006-DH' ? 'DEPARTEMEN / 部門' : 'SECTION / セクション') : 'Seksi'"></span>
+                                        <span x-text="currentFormMeta.is_bilingual ? ((selectedKode === '07-006-DH' || selectedKode === '07-006-SECRETARY') ? 'DEPARTEMEN / 部門' : 'SECTION / セクション') : 'Seksi'"></span>
                                     </td>
                                 </template>
-                                <template x-if="selectedKode !== '07-006-DIV'">
+                                <template x-if="selectedKode !== '07-006-DIV' && selectedKode !== '07-006-DIRECT'">
                                     <td class="text-center font-bold text-[8px] uppercase text-slate-600 border-r-2 border-b border-slate-900 p-0.5">
-                                        <span x-text="currentFormMeta.is_bilingual ? (selectedKode === '07-006-DH' ? 'DIVISION' : 'DEPARTEMEN / 部門') : 'Departemen'"></span>
+                                        <span x-text="currentFormMeta.is_bilingual ? ((selectedKode === '07-006-DH' || selectedKode === '07-006-SECRETARY') ? 'DIVISION' : 'DEPARTEMEN / 部門') : 'Departemen'"></span>
                                     </td>
                                 </template>
                             </tr>
@@ -787,19 +787,19 @@
                                 </td>
 
                                 <!-- Col 4 & 5: Seksi & Departemen Values (Rowspan 2) -->
-                                <template x-if="selectedKode === '07-006-DIV'">
+                                <template x-if="selectedKode === '07-006-DIV' || selectedKode === '07-006-DIRECT'">
                                     <td colspan="2" rowspan="2" class="border-r-2 border-b-2 border-slate-900 text-center font-bold text-[8.5px] uppercase align-middle bg-white p-1"
                                         x-text="currentFormMeta.sample_karyawan ? currentFormMeta.sample_karyawan.seksi : 'ENGINEERING'">
                                         ENGINEERING
                                     </td>
                                 </template>
-                                <template x-if="selectedKode !== '07-006-DIV'">
+                                <template x-if="selectedKode !== '07-006-DIV' && selectedKode !== '07-006-DIRECT'">
                                     <td rowspan="2" class="border-r border-b-2 border-slate-900 text-center font-bold text-[8.5px] uppercase align-middle bg-white p-1"
                                         x-text="currentFormMeta.sample_karyawan ? currentFormMeta.sample_karyawan.seksi : 'FACTORY 1 SEC.'">
                                         FACTORY 1 SEC.
                                     </td>
                                 </template>
-                                <template x-if="selectedKode !== '07-006-DIV'">
+                                <template x-if="selectedKode !== '07-006-DIV' && selectedKode !== '07-006-DIRECT'">
                                     <td rowspan="2" class="border-r-2 border-b-2 border-slate-900 text-center font-bold text-[8.5px] uppercase align-middle bg-white p-1"
                                         x-text="currentFormMeta.sample_karyawan ? currentFormMeta.sample_karyawan.departemen : 'PROD 2'">
                                         PROD 2
@@ -808,10 +808,15 @@
 
                                 <!-- Col 6, 7, 8: Signer Names & Roles (Always 3 Distinct Columns) -->
                                 <!-- Col 6 Signer -->
-                                <td rowspan="2" class="border-r border-b-2 border-slate-900 text-center align-middle p-1 bg-white">
-                                    <div class="font-bold text-[7.5px] text-slate-900 truncate" x-text="currentFormMeta.ttd_config ? currentFormMeta.ttd_config.col1.name : '-'"></div>
-                                    <div class="text-[6.5px] text-slate-500 font-medium" x-text="currentFormMeta.ttd_config ? currentFormMeta.ttd_config.col1.role : ''"></div>
-                                </td>
+                                <template x-if="currentFormMeta.ttd_config && currentFormMeta.ttd_config.col1.is_blocked">
+                                    <td rowspan="2" class="bg-[#bfbfbf] border-r border-b-2 border-slate-900"></td>
+                                </template>
+                                <template x-if="!currentFormMeta.ttd_config || !currentFormMeta.ttd_config.col1.is_blocked">
+                                    <td rowspan="2" class="border-r border-b-2 border-slate-900 text-center align-middle p-1 bg-white">
+                                        <div class="font-bold text-[7.5px] text-slate-900 truncate" x-text="currentFormMeta.ttd_config ? currentFormMeta.ttd_config.col1.name : '-'"></div>
+                                        <div class="text-[6.5px] text-slate-500 font-medium" x-text="currentFormMeta.ttd_config ? currentFormMeta.ttd_config.col1.role : ''"></div>
+                                    </td>
+                                </template>
 
                                 <!-- Col 7 Signer -->
                                 <template x-if="currentFormMeta.ttd_config && currentFormMeta.ttd_config.col2.is_blocked">

@@ -200,13 +200,13 @@ class DatabaseSyncService
             $isDirectDeptDiv = \App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate((array)$k);
             $isSecretary = str_contains($seksiUpper, 'SECRETARY') || str_contains($posUpper, 'SECRETARY') || in_array((string)$nrp, ['268', '1237']);
             if ($isDirectDiv) {
-                $kodeForm = '07-006-DIV';
+                $kodeForm = '07-006-DIRECT';
                 $status = 'menunggu_div_head';
             } elseif ($isDirectDeptDiv) {
                 $kodeForm = '07-006-DH';
                 $status = 'menunggu_dept_head';
             } elseif ($isSecretary) {
-                $kodeForm = '07-006-DH';
+                $kodeForm = '07-006-SECRETARY';
                 $status = 'menunggu_dept_head';
             } elseif ($isDiv) {
                 $status = 'menunggu_div_head';
@@ -365,8 +365,8 @@ class DatabaseSyncService
             $targetStatus = 'menunggu_section_head';
             if ($isDirectDiv) {
                 $targetStatus = 'menunggu_div_head';
-                if ($d->kode_form !== '07-006-DIV') {
-                    DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DIV']);
+                if ($d->kode_form !== '07-006-DIRECT') {
+                    DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DIRECT']);
                 }
             } elseif ($isDirectDeptDiv) {
                 $targetStatus = 'menunggu_dept_head';
@@ -375,8 +375,8 @@ class DatabaseSyncService
                 }
             } elseif ($isSecretary) {
                 $targetStatus = 'menunggu_dept_head';
-                if ($d->kode_form !== '07-006-DH') {
-                    DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-DH']);
+                if ($d->kode_form !== '07-006-SECRETARY') {
+                    DB::table('dokumen')->where('id', $d->id)->update(['kode_form' => '07-006-SECRETARY']);
                 }
             } elseif ($isDiv) {
                 $targetStatus = 'menunggu_div_head';

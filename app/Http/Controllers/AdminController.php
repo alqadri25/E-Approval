@@ -2909,6 +2909,12 @@ class AdminController extends Controller
             '07-006-SH' => DB::table('dokumen')->where('kode_form', '07-006-SH')->value('id') ?? 19,
             '07-006-DH' => DB::table('dokumen')->where('kode_form', '07-006-DH')->value('id') ?? 8,
             '07-006-DIV' => DB::table('dokumen')->where('kode_form', '07-006-DIV')->value('id') ?? 182,
+            '07-006-SECRETARY' => DB::table('dokumen')->where('kode_form', '07-006-SECRETARY')->value('id')
+                ?? DB::table('dokumen')->whereIn('nrp', ['99996', '1237', '268'])->value('id')
+                ?? 126,
+            '07-006-DIRECT' => DB::table('dokumen')->where('kode_form', '07-006-DIRECT')->value('id')
+                ?? DB::table('dokumen')->where('nrp', '173')->value('id')
+                ?? 54,
         ];
 
         $daftarForm = [
@@ -3200,6 +3206,78 @@ class AdminController extends Controller
                     'col3_type' => 'button',
                 ],
             ],
+            [
+                'kode' => '07-006-SECRETARY',
+                'nama' => 'Formulir Penilaian Secretary',
+                'nama_jp' => 'セクレタリー評価表 (07-006)',
+                'level' => 'SECRETARY',
+                'sasaran' => 'Secretary Division / BOD (Mandiri → Division Head)',
+                'penilai_1' => 'Secretary Mandiri (Self Appraisal)',
+                'penilai_2' => 'Division Head (Penilai Final)',
+                'pengesahan' => 'Division Head (Final)',
+                'bobot' => 'Hasil Kerja (55%), Proses (15%), Man Mgt (15%), Sikap (15%)',
+                'format' => '07-006-SECRETARY.xlsx',
+                'is_bilingual' => true,
+                'sample_doc_id' => $sampleDocMap['07-006-SECRETARY'] ?? 126,
+                'sample_karyawan' => [
+                    'nama' => 'RIMURU TEMPEST1',
+                    'nrp' => '99996',
+                    'golongan' => 'IVA',
+                    'jabatan' => 'SECRETARY',
+                    'tgl_masuk' => '2012-08-29',
+                    'seksi' => 'SECRETARY',
+                    'departemen' => 'PRODUCTION A DIV',
+                    'banner' => 'SECRETARY / 秘書',
+                ],
+                'ttd_config' => [
+                    'is_single_ttd' => false,
+                    'col1' => ['header' => 'Kary. Ybs', 'sub' => '個人的', 'role' => 'Secretary', 'name' => 'RIMURU TEMPEST1', 'is_blocked' => false],
+                    'col2' => ['header' => '', 'sub' => '', 'role' => '', 'name' => '', 'is_blocked' => true],
+                    'col3' => ['header' => 'Penilai Final', 'sub' => '最終審査員', 'role' => 'Div. Head', 'name' => 'ATASAN PROD A', 'is_blocked' => false],
+                    'penilai_1_col' => 'Mandiri / 自分',
+                    'penilai_2_col' => '',
+                    'penilai_3_col' => 'Div. Head',
+                    'col1_type' => 'button',
+                    'col2_type' => 'blocked',
+                    'col3_type' => 'dash',
+                ],
+            ],
+            [
+                'kode' => '07-006-DIRECT',
+                'nama' => 'Formulir Penilaian Direct Div Head (NRP 173)',
+                'nama_jp' => 'シニアスタッフ評価表 (07-006)',
+                'level' => 'DIRECT DIV HEAD (173)',
+                'sasaran' => 'Sutarno (NRP 173) / Karyawan Dinilai Langsung Division Head',
+                'penilai_1' => '-',
+                'penilai_2' => '-',
+                'pengesahan' => 'Division Head (Penilai Tunggal)',
+                'bobot' => 'Hasil Kerja (55%), Proses (15%), Man Mgt (15%), Sikap (15%)',
+                'format' => '07-006-DIRECT.xlsx',
+                'is_bilingual' => true,
+                'sample_doc_id' => $sampleDocMap['07-006-DIRECT'] ?? 54,
+                'sample_karyawan' => [
+                    'nama' => 'SUTARNO',
+                    'nrp' => '173',
+                    'golongan' => 'IVA',
+                    'jabatan' => 'SENIOR STAFF',
+                    'tgl_masuk' => '1996-11-12',
+                    'seksi' => 'PRODUCTION A DIV',
+                    'departemen' => 'PRODUCTION A DIVISION',
+                    'banner' => 'DIRECT DIV HEAD / 事業部長直轄',
+                ],
+                'ttd_config' => [
+                    'is_single_ttd' => true,
+                    'col1' => ['header' => '', 'sub' => '', 'role' => '', 'name' => '', 'is_blocked' => true],
+                    'col2' => ['header' => '', 'sub' => '', 'role' => '', 'name' => '', 'is_blocked' => true],
+                    'col3' => ['header' => 'Penilai Final', 'sub' => '最終審査員', 'role' => 'Div. Head', 'name' => 'SUTARSO', 'is_blocked' => false],
+                    'penilai_1_col' => '',
+                    'penilai_2_col' => '',
+                    'penilai_3_col' => 'Division Head',
+                    'col1_type' => 'blocked',
+                    'col2_type' => 'blocked',
+                    'col3_type' => 'button',
+                ],
+            ],
         ];
 
         $calcService = app(\App\Services\AppraisalCalculationService::class);
@@ -3275,6 +3353,17 @@ class AdminController extends Controller
         $employeesByForm = [];
         foreach ($allDocs as $doc) {
             $fCode = $doc->kode_form;
+            $seksiEmpUpper = strtoupper(trim((string)($doc->seksi ?? '')));
+            $jabEmpUpper = strtoupper(trim((string)($doc->jabatan ?? '')));
+            if (in_array((string)$doc->nrp, ['173'], true)) {
+                $fCode = '07-006-DIRECT';
+            } elseif (
+                in_array((string)$doc->nrp, ['99996', '1237', '268'], true)
+                || str_contains($seksiEmpUpper, 'SECRETARY')
+                || str_contains($jabEmpUpper, 'SECRETARY')
+            ) {
+                $fCode = '07-006-SECRETARY';
+            }
             if (!isset($employeesByForm[$fCode])) {
                 $employeesByForm[$fCode] = [];
             }

@@ -145,8 +145,8 @@
             <!-- Status Badge -->
             @php
                 $isSelfDoc = (strcasecmp($dokumen['nrp'] ?? '', Auth::user()?->nrp ?? '') === 0);
-                $isSecretaryDoc = ($dokumen['kode_form'] ?? '') === '07-006-DH' && (
-                    str_contains(strtoupper($karyawan['seksi'] ?? ''), 'SECRETARY') || in_array($dokumen['nrp'] ?? '', ['268', '1237'])
+                $isSecretaryDoc = in_array($dokumen['kode_form'] ?? '', ['07-006-DH', '07-006-SECRETARY'], true) && (
+                    str_contains(strtoupper($karyawan['seksi'] ?? ''), 'SECRETARY') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'SECRETARY') || in_array($dokumen['nrp'] ?? '', ['268', '1237'])
                 );
                 $statusBadgeText = $statusBadgeText ?? \App\Http\Controllers\PenilaianController::resolveDocumentStatusBadge(
                     Auth::user(),
@@ -682,14 +682,14 @@
             $kodeFormStr = (string)($kodeForm ?? ($dokumen['kode_form'] ?? ''));
             $isGol4Up = \App\Http\Controllers\PenilaianController::isForm07006($kodeFormStr);
             $subFormVariant = $subFormVariant ?? null;
-            if (\App\Http\Controllers\PenilaianController::isDirectDivSubordinate($karyawan, $dokumen)) {
+            if (\App\Http\Controllers\PenilaianController::isDirectDivSubordinate($karyawan, $dokumen) || $kodeFormStr === '07-006-DIRECT') {
                 $subFormVariant = 'direct_div_subordinate';
             } elseif (\App\Http\Controllers\PenilaianController::isDirectDeptDivSubordinate($karyawan, $dokumen)) {
                 $subFormVariant = 'dept_and_div';
             } elseif ($isGol4Up && empty($subFormVariant)) {
                 if ($kodeFormStr === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION')) {
                     $subFormVariant = 'div_head';
-                } elseif ($kodeFormStr === '07-006-DH' || ($karyawan['level_form'] ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPARTMENT') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPT HEAD')) {
+                } elseif (in_array($kodeFormStr, ['07-006-DH', '07-006-SECRETARY'], true) || ($karyawan['level_form'] ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPARTMENT') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPT HEAD')) {
                     $subFormVariant = 'dept_head';
                 } elseif ($kodeFormStr === '07-006-KARYAWAN' || $isSubordinate07006) {
                     $subFormVariant = 'karyawan_gol4';
@@ -736,7 +736,7 @@
                 '07-002' => 'Code PDV Mapin - 07-002',
                 '07-003' => 'Code PDV Mapin - 07-003',
                 '07-004' => 'Code PDV Mapin - 07-004',
-                '07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN' => 'Code PDV Mapin - 07-006',
+                '07-006-SH', '07-006-DH', '07-006-DIV', '07-006-KARYAWAN', '07-006-SECRETARY', '07-006-DIRECT' => 'Code PDV Mapin - 07-006',
                 default => 'Code PDV Mapin - ' . $kodeForm,
             };
         @endphp

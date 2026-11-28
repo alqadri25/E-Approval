@@ -67,7 +67,7 @@
         </div>
     </div>
 
-    <!-- Tab Selector: 7 Jenis Formulir yang Digunakan (Desain Siku Tegas Sesuai Standar Musashi) -->
+    <!-- Tab Selector: Jenis Formulir yang Digunakan (Desain Siku Tegas Sesuai Standar Musashi) -->
     <div class="bg-white border border-slate-300 p-3 sm:p-4 shadow-sm rounded-none space-y-3">
         <div class="flex items-center justify-between border-b border-slate-200 pb-2">
             <h2 class="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
@@ -78,7 +78,7 @@
             </span>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        <div class="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-5 gap-2">
             <template x-for="f in forms" :key="f.kode">
                 <button type="button" 
                         @click="selectForm(f.kode)"
@@ -416,19 +416,19 @@
                     </td>
 
                     <!-- Col 4 & 5: Subtitle boxes Seksi & Departemen -->
-                    <template x-if="selectedKode === '07-006-DIV'">
+                    <template x-if="selectedKode === '07-006-DIV' || selectedKode === '07-006-DIRECT'">
                         <td colspan="2" class="text-center font-bold text-[8.5px] uppercase text-slate-600 border-r-2 border-b border-slate-900 p-0.5">
                             DIVISION
                         </td>
                     </template>
-                    <template x-if="selectedKode !== '07-006-DIV'">
+                    <template x-if="selectedKode !== '07-006-DIV' && selectedKode !== '07-006-DIRECT'">
                         <td class="text-center font-bold text-[8.5px] uppercase text-slate-600 border-r border-b border-slate-900 p-0.5">
-                            <span x-text="currentFormMeta.is_bilingual ? (selectedKode === '07-006-DH' ? 'DEPARTEMEN / 部門' : 'SECTION / セクション') : 'Seksi'"></span>
+                            <span x-text="currentFormMeta.is_bilingual ? ((selectedKode === '07-006-DH' || selectedKode === '07-006-SECRETARY') ? 'DEPARTEMEN / 部門' : 'SECTION / セクション') : 'Seksi'"></span>
                         </td>
                     </template>
-                    <template x-if="selectedKode !== '07-006-DIV'">
+                    <template x-if="selectedKode !== '07-006-DIV' && selectedKode !== '07-006-DIRECT'">
                         <td class="text-center font-bold text-[8.5px] uppercase text-slate-600 border-r-2 border-b border-slate-900 p-0.5">
-                            <span x-text="currentFormMeta.is_bilingual ? (selectedKode === '07-006-DH' ? 'DIVISION' : 'DEPARTEMEN / 部門') : 'Departemen'"></span>
+                            <span x-text="currentFormMeta.is_bilingual ? ((selectedKode === '07-006-DH' || selectedKode === '07-006-SECRETARY') ? 'DIVISION' : 'DEPARTEMEN / 部門') : 'Departemen'"></span>
                         </td>
                     </template>
                 </tr>
@@ -445,19 +445,19 @@
                     </td>
 
                     <!-- Col 4 & 5: Seksi & Departemen Values (Rowspan 2) -->
-                    <template x-if="selectedKode === '07-006-DIV'">
+                    <template x-if="selectedKode === '07-006-DIV' || selectedKode === '07-006-DIRECT'">
                         <td colspan="2" rowspan="2" class="border-r-2 border-b-2 border-slate-900 text-center font-bold text-[9px] uppercase align-middle bg-white p-1"
                             x-text="currentEmployee.departemen || 'PRODUCTION A DIV'">
                             PRODUCTION A DIV
                         </td>
                     </template>
-                    <template x-if="selectedKode !== '07-006-DIV'">
+                    <template x-if="selectedKode !== '07-006-DIV' && selectedKode !== '07-006-DIRECT'">
                         <td rowspan="2" class="border-r border-b-2 border-slate-900 text-center font-bold text-[9px] uppercase align-middle bg-white p-1"
                             x-text="currentEmployee.seksi">
                             FACTORY 1
                         </td>
                     </template>
-                    <template x-if="selectedKode !== '07-006-DIV'">
+                    <template x-if="selectedKode !== '07-006-DIV' && selectedKode !== '07-006-DIRECT'">
                         <td rowspan="2" class="border-r-2 border-b-2 border-slate-900 text-center font-bold text-[9px] uppercase align-middle bg-white p-1"
                             x-text="currentEmployee.departemen">
                             PROD 2
@@ -1169,8 +1169,11 @@ function lembarPenilaianPkHandler() {
             if (this.selectedKode === '07-006-DIV') {
                 return colNum === 3 ? (this.currentEmployee.nama || 'ATASAN PROD A') : '-';
             }
-            if (this.selectedKode === '07-006-DH') {
-                if (colNum === 1) return this.currentEmployee.nama || 'SUPARDI';
+            if (this.selectedKode === '07-006-DIRECT') {
+                return colNum === 3 ? (this.currentEmployee.div_nama && this.currentEmployee.div_nama !== '-' ? this.currentEmployee.div_nama : 'SUTARSO') : '-';
+            }
+            if (this.selectedKode === '07-006-DH' || this.selectedKode === '07-006-SECRETARY') {
+                if (colNum === 1) return this.currentEmployee.nama || (this.selectedKode === '07-006-SECRETARY' ? 'RIMURU TEMPEST1' : 'SUPARDI');
                 if (colNum === 3) return this.currentEmployee.div_nama && this.currentEmployee.div_nama !== '-' ? this.currentEmployee.div_nama : 'ATASAN PROD A';
                 return '-';
             }
@@ -1209,15 +1212,17 @@ function lembarPenilaianPkHandler() {
                 case '07-006-SH': return 'SECTION HEAD / セクションヘッド';
                 case '07-006-DH': return 'DEPARTMENT HEAD / 部長';
                 case '07-006-DIV': return 'DIVISION HEAD / 事業部長';
+                case '07-006-SECRETARY': return 'SECRETARY / 秘書';
+                case '07-006-DIRECT': return 'DIRECT DIV HEAD / 事業部長直轄';
                 default: return 'KJ : 1 - 3';
             }
         },
 
         isColBlocked(colNum) {
-            if (this.selectedKode === '07-006-DIV') {
+            if (this.selectedKode === '07-006-DIV' || this.selectedKode === '07-006-DIRECT') {
                 return colNum === 1 || colNum === 2;
             }
-            if (this.selectedKode === '07-006-DH') {
+            if (this.selectedKode === '07-006-DH' || this.selectedKode === '07-006-SECRETARY') {
                 return colNum === 2;
             }
             return false;
@@ -1225,10 +1230,10 @@ function lembarPenilaianPkHandler() {
 
         isColInteractive(colNum) {
             // Interactive clickable selector to choose rubric score
-            if (this.selectedKode === '07-006-DIV') {
+            if (this.selectedKode === '07-006-DIV' || this.selectedKode === '07-006-DIRECT') {
                 return colNum === 3;
             }
-            if (this.selectedKode === '07-006-DH' || this.selectedKode === '07-006-SH' || this.selectedKode === '07-006-KARYAWAN') {
+            if (this.selectedKode === '07-006-DH' || this.selectedKode === '07-006-SECRETARY' || this.selectedKode === '07-006-SH' || this.selectedKode === '07-006-KARYAWAN') {
                 return colNum === 1;
             }
             // For 07-001, 07-002, 07-003, 07-004: Col 1 is direct evaluator
