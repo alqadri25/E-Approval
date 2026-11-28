@@ -1249,6 +1249,34 @@ class DashboardController extends Controller
                 }
             }
 
+            // Urutkan baris: siap dinilai (aksi Nilai) paling atas, lalu sudah dinilai Dept Head, lalu menunggu Foreman/SH (Lihat) di bawah
+            usort($deptSubordinateRows, function ($a, $b) {
+                $getPriority = static function ($row) {
+                    $st = $row['status'] ?? '';
+                    $isReady = ($st === 'menunggu_dept_head')
+                        || (!empty($row['is_self']) && !in_array($st, ['menunggu_div_head', 'selesai']));
+                    if ($isReady) {
+                        return 0;
+                    }
+                    if (in_array($st, ['menunggu_div_head', 'selesai'])) {
+                        return 1;
+                    }
+                    return 2;
+                };
+
+                $pa = $getPriority($a);
+                $pb = $getPriority($b);
+                if ($pa !== $pb) {
+                    return $pa <=> $pb;
+                }
+
+                if (!empty($a['is_self']) !== !empty($b['is_self'])) {
+                    return !empty($a['is_self']) ? -1 : 1;
+                }
+
+                return strnatcasecmp((string)($a['nrp'] ?? ''), (string)($b['nrp'] ?? ''));
+            });
+
             $deptTotalDinilai = $deptSectionTotalDinilai;
             $deptWaitingSectionCount = $deptStageCounts['tahap2_section'] ?? ($deptStageCounts['tahap1_section'] ?? 0);
 

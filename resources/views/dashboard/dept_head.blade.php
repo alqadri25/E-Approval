@@ -776,12 +776,12 @@
                                         // Evaluasi Mandiri Department Head / Manager
                                         if (!in_array($sub['status'], ['menunggu_div_head', 'selesai'])) {
                                             $isActionable = true;
-                                            $btnLabel = 'Nilai Mandiri';
+                                            $btnLabel = 'Nilai';
                                         }
                                     } elseif ($sub['status'] === 'menunggu_dept_head') {
                                         // Hanya ketika dokumen sudah sampai di tahap Department Head
                                         $isActionable = true;
-                                        $btnLabel = $user->isSecretary() ? 'Nilai Mandiri' : 'Tinjau / Sahkan';
+                                        $btnLabel = 'Nilai';
                                     }
                                 @endphp
                                 <a href="{{ route($user->isSecretary() ? 'penilaian.show.secretary' : 'penilaian.show.depthead', $sub['doc_id']) }}" 
