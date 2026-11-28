@@ -108,7 +108,7 @@
         
         <!-- Left: Back Button & NRP Selector ("Ketika pilih NRP otomatis muncul nama dan formnya") -->
         <div class="flex items-center gap-2 sm:gap-2.5 flex-nowrap flex-shrink min-w-0">
-            <a href="{{ route('dashboard') }}" class="min-btn inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-sm flex-shrink-0" title="Kembali ke Dashboard">
+            <a href="{{ route('penilaian.cari') }}" class="min-btn inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 transition-colors shadow-sm flex-shrink-0" title="Kembali ke Form Penilaian (Cari NRP)">
                 <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                 </svg>
