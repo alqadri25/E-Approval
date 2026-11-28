@@ -98,8 +98,18 @@
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
                     {{ $roleWorkflowCards['foreman']['total_karyawan'] ?? $totalKaryawan }}
                 </div>
+                @php
+                    $fmMandiriLaporan = count(array_filter($employeeRows ?? [], fn($r) => strcasecmp($r['nrp'] ?? '', $user->nrp ?? '') === 0));
+                    $fmAnggotaLaporan = max(0, ($roleWorkflowCards['foreman']['total_karyawan'] ?? $totalKaryawan) - $fmMandiriLaporan);
+                @endphp
                 <span class="text-[11px] text-slate-500 mt-1 block font-medium">
-                    Anggota Foreman
+                    @if($fmMandiriLaporan > 0 && $fmAnggotaLaporan > 0)
+                        {{ $fmMandiriLaporan }} Mandiri, {{ $fmAnggotaLaporan }} Anggota
+                    @elseif($fmMandiriLaporan > 0)
+                        {{ $fmMandiriLaporan }} Mandiri
+                    @else
+                        Anggota Foreman
+                    @endif
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">

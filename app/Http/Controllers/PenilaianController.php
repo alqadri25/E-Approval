@@ -8720,6 +8720,16 @@ class PenilaianController extends Controller
             $nilaiByDoc[$docId][$lvl][$n['aspek_kode']] = (float)$n['skor'];
         }
 
+        $allTtd = $this->repository->all('tanda_tangan');
+        $ttdByDoc = [];
+        foreach ($allTtd as $t) {
+            $docId = $t['dokumen_id'] ?? null;
+            $lvl = $t['level'] ?? '';
+            if ($docId && $lvl) {
+                $ttdByDoc[$docId][$lvl] = $t;
+            }
+        }
+
         // Subordinates based on user's base role access
         $totalKaryawanSubtitle = 'Seluruh anggota departemen';
         $baseKaryawan = array_values(array_filter($allKaryawan, function ($k) use ($user, &$totalKaryawanSubtitle) {
@@ -9097,6 +9107,26 @@ class PenilaianController extends Controller
             $hasManMgt = in_array($kodeForm, ['07-003', '07-004', '07-006-SH', '07-006-DH', '07-006-DIV']);
 
             if ($user->isForeman()) {
+                // When logged in as Foreman: ALWAYS pull the Foreman's evaluation data and scores!
+                $scores = ($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : [];
+                $calc = $this->calcService->calculate($kodeForm, $scores);
+
+                // Jika dokumen yang membutuhkan tahap Foreman masih berstatus menunggu_section_head
+                // tanpa nilai/TTD Foreman maupun aktivitas atasan, pastikan status efektifnya kembali ke menunggu_foreman.
+                if ($status === 'menunggu_section_head' && self::requiresForemanStage($k, $kodeForm, $status)) {
+                    $hasFmTtd = $docId && !empty($ttdByDoc[$docId]['foreman']);
+                    $hasHigherStage = $docId && (
+                        !empty($nilaiByDoc[$docId]['section_head'])
+                        || !empty($ttdByDoc[$docId]['section_head'])
+                        || !empty($ttdByDoc[$docId]['dept_head'])
+                        || !empty($ttdByDoc[$docId]['div_head'])
+                    );
+                    $hasStoredTotal = !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0;
+                    if (empty($scores) && !$hasFmTtd && !$hasHigherStage && !$hasStoredTotal) {
+                        $status = 'menunggu_foreman';
+                    }
+                }
+
                 // Track 4-stage workflow counts for Foreman
                 if ($status === 'revisi') {
                     $foremanStageCounts['revisi']++;
@@ -9115,12 +9145,8 @@ class PenilaianController extends Controller
                     $foremanStageCounts['need_action']++;
                 }
 
-                // When logged in as Foreman: ALWAYS pull the Foreman's evaluation data and scores!
-                $scores = ($docId && isset($nilaiByDoc[$docId]['foreman'])) ? $nilaiByDoc[$docId]['foreman'] : [];
-                $calc = $this->calcService->calculate($kodeForm, $scores);
-
                 $isDinilai = !empty($doc) && (
-                    !empty($scores)
+                    (!empty($scores) && ($calc['grand_total'] > 0))
                     || in_array($status, ['menunggu_section_head', 'menunggu_dept_head', 'menunggu_div_head', 'selesai'])
                     || (($doc['total_nilai'] ?? 0) > 0 && !in_array($status, ['draft', 'belum_ada', 'menunggu_foreman']))
                 );
@@ -9380,7 +9406,7 @@ class PenilaianController extends Controller
             // Values (hasilKerjaVal, etc.) assigned above per role context
 
             $isGol4UpForm = self::isForm07006($kodeForm);
-            $hasForemanStructure = !empty($k['nrp_foreman']) && !$isGol4UpForm;
+            $hasForemanStructure = self::requiresForemanStage($k, $kodeForm, $status);
             $isSecretaryEmp = str_contains(strtoupper((string)($k['seksi'] ?? ($k['nama_sect'] ?? ''))), 'SECRETARY') 
                 || in_array((string)$nrp, ['268', '1237']);
 
@@ -9802,11 +9828,29 @@ class PenilaianController extends Controller
         foreach ($filteredKaryawan as $k) {
             $nrp = $k['nrp'];
             $doc = $docsByNrp[$nrp] ?? null;
+            $docId = $doc['id'] ?? null;
             $st = $doc['status'] ?? 'belum_ada';
             $kodeFormEmp = $doc['kode_form'] ?? self::determineKodeForm($k);
             $isGol4UpEmp = self::isForm07006($kodeFormEmp);
             $isSelfEmp = (strcasecmp((string)$nrp, (string)$user->nrp) === 0);
-            $hasForemanKaryawan = !empty($k['nrp_foreman']) && !$isGol4UpEmp;
+            $hasForemanKaryawan = self::requiresForemanStage($k, $kodeFormEmp, $st);
+
+            // Safeguard: Jika dokumen membutuhkan tahap Foreman namun berstatus menunggu_section_head
+            // tanpa ada skor/TTD Foreman maupun aktivitas atasan, pastikan tetap dihitung menunggu_foreman.
+            if ($hasForemanKaryawan && $st === 'menunggu_section_head') {
+                $hasFmScores = $docId && !empty($nilaiByDoc[$docId]['foreman']);
+                $hasFmTtd = $docId && !empty($ttdByDoc[$docId]['foreman']);
+                $hasHigherStage = $docId && (
+                    !empty($nilaiByDoc[$docId]['section_head'])
+                    || !empty($ttdByDoc[$docId]['section_head'])
+                    || !empty($ttdByDoc[$docId]['dept_head'])
+                    || !empty($ttdByDoc[$docId]['div_head'])
+                );
+                $hasStoredTotal = !empty($doc['total_nilai']) && (float)$doc['total_nilai'] > 0;
+                if (!$hasFmScores && !$hasFmTtd && !$hasHigherStage && !$hasStoredTotal) {
+                    $st = 'menunggu_foreman';
+                }
+            }
 
             // Foreman metrics (Alur hierarki: Foreman -> Section Head -> Department Head sebagai Tingkat Tertinggi)
             if ($hasForemanKaryawan) {
