@@ -1863,6 +1863,50 @@ class DashboardController extends Controller
                 ];
             }
 
+            // Sort divSubordinateRows so rows with the actionable "Nilai" button appear first
+            usort($divSubordinateRows, function ($a, $b) {
+                $isNilaiAction = static function (array $row): bool {
+                    if (empty($row['doc_id'])) {
+                        return false;
+                    }
+                    if (!empty($row['is_self'])) {
+                        return ($row['status'] ?? '') !== 'selesai';
+                    }
+                    return ($row['status'] ?? '') === 'menunggu_div_head';
+                };
+
+                $aNilai = $isNilaiAction($a);
+                $bNilai = $isNilaiAction($b);
+                if ($aNilai !== $bNilai) {
+                    return $aNilai ? -1 : 1;
+                }
+
+                if ($aNilai && (!empty($a['is_self']) !== !empty($b['is_self']))) {
+                    return !empty($a['is_self']) ? -1 : 1;
+                }
+
+                $stageRank = static function (array $row): int {
+                    if (($row['status'] ?? '') === 'selesai') {
+                        return 1;
+                    }
+                    return match ($row['stage_key'] ?? '') {
+                        'tahap3' => 0,
+                        'tahap4' => 1,
+                        'tahap2' => 2,
+                        'tahap1' => 3,
+                        default => 4,
+                    };
+                };
+
+                $ra = $stageRank($a);
+                $rb = $stageRank($b);
+                if ($ra !== $rb) {
+                    return $ra <=> $rb;
+                }
+
+                return strnatcasecmp((string)($a['nrp'] ?? ''), (string)($b['nrp'] ?? ''));
+            });
+
             foreach ($deptGroups as $dName => $dStats) {
                 $pct = $dStats['total'] > 0 ? round(($dStats['div_dinilai'] / $dStats['total']) * 100) : 0;
                 $rekapDept[] = [
