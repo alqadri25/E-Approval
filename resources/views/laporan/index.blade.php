@@ -937,13 +937,14 @@
         $isForemanLaporan = $user->isForeman() || in_array($userRole, ['foreman', 'ketua']);
 
         $showColForeman = !$user->isSecretary();
+        $showColMandiri = !$isForemanLaporan;
         $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan || $isSectionHeadLaporan);
         $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan);
         $showColDiv = $isSuperOrAdmin || $isDivHeadLaporan;
-        $showColFinal = true;
+        $showColFinal = !$isForemanLaporan;
 
-        // 17 kolom identitas & bobot + 1 kolom aksi + jumlah kolom nilai PK yang aktif (termasuk Nilai PK Mandiri)
-        $totalTableCols = 19 + ($showColForeman ? 1 : 0) + ($showColSect ? 1 : 0) + ($showColDept ? 1 : 0) + ($showColDiv ? 1 : 0) + ($showColFinal ? 1 : 0);
+        // 17 kolom identitas & bobot + 1 kolom aksi + jumlah kolom nilai PK yang aktif
+        $totalTableCols = 18 + ($showColForeman ? 1 : 0) + ($showColMandiri ? 1 : 0) + ($showColSect ? 1 : 0) + ($showColDept ? 1 : 0) + ($showColDiv ? 1 : 0) + ($showColFinal ? 1 : 0);
     @endphp
     <div class="bg-white border border-slate-300 shadow-sm rounded-none overflow-hidden">
         <div class="overflow-x-auto">
@@ -968,9 +969,11 @@
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">Man Management</th>
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">Total Nilai</th>
                         @if($showColForeman)
-                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK FOREMAN (JIKA ADA)</th>
+                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">{{ $isForemanLaporan ? 'NILAI PK FOREMAN' : 'NILAI PK FOREMAN (JIKA ADA)' }}</th>
                         @endif
+                        @if($showColMandiri)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK MANDIRI</th>
+                        @endif
                         @if($showColSect)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK SECT</th>
                         @endif
@@ -1106,6 +1109,7 @@
                         </td>
                         @endif
 
+                        @if($showColMandiri)
                         <!-- NILAI PK MANDIRI -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-300 text-center whitespace-nowrap">
                             @if(($row['pk_mandiri'] ?? '-') !== '-')
@@ -1120,6 +1124,7 @@
                             <span class="text-slate-400 font-mono font-bold">-</span>
                             @endif
                         </td>
+                        @endif
 
                         @if($showColSect)
                         <!-- NILAI PK SECT -->

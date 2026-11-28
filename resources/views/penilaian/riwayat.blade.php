@@ -356,7 +356,6 @@
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Sect Head</th>
                         @elseif($isForemanRiwayat)
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Foreman</th>
-                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Mandiri</th>
                         @elseif($isMandiriUser)
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Mandiri</th>
                         @else
@@ -512,14 +511,6 @@
                                 <span class="text-slate-300 font-bold">-</span>
                             @endif
                         </td>
-                        @php $mGrade = $row['mandiri_grade'] ?? '-'; @endphp
-                        <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
-                            @if(isset($gradeBadgeMap[$mGrade]))
-                                <span class="px-2 py-0.5 rounded-none font-black text-xs border {{ $gradeBadgeMap[$mGrade] }}">{{ $mGrade }}</span>
-                            @else
-                                <span class="text-slate-300 font-bold">-</span>
-                            @endif
-                        </td>
                         @elseif($isMandiriUser)
                         @php $mGrade = $row['mandiri_grade'] ?? $row['grade'] ?? '-'; @endphp
                         <td class="py-3 px-3.5 text-center border-r border-slate-200 whitespace-nowrap">
@@ -571,7 +562,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $isDivHeadRiwayat ? 19 : ($isStructuralSh ? 18 : ($isMandiriUser || $user->isSecretary() ? 17 : 18)) }}" class="py-12 text-center text-slate-400">
+                        <td colspan="{{ $isDivHeadRiwayat ? 19 : ($isStructuralSh ? 18 : ($isForemanRiwayat || $isMandiriUser || $user->isSecretary() ? 17 : 18)) }}" class="py-12 text-center text-slate-400">
                             <div class="text-3xl mb-2">📜</div>
                             <p class="font-bold text-slate-600 text-sm">Belum ada karyawan yang selesai dinilai.</p>
                             <p class="text-xs text-slate-400 mt-1">Mulai penilaian bawahan melalui menu <a href="{{ route('penilaian.cari') }}" class="text-[#92302e] font-bold underline">Form Penilaian</a>.</p>

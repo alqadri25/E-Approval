@@ -10299,12 +10299,14 @@ class PenilaianController extends Controller
         $isDivHead = $user->isDivisionHead() || in_array($userRole, ['div_head', 'division_head']);
         $isDeptHead = $user->isDepartmentHead() || in_array($userRole, ['dept_head', 'department_head']);
         $isSectionHead = $user->isSectionHead() || in_array($userRole, ['section_head', 'section', 'sechead']);
+        $isForeman = $user->isForeman() || in_array($userRole, ['foreman', 'ketua']);
 
         $showColForeman = !$user->isSecretary();
+        $showColMandiri = !$isForeman;
         $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead || $isSectionHead);
         $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead);
         $showColDiv = $isSuperOrAdmin || $isDivHead;
-        $showColFinal = true;
+        $showColFinal = !$isForeman;
 
         $headers = [
             'NO',
@@ -10327,9 +10329,11 @@ class PenilaianController extends Controller
         ];
 
         if ($showColForeman) {
-            $headers[] = 'NILAI PK FOREMAN (JIKA ADA)';
+            $headers[] = $isForeman ? 'NILAI PK FOREMAN' : 'NILAI PK FOREMAN (JIKA ADA)';
         }
-        $headers[] = 'NILAI PK MANDIRI';
+        if ($showColMandiri) {
+            $headers[] = 'NILAI PK MANDIRI';
+        }
         if ($showColSect) {
             $headers[] = 'NILAI PK SECT';
         }
@@ -10369,7 +10373,9 @@ class PenilaianController extends Controller
             if ($showColForeman) {
                 $row[] = (string)($k['pk_foreman'] ?? '-');
             }
-            $row[] = (string)($k['pk_mandiri'] ?? '-');
+            if ($showColMandiri) {
+                $row[] = (string)($k['pk_mandiri'] ?? '-');
+            }
             if ($showColSect) {
                 $row[] = (string)($k['pk_sect'] ?? '-');
             }
