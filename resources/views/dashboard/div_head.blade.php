@@ -627,12 +627,12 @@
                                 @if($row['is_self'] ?? false)
                                     <a href="{{ route('penilaian.show.divhead', $row['doc_id']) }}" 
                                        class="inline-block px-2.5 py-1 rounded-none text-xs font-bold transition-colors {{ $row['status'] === 'selesai' ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' : 'bg-[#92302e] text-white hover:bg-[#7e2524]' }}">
-                                        {{ $row['status'] === 'selesai' ? 'Lihat Form Mandiri' : 'Nilai Form Mandiri' }}
+                                        {{ $row['status'] === 'selesai' ? 'Lihat Form Mandiri' : 'Nilai' }}
                                     </a>
                                 @else
                                     <a href="{{ route('penilaian.show.divhead', $row['doc_id']) }}" 
                                        class="inline-block px-2.5 py-1 rounded-none text-xs font-bold transition-colors {{ in_array($row['status'], ['menunggu_div_head']) ? 'bg-[#92302e] text-white hover:bg-[#7e2524]' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' }}">
-                                        {{ in_array($row['status'], ['menunggu_div_head']) ? 'Review & Sahkan' : 'Lihat' }}
+                                        {{ in_array($row['status'], ['menunggu_div_head']) ? 'Nilai' : 'Lihat' }}
                                     </a>
                                 @endif
                             @else
