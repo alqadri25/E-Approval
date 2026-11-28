@@ -553,24 +553,24 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse border border-slate-300">
                 <thead>
-                    <tr class="text-slate-700 font-bold border-b border-slate-300 bg-slate-100/90 uppercase tracking-wider text-[11px]">
-                        <th class="py-3 px-4 border border-slate-300">Nama Lengkap</th>
-                        <th class="py-3 px-4 border border-slate-300">NRP</th>
-                        <th class="py-3 px-4 border border-slate-300">Position</th>
-                        <th class="py-3 px-4 border border-slate-300">Department</th>
-                        <th class="py-3 px-4 border border-slate-300">Golongan</th>
-                        <th class="py-3 px-4 border border-slate-300">Start Work</th>
-                        <th class="py-3 px-4 border border-slate-300">Tahap Dokumen</th>
-                        <th class="py-3 px-4 text-center border border-slate-300">Status</th>
-                        <th class="py-3 px-4 text-center border border-slate-300">Skor / Grade</th>
-                        <th class="py-3 px-4 text-center w-28 border border-slate-300">Aksi</th>
+                    <tr class="text-slate-700 font-bold border-b border-slate-300 bg-slate-100/90 uppercase tracking-wider text-[11px] whitespace-nowrap align-middle">
+                        <th class="py-3 px-3 border border-slate-300 text-left align-middle">Nama Lengkap</th>
+                        <th class="py-3 px-3 border border-slate-300 text-left align-middle">NRP</th>
+                        <th class="py-3 px-3 border border-slate-300 text-left align-middle">Position</th>
+                        <th class="py-3 px-3 border border-slate-300 text-left align-middle">Department</th>
+                        <th class="py-3 px-3 border border-slate-300 text-center align-middle">Golongan</th>
+                        <th class="py-3 px-3 border border-slate-300 text-center align-middle">Start Work</th>
+                        <th class="py-3 px-3 border border-slate-300 text-center align-middle">Tahap Dokumen</th>
+                        <th class="py-3 px-3 text-center border border-slate-300 align-middle">Status</th>
+                        <th class="py-3 px-3 text-center border border-slate-300 align-middle">Skor / Grade</th>
+                        <th class="py-3 px-3 text-center w-24 border border-slate-300 align-middle">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
                     @forelse($divSubordinateRows ?? [] as $row)
-                    <tr class="hover:bg-slate-50 transition-colors"
+                    <tr class="hover:bg-slate-50 transition-colors align-middle"
                         x-show="matchesFilter({{ json_encode($row) }})">
-                        <td class="py-3 px-4 font-semibold text-slate-900 border border-slate-200">
+                        <td class="py-2.5 px-3 font-semibold text-slate-900 border border-slate-200 align-middle whitespace-nowrap">
                             <div>
                                 <div class="flex items-center gap-1.5">
                                     <span class="block font-bold">{{ $row['nama_lengkap'] }}</span>
@@ -578,30 +578,30 @@
                                         <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-none bg-rose-100 text-[#92302e] border border-rose-200 uppercase">Anda</span>
                                     @endif
                                 </div>
-                                <span class="text-[10px] text-slate-400 font-normal">{{ $row['division'] ?? $row['seksi'] }}</span>
+                                <span class="text-[10px] text-slate-400 font-normal block">{{ $row['division'] ?? $row['seksi'] }}</span>
                             </div>
                         </td>
-                        <td class="py-3 px-4 font-mono text-slate-700 font-medium border border-slate-200">
+                        <td class="py-2.5 px-3 font-mono text-slate-700 font-medium border border-slate-200 align-middle whitespace-nowrap">
                             {{ $row['nrp'] }}
                         </td>
-                        <td class="py-3 px-4 text-slate-600 border border-slate-200">
+                        <td class="py-2.5 px-3 text-slate-600 border border-slate-200 align-middle whitespace-nowrap">
                             {{ $row['jabatan'] }}
                         </td>
-                        <td class="py-3 px-4 text-slate-600 font-medium font-mono text-[11px] border border-slate-200">
+                        <td class="py-2.5 px-3 text-slate-600 font-medium font-mono text-[11px] border border-slate-200 align-middle whitespace-nowrap">
                             {{ $row['departemen'] }}
                         </td>
-                        <td class="py-3 px-4 text-slate-600 font-medium font-mono text-[11px] border border-slate-200">
+                        <td class="py-2.5 px-3 text-center text-slate-600 font-medium font-mono text-[11px] border border-slate-200 align-middle whitespace-nowrap">
                             {{ $row['sub_gol'] ?? $row['golongan'] ?? '-' }}
                         </td>
-                        <td class="py-3 px-4 text-slate-600 font-mono text-[11px] border border-slate-200">
+                        <td class="py-2.5 px-3 text-center text-slate-600 font-mono text-[11px] border border-slate-200 align-middle whitespace-nowrap">
                             {{ \App\Services\GoogleSyncService::formatMusashiDate($row['tgl_masuk'] ?? '') }}
                         </td>
-                        <td class="py-3 px-4 border border-slate-200">
+                        <td class="py-2.5 px-3 text-center border border-slate-200 align-middle whitespace-nowrap">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold border {{ $row['badge_class'] }}">
                                 {{ $row['stage_label'] }}
                             </span>
                         </td>
-                        <td class="py-3 px-4 text-center border border-slate-200">
+                        <td class="py-2.5 px-3 text-center border border-slate-200 align-middle whitespace-nowrap">
                             @if(!empty($row['is_evaluated']))
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold bg-[#fbe8e8] text-[#92302e] border border-[#92302e]/20">
                                     Sudah dinilai
@@ -612,7 +612,7 @@
                                 </span>
                             @endif
                         </td>
-                        <td class="py-3 px-4 text-center font-mono border border-slate-200">
+                        <td class="py-2.5 px-3 text-center font-mono border border-slate-200 align-middle whitespace-nowrap">
                             @if(!empty($row['score']) && $row['score'] !== '-' && !empty($row['grade']) && $row['grade'] !== '-')
                                 <span class="font-bold text-slate-900">{{ $row['score'] }}</span>
                                 <span class="ml-1 text-[10px] font-black px-1.5 py-0.2 rounded-none bg-slate-100 border border-slate-200 text-slate-800">{{ $row['grade'] }}</span>
@@ -622,7 +622,7 @@
                                 <span class="text-slate-400">-</span>
                             @endif
                         </td>
-                        <td class="py-3 px-4 text-center border border-slate-200">
+                        <td class="py-2.5 px-3 text-center border border-slate-200 align-middle whitespace-nowrap">
                             @if($row['doc_id'])
                                 @if($row['is_self'] ?? false)
                                     <a href="{{ route('penilaian.show.divhead', $row['doc_id']) }}" 
