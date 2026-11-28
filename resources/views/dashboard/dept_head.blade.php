@@ -408,8 +408,8 @@
         </div>
     </div>
     @else
-    <!-- 3. Key Stat Cards in a Row (4 Columns - Khusus Department Head) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- 3. Key Stat Cards in a Row (3 Columns - Khusus Department Head) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <!-- 1. Total Karyawan (Klik: Scroll ke tabel filter semua) -->
         <div @click="scrollToSection('dept-data-karyawan', 'all')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
@@ -421,7 +421,15 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Karyawan</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $deptTotalKaryawan }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">Anggota Department Head</p>
+                    <p class="text-[11px] text-slate-500 mt-1 leading-none">
+                        @if(($deptMandiriCount ?? 0) > 0 && ($deptAnggotaCount ?? 0) > 0)
+                            {{ $deptMandiriCount }} Mandiri, {{ $deptAnggotaCount }} Bawahan
+                        @elseif(($deptAnggotaCount ?? 0) > 0)
+                            {{ $deptAnggotaCount }} Anggota Tim
+                        @else
+                            Evaluasi Diri Mandiri
+                        @endif
+                    </p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-slate-100 text-slate-600 rounded-none border border-slate-200">
@@ -429,66 +437,47 @@
             </span>
         </div>
 
-        <!-- 2. Total Target (Klik: Scroll ke grafik Target Penilaian) -->
-        <div @click="scrollToSection('chart-target-kategori')" 
-             class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
-             title="Klik untuk melihat grafik Target Penilaian berdasarkan kategori">
-            <div class="flex items-center gap-3.5">
-                <div class="w-10 h-10 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-sm flex-shrink-0 border border-[#92302e]/20 group-hover:bg-[#92302e] group-hover:text-white transition-colors">
-                    T
-                </div>
-                <div>
-                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Target</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $effectiveTotalTarget }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">{{ $deptMandiriCount }} Mandiri, {{ $deptAnggotaCount }} Anggota</p>
-                </div>
-            </div>
-            <span class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-none border border-blue-200">
-                Target Kerja
-            </span>
-        </div>
-
-        <!-- 3. Dinilai Foreman (Klik: Scroll ke tabel filter foreman selesai / sudah dinilai) -->
-        <div @click="scrollToSection('dept-data-karyawan', '{{ ($hasAnyForeman ?? false) ? 'foreman_done' : 'evaluated' }}')" 
+        <!-- 2. Total Dinilai (Klik: Scroll ke tabel filter sudah dinilai) -->
+        <div @click="scrollToSection('dept-data-karyawan', 'evaluated')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-emerald-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
-             title="Klik untuk melihat dokumen yang telah dinilai Foreman di tabel">
+             title="Klik untuk melihat karyawan yang sudah dinilai (draft & terkirim) di tabel">
             <div class="flex items-center gap-3.5">
                 <div class="w-10 h-10 rounded-none bg-emerald-50 text-emerald-700 font-black flex items-center justify-center text-sm flex-shrink-0 border border-emerald-300 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
                     ✓
                 </div>
                 <div>
-                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-emerald-700 transition-colors">Dinilai Foreman</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $deptForemanTotalDinilai ?? 0 }}</p>
-                    <p class="text-[11px] text-emerald-600 font-bold mt-1 leading-none">
-                        Diteruskan Ke Sect Head
+                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-emerald-700 transition-colors">Total Dinilai</p>
+                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $deptCardDinilaiCount ?? 0 }}</p>
+                    <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
+                        {{ $deptCardDraftCount ?? 0 }} draft, {{ $deptCardBelumCount ?? $deptTotalKaryawan }} belum dinilai
                     </p>
                 </div>
             </div>
             <span class="text-[10px] font-bold px-2 py-1 bg-emerald-50 text-emerald-700 rounded-none border border-emerald-200">
-                Nilai Foreman
+                Nilai Terinput
             </span>
         </div>
 
-        <!-- 4. Dinilai Section Head (Klik: Scroll ke tabel filter sudah dinilai Section Head) -->
-        <div @click="scrollToSection('dept-data-karyawan', 'evaluated')" 
+        <!-- 3. Terkirim ke Division Head (Klik: Scroll ke tabel filter terkirim) -->
+        <div @click="scrollToSection('dept-data-karyawan', 'done')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-blue-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
-             title="Klik untuk melihat dokumen yang telah dinilai Section Head di tabel">
+             title="Klik untuk melihat dokumen yang telah terkirim ke Division Head di tabel">
             <div class="flex items-center gap-3.5">
                 <div class="w-10 h-10 rounded-none bg-blue-50 text-blue-700 font-black flex items-center justify-center text-sm flex-shrink-0 border border-blue-300 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                     ✈
                 </div>
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-blue-700 transition-colors">
-                        Dinilai Section Head
+                        Terkirim ke Division Head
                     </p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $deptSectionTotalDinilai ?? 0 }}</p>
-                    <p class="text-[11px] text-blue-600 font-bold mt-1 leading-none">
-                        Diteruskan ke Dept Head
+                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $deptDivSentCount ?? 0 }}</p>
+                    <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
+                        {{ $deptDivSudahDinilai ?? 0 }} sudah dinilai, {{ $deptDivBelumDinilai ?? 0 }} belum dinilai
                     </p>
                 </div>
             </div>
-            <span class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-none border border-blue-200">
-                Nilai SH
+            <span class="text-[10px] font-bold px-2 py-1 {{ ($deptDivSentCount ?? 0) === 0 ? 'bg-slate-100 text-slate-600 border-slate-300' : (($deptDivBelumDinilai ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300') }} rounded-none border">
+                {{ ($deptDivSentCount ?? 0) === 0 ? 'Belum Ada' : (($deptDivBelumDinilai ?? 0) > 0 ? 'To-Do' : 'Tuntas') }}
             </span>
         </div>
     </div>

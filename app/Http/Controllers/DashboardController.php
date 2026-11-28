@@ -924,6 +924,12 @@ class DashboardController extends Controller
         $deptSectionDoneCount = 0;
         $deptMandiriCount = 0;
         $deptAnggotaCount = 0;
+        $deptCardDinilaiCount = 0;
+        $deptCardDraftCount = 0;
+        $deptCardBelumCount = 0;
+        $deptDivSentCount = 0;
+        $deptDivSudahDinilai = 0;
+        $deptDivBelumDinilai = 0;
         $hasAnyForeman = false;
 
         if ($user->isDepartmentHead()) {
@@ -1020,6 +1026,30 @@ class DashboardController extends Controller
                     $deptSectionTotalDinilai++;
                     if (!$isQuotaExempt && isset($deptSectionGradeCounts[$secGrade])) {
                         $deptSectionGradeCounts[$secGrade]++;
+                    }
+                }
+
+                // Department Head own evaluation & Division Head forwarding counts for stat cards
+                $dhSlot = $isSelf ? 'foreman' : (($kodeFormDoc === '07-006-SH') ? 'section_head' : 'dept_head');
+                $hasDhDraftScore = $docId && !empty($nilaiGrouped[$docId][$dhSlot]);
+                $hasDhOwnSign = $docId && !empty($ttdGrouped[$docId][$dhSlot]);
+                $hasDivScoreOrSign = $docId && (!empty($nilaiGrouped[$docId]['div_head']) || !empty($ttdGrouped[$docId]['div_head']));
+                $isDhDoneEmp = in_array($status, ['menunggu_div_head', 'selesai']);
+                if ($isDhDoneEmp || $hasDhOwnSign) {
+                    $deptCardDinilaiCount++;
+                } elseif ($hasDhDraftScore && in_array($status, ['menunggu_dept_head', 'draft'])) {
+                    $deptCardDinilaiCount++;
+                    $deptCardDraftCount++;
+                } else {
+                    $deptCardBelumCount++;
+                }
+
+                if ($status === 'menunggu_div_head' || ($status === 'selesai' && ($isGol4UpDoc || $hasDivScoreOrSign))) {
+                    $deptDivSentCount++;
+                    if ($status === 'selesai' || $hasDivScoreOrSign) {
+                        $deptDivSudahDinilai++;
+                    } else {
+                        $deptDivBelumDinilai++;
                     }
                 }
 
@@ -2678,6 +2708,12 @@ class DashboardController extends Controller
             'deptSubordinateRows',
             'deptMandiriCount',
             'deptAnggotaCount',
+            'deptCardDinilaiCount',
+            'deptCardDraftCount',
+            'deptCardBelumCount',
+            'deptDivSentCount',
+            'deptDivSudahDinilai',
+            'deptDivBelumDinilai',
             'deptDoneCount',
             'deptNeedActionCount',
             'deptWaitingSectionCount',
