@@ -136,7 +136,6 @@
                     <thead>
                         <tr class="border-b border-slate-300 text-slate-700 font-bold bg-slate-100 text-[11px] uppercase tracking-wider">
                             <th class="py-3 px-4 border-r border-slate-300">Kategori Nilai</th>
-                            <th class="py-3 px-4 text-center border-r border-slate-300">Standar Predikat</th>
                             <th class="py-3 px-4 text-center border-r border-slate-300">Realisasi Saat Ini</th>
                             <th class="py-3 px-4 text-center border-r border-slate-300">Target Kuota Admin (Orang)</th>
                             <th class="py-3 px-4 text-center">Panduan Proposional</th>
@@ -145,21 +144,15 @@
                     <tbody class="divide-y divide-slate-200 bg-white">
                         <!-- Grade S -->
                         <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="py-3 px-4 font-bold border-r border-slate-200">
+                            <td class="py-2.5 px-4 font-bold border-r border-slate-200">
                                 <div class="flex items-center gap-2">
                                     <span class="w-7 h-7 rounded-none bg-purple-100 text-purple-900 border border-purple-300 flex items-center justify-center font-black text-xs font-mono">
                                         S
                                     </span>
-                                    <div>
-                                        <div class="font-bold text-slate-900">Grade S</div>
-                                        <div class="text-[10px] text-slate-400">Istimewa</div>
-                                    </div>
+                                    <span class="font-bold text-slate-900">Grade S</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                91 - 100
-                            </td>
-                            <td class="py-3 px-4 text-purple-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                            <td class="py-2.5 px-4 text-purple-700 font-black text-center border-r border-slate-200 font-mono text-sm">
                                 {{ $totalRow ? (int)$totalRow->actual_s : 0 }} <span class="text-[10px] text-purple-900/60 font-normal">Orang</span>
                             </td>
                             <td class="py-2.5 px-4 text-center border-r border-slate-200">
@@ -173,28 +166,22 @@
                                     <span class="text-xs text-slate-500 font-medium">Orang</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-center text-slate-500 text-[11px] font-mono">
+                            <td class="py-2.5 px-4 text-center text-slate-500 text-[11px] font-mono">
                                 ~10% (~{{ (int)round($totalKaryawan07006 * 0.10) }} Orang)
                             </td>
                         </tr>
 
                         <!-- Grade A -->
                         <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="py-3 px-4 font-bold border-r border-slate-200">
+                            <td class="py-2.5 px-4 font-bold border-r border-slate-200">
                                 <div class="flex items-center gap-2">
                                     <span class="w-7 h-7 rounded-none bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center font-black text-xs font-mono">
                                         A
                                     </span>
-                                    <div>
-                                        <div class="font-bold text-slate-900">Grade A</div>
-                                        <div class="text-[10px] text-slate-400">Baik Sekali</div>
-                                    </div>
+                                    <span class="font-bold text-slate-900">Grade A</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                81 - 90
-                            </td>
-                            <td class="py-3 px-4 text-emerald-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                            <td class="py-2.5 px-4 text-emerald-700 font-black text-center border-r border-slate-200 font-mono text-sm">
                                 {{ $totalRow ? (int)$totalRow->actual_a : 0 }} <span class="text-[10px] text-emerald-900/60 font-normal">Orang</span>
                             </td>
                             <td class="py-2.5 px-4 text-center border-r border-slate-200">
@@ -208,28 +195,22 @@
                                     <span class="text-xs text-slate-500 font-medium">Orang</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-center text-slate-500 text-[11px] font-mono">
+                            <td class="py-2.5 px-4 text-center text-slate-500 text-[11px] font-mono">
                                 ~30% (~{{ (int)round($totalKaryawan07006 * 0.30) }} Orang)
                             </td>
                         </tr>
 
                         <!-- Grade B -->
                         <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="py-3 px-4 font-bold border-r border-slate-200">
+                            <td class="py-2.5 px-4 font-bold border-r border-slate-200">
                                 <div class="flex items-center gap-2">
                                     <span class="w-7 h-7 rounded-none bg-blue-100 text-blue-900 border border-blue-300 flex items-center justify-center font-black text-xs font-mono">
                                         B
                                     </span>
-                                    <div>
-                                        <div class="font-bold text-slate-900">Grade B</div>
-                                        <div class="text-[10px] text-slate-400">Baik / Standar</div>
-                                    </div>
+                                    <span class="font-bold text-slate-900">Grade B</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                71 - 80
-                            </td>
-                            <td class="py-3 px-4 text-blue-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                            <td class="py-2.5 px-4 text-blue-700 font-black text-center border-r border-slate-200 font-mono text-sm">
                                 {{ $totalRow ? (int)$totalRow->actual_b : 0 }} <span class="text-[10px] text-blue-900/60 font-normal">Orang</span>
                             </td>
                             <td class="py-2.5 px-4 text-center border-r border-slate-200">
@@ -243,28 +224,22 @@
                                     <span class="text-xs text-slate-500 font-medium">Orang</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-center text-slate-500 text-[11px] font-mono">
+                            <td class="py-2.5 px-4 text-center text-slate-500 text-[11px] font-mono">
                                 ~30% (~{{ (int)round($totalKaryawan07006 * 0.30) }} Orang)
                             </td>
                         </tr>
 
                         <!-- Grade C -->
                         <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="py-3 px-4 font-bold border-r border-slate-200">
+                            <td class="py-2.5 px-4 font-bold border-r border-slate-200">
                                 <div class="flex items-center gap-2">
                                     <span class="w-7 h-7 rounded-none bg-amber-100 text-amber-900 border border-amber-300 flex items-center justify-center font-black text-xs font-mono">
                                         C
                                     </span>
-                                    <div>
-                                        <div class="font-bold text-slate-900">Grade C</div>
-                                        <div class="text-[10px] text-slate-400">Cukup / Kurang</div>
-                                    </div>
+                                    <span class="font-bold text-slate-900">Grade C</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                61 - 70
-                            </td>
-                            <td class="py-3 px-4 text-amber-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                            <td class="py-2.5 px-4 text-amber-700 font-black text-center border-r border-slate-200 font-mono text-sm">
                                 {{ $totalRow ? (int)$totalRow->actual_c : 0 }} <span class="text-[10px] text-amber-900/60 font-normal">Orang</span>
                             </td>
                             <td class="py-2.5 px-4 text-center border-r border-slate-200">
@@ -278,28 +253,22 @@
                                     <span class="text-xs text-slate-500 font-medium">Orang</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-center text-slate-500 text-[11px] font-mono">
+                            <td class="py-2.5 px-4 text-center text-slate-500 text-[11px] font-mono">
                                 ~20% (~{{ (int)round($totalKaryawan07006 * 0.20) }} Orang)
                             </td>
                         </tr>
 
                         <!-- Grade K -->
                         <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="py-3 px-4 font-bold border-r border-slate-200">
+                            <td class="py-2.5 px-4 font-bold border-r border-slate-200">
                                 <div class="flex items-center gap-2">
                                     <span class="w-7 h-7 rounded-none bg-rose-100 text-rose-900 border border-rose-300 flex items-center justify-center font-black text-xs font-mono">
                                         K
                                     </span>
-                                    <div>
-                                        <div class="font-bold text-slate-900">Grade K</div>
-                                        <div class="text-[10px] text-slate-400">Kurang Sekali</div>
-                                    </div>
+                                    <span class="font-bold text-slate-900">Grade K</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-slate-600 text-center border-r border-slate-200 font-mono text-[11px]">
-                                &le; 60
-                            </td>
-                            <td class="py-3 px-4 text-rose-700 font-black text-center border-r border-slate-200 font-mono text-sm">
+                            <td class="py-2.5 px-4 text-rose-700 font-black text-center border-r border-slate-200 font-mono text-sm">
                                 {{ $totalRow ? (int)$totalRow->actual_k : 0 }} <span class="text-[10px] text-rose-900/60 font-normal">Orang</span>
                             </td>
                             <td class="py-2.5 px-4 text-center border-r border-slate-200">
@@ -313,7 +282,7 @@
                                     <span class="text-xs text-slate-500 font-medium">Orang</span>
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-center text-slate-500 text-[11px] font-mono">
+                            <td class="py-2.5 px-4 text-center text-slate-500 text-[11px] font-mono">
                                 Sisa Kuota (~{{ max(0, $totalKaryawan07006 - (int)round($totalKaryawan07006 * 0.90)) }} Orang)
                             </td>
                         </tr>
@@ -322,9 +291,6 @@
                         <tr>
                             <td class="py-3 px-4 border-r border-slate-300 uppercase tracking-wider text-[11px]">
                                 TOTAL TARGET &amp; REALISASI
-                            </td>
-                            <td class="py-3 px-4 text-center border-r border-slate-300 font-mono text-[11px] text-slate-600">
-                                100% Form 07-006
                             </td>
                             <td class="py-3 px-4 text-center border-r border-slate-300 font-mono text-sm text-[#92302e]">
                                 {{ $totalActual }} <span class="text-[10px] text-[#92302e]/60 font-normal">Orang</span>

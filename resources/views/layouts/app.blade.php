@@ -231,17 +231,17 @@
                   </svg>
                 </button>
 
-                <div x-show="openTarget" x-cloak class="ml-5 pl-3 border-l-2 border-white/20 space-y-1 py-1.5">
+                <div x-show="openTarget" x-cloak class="ml-5 pl-3 border-l-2 border-white/20 space-y-0.5 py-1">
                   <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetDivisi' : 'admin.targetDivisi') }}" 
-                     class="flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-none transition-all {{ request()->routeIs('*targetDivisi*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10 font-medium' }}">
+                     class="flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-none transition-all {{ request()->routeIs('*targetDivisi*') ? 'bg-[#b2373b] text-white font-semibold shadow-md shadow-black/20 border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10 font-medium' }}">
                     <span class="w-1.5 h-1.5 rounded-none {{ request()->routeIs('*targetDivisi*') ? 'bg-white' : 'bg-red-300/70' }}"></span>
-                    <span class="tracking-wide">DIVISION</span>
+                    <span>Division</span>
                   </a>
 
                   <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota') }}" 
-                     class="flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-none transition-all {{ request()->routeIs('*targetKuota*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10 font-medium' }}">
+                     class="flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-none transition-all {{ request()->routeIs('*targetKuota*') ? 'bg-[#b2373b] text-white font-semibold shadow-md shadow-black/20 border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10 font-medium' }}">
                     <span class="w-1.5 h-1.5 rounded-none {{ request()->routeIs('*targetKuota*') ? 'bg-white' : 'bg-red-300/70' }}"></span>
-                    <span class="tracking-wide">DEPARTMENT</span>
+                    <span>Department</span>
                   </a>
                 </div>
               </div>
@@ -369,17 +369,17 @@
                   </svg>
                 </button>
 
-                <div x-show="openTarget" x-cloak class="ml-5 pl-3 border-l-2 border-white/20 space-y-1 py-1.5">
+                <div x-show="openTarget" x-cloak class="ml-5 pl-3 border-l-2 border-white/20 space-y-0.5 py-1">
                   <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetDivisi' : 'admin.targetDivisi') }}" 
-                     class="flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-none transition-all {{ request()->routeIs('*targetDivisi*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10 font-medium' }}">
+                     class="flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-none transition-all {{ request()->routeIs('*targetDivisi*') ? 'bg-[#b2373b] text-white font-semibold shadow-md shadow-black/20 border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10 font-medium' }}">
                     <span class="w-1.5 h-1.5 rounded-none {{ request()->routeIs('*targetDivisi*') ? 'bg-white' : 'bg-red-300/70' }}"></span>
-                    <span class="tracking-wide">DIVISION</span>
+                    <span>Division</span>
                   </a>
 
                   <a href="{{ route(request()->is('superadmin*') ? 'superadmin.targetKuota' : 'admin.targetKuota') }}" 
-                     class="flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-none transition-all {{ request()->routeIs('*targetKuota*') ? 'bg-[#b2373b] text-white font-bold shadow-md shadow-black/20 border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10 font-medium' }}">
+                     class="flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-none transition-all {{ request()->routeIs('*targetKuota*') ? 'bg-[#b2373b] text-white font-semibold shadow-md shadow-black/20 border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10 font-medium' }}">
                     <span class="w-1.5 h-1.5 rounded-none {{ request()->routeIs('*targetKuota*') ? 'bg-white' : 'bg-red-300/70' }}"></span>
-                    <span class="tracking-wide">DEPARTMENT</span>
+                    <span>Department</span>
                   </a>
                 </div>
               </div>
@@ -874,7 +874,7 @@
                      class="flex items-center justify-between px-2.5 py-1.5 rounded-none transition-all {{ request()->routeIs('*targetDivisi*') ? 'bg-[#b2373b] text-white font-black shadow-xs border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
                     <div class="flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-none {{ request()->routeIs('*targetDivisi*') ? 'bg-white' : 'bg-red-300/70' }}"></span>
-                      <span>DIVISION</span>
+                      <span>Division</span>
                     </div>
                     <span class="text-[9px] font-mono px-1.5 py-0.5 rounded-none {{ request()->routeIs('*targetDivisi*') ? 'bg-white/20 text-white font-bold' : 'bg-black/20 text-white/60' }}">07-006</span>
                   </a>
@@ -882,7 +882,7 @@
                      class="flex items-center justify-between px-2.5 py-1.5 rounded-none transition-all {{ request()->routeIs('*targetKuota*') ? 'bg-[#b2373b] text-white font-black shadow-xs border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
                     <div class="flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-none {{ request()->routeIs('*targetKuota*') ? 'bg-white' : 'bg-red-300/70' }}"></span>
-                      <span>DEPARTMENT</span>
+                      <span>Department</span>
                     </div>
                     <span class="text-[9px] font-mono px-1.5 py-0.5 rounded-none {{ request()->routeIs('*targetKuota*') ? 'bg-white/20 text-white font-bold' : 'bg-black/20 text-white/60' }}">Headcount</span>
                   </a>
@@ -919,7 +919,7 @@
                      class="flex items-center justify-between px-2.5 py-1.5 rounded-none transition-all {{ request()->routeIs('*targetDivisi*') ? 'bg-[#b2373b] text-white font-black shadow-xs border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
                     <div class="flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-none {{ request()->routeIs('*targetDivisi*') ? 'bg-white' : 'bg-red-300/70' }}"></span>
-                      <span>DIVISION</span>
+                      <span>Division</span>
                     </div>
                     <span class="text-[9px] font-mono px-1.5 py-0.5 rounded-none {{ request()->routeIs('*targetDivisi*') ? 'bg-white/20 text-white font-bold' : 'bg-black/20 text-white/60' }}">07-006</span>
                   </a>
@@ -927,7 +927,7 @@
                      class="flex items-center justify-between px-2.5 py-1.5 rounded-none transition-all {{ request()->routeIs('*targetKuota*') ? 'bg-[#b2373b] text-white font-black shadow-xs border border-white/20' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
                     <div class="flex items-center gap-2">
                       <span class="w-1.5 h-1.5 rounded-none {{ request()->routeIs('*targetKuota*') ? 'bg-white' : 'bg-red-300/70' }}"></span>
-                      <span>DEPARTMENT</span>
+                      <span>Department</span>
                     </div>
                     <span class="text-[9px] font-mono px-1.5 py-0.5 rounded-none {{ request()->routeIs('*targetKuota*') ? 'bg-white/20 text-white font-bold' : 'bg-black/20 text-white/60' }}">Headcount</span>
                   </a>
