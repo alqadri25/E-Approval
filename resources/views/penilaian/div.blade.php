@@ -70,99 +70,55 @@
         </div>
     </div>
 
-    <!-- 2. Informative Assessment Stat Cards (Seragam ukuran & tata letak, matching Department Head) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 items-stretch">
+    <!-- 2. Informative Assessment Stat Cards (4 Card Sejajar 1 Baris) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         <!-- Card 1: Total Karyawan -->
-        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Total Karyawan</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countAll ?? count($rows) }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Anggota {{ ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) ? 'Division Head' : ($user->departemen === 'ALL' ? 'Divisi (Multi-Dept)' : $user->departemen) }}</span>
-                </div>
-                <div class="w-9 h-9 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-xs border border-[#92302e]/20 shrink-0">
-                    K
-                </div>
+        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Total Karyawan</span>
+                <div class="text-2xl font-black text-slate-900 leading-none">{{ $countAll ?? count($rows) }}</div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Anggota {{ ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) ? 'Division Head' : ($user->departemen === 'ALL' ? 'Divisi (Multi-Dept)' : $user->departemen) }}</span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countSelesai ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ max(0, ($countAll ?? count($rows)) - ($countSelesai ?? 0)) }}</span>
+            <div class="w-10 h-10 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-sm border border-[#92302e]/20 shrink-0">
+                K
             </div>
         </div>
 
-        <!-- Card 2: Siap Disahkan (To-Do Div Head) -->
-        <div class="bg-white rounded-none p-4 border {{ ($countSiap ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider {{ ($countSiap ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }} block">Siap Disahkan (To-Do)</span>
-                    <div class="text-2xl font-black {{ ($countSiap ?? 0) > 0 ? 'text-amber-900' : 'text-slate-900' }} leading-none mt-1.5">{{ $countSiap ?? 0 }}</div>
-                    <span class="text-[11px] {{ ($countSiap ?? 0) > 0 ? 'text-amber-700 font-bold' : 'text-slate-500' }} mt-1.5 block truncate">
-                        {{ ($countSiap ?? 0) > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
-                    </span>
-                </div>
-                <div class="w-9 h-9 rounded-none {{ ($countSiap ?? 0) > 0 ? 'bg-amber-200 text-amber-900 font-black animate-pulse' : 'bg-slate-100 text-slate-600' }} flex items-center justify-center text-xs font-bold border border-amber-300 shrink-0">
-                    !
-                </div>
+        <!-- Card 2: Siap Dinilai (To-Do Div Head) -->
+        <div class="bg-white rounded-none p-4 border {{ ($countSiap ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider {{ ($countSiap ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }} block mb-1">Siap Dinilai (To-Do)</span>
+                <div class="text-2xl font-black {{ ($countSiap ?? 0) > 0 ? 'text-amber-900' : 'text-slate-900' }} leading-none">{{ $countSiap ?? 0 }}</div>
+                <span class="text-[11px] {{ ($countSiap ?? 0) > 0 ? 'text-amber-700 font-bold' : 'text-slate-500' }} mt-1 block">
+                    {{ ($countSiap ?? 0) > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
+                </span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold {{ ($countSiap ?? 0) > 0 ? 'text-amber-700' : 'text-slate-500' }}">Siap Review: {{ $countSiap ?? 0 }}</span>
-                <span class="font-semibold text-slate-400">Div Head</span>
+            <div class="w-10 h-10 rounded-none {{ ($countSiap ?? 0) > 0 ? 'bg-amber-200 text-amber-900 font-black animate-pulse' : 'bg-slate-100 text-slate-600' }} flex items-center justify-center text-sm font-bold border border-amber-300 shrink-0">
+                !
             </div>
         </div>
 
-        <!-- Card 3: Proses Penilaian Mandiri -->
-        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Penilaian Mandiri</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countProsesMandiri ?? ($countProsesSection ?? 0) }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Pengerjaan Penilaian Mandiri</span>
-                </div>
-                <div class="w-9 h-9 rounded-none bg-purple-50 text-purple-700 font-bold flex items-center justify-center text-xs border border-purple-200 shrink-0">
-                    ⏳
-                </div>
+        <!-- Card 3: Proses Section Head -->
+        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Proses Section Head</span>
+                <div class="text-2xl font-black text-slate-900 leading-none">{{ $countProses ?? 0 }}</div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Pengerjaan Form Sect Head</span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countMandiriSudah ?? ($countSectionSudah ?? 0) }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ $countProsesMandiri ?? ($countProsesSection ?? 0) }}</span>
+            <div class="w-10 h-10 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200 shrink-0">
+                ⏳
             </div>
         </div>
 
-        <!-- Card 4: Proses Department Head -->
-        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Proses Department Head</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countProsesDept ?? 0 }}</div>
-                    <span class="text-[11px] text-slate-500 mt-1.5 block truncate">Tinjauan Department Head</span>
-                </div>
-                <div class="w-9 h-9 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-xs border border-blue-200 shrink-0">
-                    ⏳
-                </div>
+        <!-- Card 4: Disahkan Final (Selesai) -->
+        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Disahkan Final (Selesai)</span>
+                <div class="text-2xl font-black text-slate-900 leading-none">{{ $countSelesai ?? 0 }}</div>
+                <span class="text-[11px] text-emerald-700 font-bold mt-1 block">Telah diverifikasi Div Head</span>
             </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countDeptSudah ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ $countProsesDept ?? 0 }}</span>
-            </div>
-        </div>
-
-        <!-- Card 5: Disahkan Final (Selesai) -->
-        <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex flex-col justify-between h-full">
-            <div class="flex items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Disahkan Final (Selesai)</span>
-                    <div class="text-2xl font-black text-slate-900 leading-none mt-1.5">{{ $countSelesai ?? 0 }}</div>
-                    <span class="text-[11px] {{ ($countSelesai ?? 0) > 0 ? 'text-emerald-700 font-bold' : 'text-slate-400' }} mt-1.5 block truncate">
-                        {{ ($countSelesai ?? 0) > 0 ? 'Telah disahkan Division Head' : 'Belum ada berkas final' }}
-                    </span>
-                </div>
-                <div class="w-9 h-9 rounded-none {{ ($countSelesai ?? 0) > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-400 border-slate-200' }} font-black flex items-center justify-center text-xs border shrink-0">
-                    ✓
-                </div>
-            </div>
-            <div class="mt-3 pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $countSelesai ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ max(0, ($countAll ?? count($rows)) - ($countSelesai ?? 0)) }}</span>
+            <div class="w-10 h-10 rounded-none bg-emerald-50 text-emerald-700 font-black flex items-center justify-center text-sm border border-emerald-200 shrink-0">
+                ✓
             </div>
         </div>
     </div>
