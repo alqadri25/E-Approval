@@ -143,43 +143,28 @@
         <div class="flex items-center gap-2 sm:gap-2.5 flex-nowrap flex-shrink-0">
 
             <!-- Status Badge -->
+            @php
+                $isSelfDoc = (strcasecmp($dokumen['nrp'] ?? '', Auth::user()?->nrp ?? '') === 0);
+                $isSecretaryDoc = ($dokumen['kode_form'] ?? '') === '07-006-DH' && (
+                    str_contains(strtoupper($karyawan['seksi'] ?? ''), 'SECRETARY') || in_array($dokumen['nrp'] ?? '', ['268', '1237'])
+                );
+                $statusBadgeText = $statusBadgeText ?? \App\Http\Controllers\PenilaianController::resolveDocumentStatusBadge(
+                    Auth::user(),
+                    $dokumen,
+                    $karyawan,
+                    $ttdByLevel ?? [],
+                    $subFormVariant ?? null,
+                    !empty($isReadOnlySubordinate07006)
+                );
+                $isBadgeDone = in_array($statusBadgeText, ['SUDAH DINILAI', 'SELESAI'], true);
+                $isBadgeRevisi = $statusBadgeText === 'PERLU REVISI';
+            @endphp
             <div class="text-right flex flex-col items-end flex-shrink-0 mr-0.5">
                 <span class="text-[9px] uppercase font-bold tracking-wider text-slate-400 block leading-tight">Status Dokumen</span>
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap leading-snug
-                    {{ $dokumen['status'] === 'selesai' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 
-                      ($dokumen['status'] === 'revisi' ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300') }}">
-                    <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $dokumen['status'] === 'selesai' ? 'bg-emerald-500' : ($dokumen['status'] === 'revisi' ? 'bg-rose-500' : 'bg-amber-500 animate-pulse') }}"></span>
-                    @php
-                        $isSelfDoc = (strcasecmp($dokumen['nrp'] ?? '', Auth::user()?->nrp ?? '') === 0);
-                        $isSecretaryDoc = ($dokumen['kode_form'] ?? '') === '07-006-DH' && (
-                            str_contains(strtoupper($karyawan['seksi'] ?? ''), 'SECRETARY') || in_array($dokumen['nrp'] ?? '', ['268', '1237'])
-                        );
-                        $isMandiriStage = ($isGol4Up || $isSecretaryDoc) 
-                            && !in_array($subFormVariant ?? '', ['dept_and_div', 'div_head'])
-                            && in_array($dokumen['status'] ?? '', ['menunggu_dept_head', 'menunggu_section_head', 'menunggu_foreman', 'draft', 'belum_ada']) 
-                            && empty($ttdByLevel['foreman']);
-                        $isViewerSelfOrAuthorized = $isSelfDoc || (Auth::user()?->isSecretary() ?? false) || in_array($rolePrefix ?? '', ['foreman', 'sechead', 'secretary']) || (Auth::user()?->isAdmin() || Auth::user()?->isSuperadmin());
-                        
-                        $statusBadgeText = match($dokumen['status'] ?? '') {
-                            'menunggu_div_head' => 'MENUNGGU DIVISION HEAD',
-                            'menunggu_dept_head' => ($subFormVariant === 'dept_and_div')
-                                ? 'MENUNGGU DEPARTMENT HEAD'
-                                : ((($isMandiriStage || $isSecretaryDoc || $isSelfDoc) && empty($ttdByLevel['foreman']))
-                                    ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
-                                    : 'MENUNGGU DEPARTMENT HEAD'),
-                            'menunggu_section_head' => $isMandiriStage 
-                                ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
-                                : 'MENUNGGU SECTION HEAD',
-                            'menunggu_foreman' => $isMandiriStage 
-                                ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
-                                : 'MENUNGGU FOREMAN',
-                            'selesai' => 'SELESAI',
-                            'revisi' => 'PERLU REVISI',
-                            default => $isMandiriStage 
-                                ? ($isViewerSelfOrAuthorized ? 'MENUNGGU PENILAIAN ANDA' : 'MENUNGGU EVALUASI MANDIRI') 
-                                : strtoupper(str_replace('_', ' ', $dokumen['status'] ?? 'DRAFT'))
-                        };
-                    @endphp
+                    {{ $isBadgeDone ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                      ($isBadgeRevisi ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300') }}">
+                    <span class="w-1.5 h-1.5 rounded-full mr-1.5 {{ $isBadgeDone ? 'bg-emerald-500' : ($isBadgeRevisi ? 'bg-rose-500' : 'bg-amber-500 animate-pulse') }}"></span>
                     {{ $statusBadgeText }}
                 </span>
             </div>

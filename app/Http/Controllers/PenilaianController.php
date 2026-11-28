@@ -3606,6 +3606,14 @@ class PenilaianController extends Controller
         $empKjNumViewer = isset($karyawan['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$karyawan['kj']) : 0;
         // Hanya tampilkan Read-Only banner jika bawahan adalah sesama Section Head (07-006-SH) yang dinilai langsung Dept Head
         $isReadOnlySubordinate07006 = ($user->isSectionHead() && !$isSelfDoc && !$canEditSectionHead && ($kodeForm === '07-006-SH' || self::isActualSectionHead($karyawan)));
+        $statusBadgeText = self::resolveDocumentStatusBadge(
+            $user,
+            $dokumen,
+            $karyawan,
+            $ttdByLevel,
+            $subFormVariant,
+            $isReadOnlySubordinate07006
+        );
 
         return view('penilaian.form', compact(
             'user',
@@ -3656,7 +3664,8 @@ class PenilaianController extends Controller
             'canViewSectionHead',
             'canViewDeptHead',
             'canViewDivHead',
-            'isPenilaiAkhir'
+            'isPenilaiAkhir',
+            'statusBadgeText'
         ));
     }
 
@@ -4079,6 +4088,132 @@ class PenilaianController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Resolve the viewer-aware Status Dokumen badge text shown in the appraisal form header.
+     */
+    public static function resolveDocumentStatusBadge(
+        ?User $user,
+        array $dokumen,
+        array $karyawan,
+        array $ttdByLevel = [],
+        ?string $subFormVariant = null,
+        bool $isReadOnlySubordinate07006 = false
+    ): string {
+        $status = strtolower(trim((string)($dokumen['status'] ?? 'draft')));
+        $kodeForm = (string)($dokumen['kode_form'] ?? '');
+        $requiresForeman = self::requiresForemanStage($karyawan, $kodeForm, $status);
+        $isGol4Up = self::isForm07006($kodeForm);
+        $isSelfDoc = $user ? (strcasecmp((string)($dokumen['nrp'] ?? ''), (string)($user->nrp ?? '')) === 0) : false;
+
+        if ($status === 'selesai') {
+            $stageOwner = 'selesai';
+        } elseif ($status === 'revisi') {
+            $stageOwner = 'revisi';
+        } elseif ($status === 'menunggu_div_head') {
+            $stageOwner = 'div_head';
+        } elseif ($status === 'menunggu_dept_head') {
+            $stageOwner = ($subFormVariant === 'section_head' && empty($ttdByLevel['foreman']))
+                ? 'section_head'
+                : 'dept_head';
+        } elseif ($status === 'menunggu_section_head') {
+            $stageOwner = 'section_head';
+        } elseif ($status === 'menunggu_foreman') {
+            $stageOwner = 'foreman';
+        } else {
+            if (in_array($subFormVariant, ['direct_div_subordinate', 'div_head'], true)) {
+                $stageOwner = 'div_head';
+            } elseif (in_array($subFormVariant, ['dept_and_div', 'dept_head'], true)) {
+                $stageOwner = 'dept_head';
+            } elseif (in_array($subFormVariant, ['section_head', 'karyawan_gol4'], true)) {
+                $stageOwner = 'section_head';
+            } elseif ($requiresForeman) {
+                $stageOwner = 'foreman';
+            } else {
+                $stageOwner = 'section_head';
+            }
+        }
+
+        $stageLabels = [
+            'foreman' => 'MENUNGGU FOREMAN',
+            'section_head' => 'MENUNGGU SECTION HEAD',
+            'dept_head' => 'MENUNGGU DEPT HEAD',
+            'div_head' => 'MENUNGGU DIVISION HEAD',
+            'selesai' => 'SELESAI',
+            'revisi' => 'PERLU REVISI',
+        ];
+
+        if (!$user || $user->isAdmin() || $user->isSuperadmin()) {
+            return $stageLabels[$stageOwner] ?? strtoupper(str_replace('_', ' ', $status ?: 'DRAFT'));
+        }
+
+        if ($stageOwner === 'revisi') {
+            return 'PERLU REVISI';
+        }
+
+        if ($user->isForeman() || in_array(strtolower($user->role ?? ''), ['foreman', 'ketua'], true)) {
+            $participatesAsForeman = $requiresForeman || ($isSelfDoc && !$isGol4Up);
+            if (!$participatesAsForeman) {
+                return $stageLabels[$stageOwner] ?? 'MENUNGGU SECTION HEAD';
+            }
+            return $stageOwner === 'foreman' ? 'MENUNGGU PENILAIAN ANDA' : 'SUDAH DINILAI';
+        }
+
+        if ($user->isSectionHead() || in_array(strtolower($user->role ?? ''), ['section_head', 'section', 'sechead'], true)) {
+            if ($isReadOnlySubordinate07006 || in_array($subFormVariant, ['direct_div_subordinate', 'dept_and_div', 'dept_head', 'div_head'], true)) {
+                return $stageLabels[$stageOwner] ?? 'MENUNGGU SECTION HEAD';
+            }
+            if ($stageOwner === 'foreman') {
+                return 'MENUNGGU FOREMAN';
+            }
+            return $stageOwner === 'section_head' ? 'MENUNGGU PENILAIAN ANDA' : 'SUDAH DINILAI';
+        }
+
+        if ($user->isSecretary()) {
+            if ($isSelfDoc) {
+                if ($stageOwner === 'dept_head' && empty($ttdByLevel['foreman'])) {
+                    return 'MENUNGGU PENILAIAN ANDA';
+                }
+                if (in_array($stageOwner, ['dept_head', 'div_head', 'selesai'], true)) {
+                    return 'SUDAH DINILAI';
+                }
+            }
+            return $stageLabels[$stageOwner] ?? 'MENUNGGU DEPT HEAD';
+        }
+
+        if ($user->isDepartmentHead() || in_array(strtolower($user->role ?? ''), ['dept_head', 'department_head'], true)) {
+            if (in_array($subFormVariant, ['direct_div_subordinate', 'div_head'], true)) {
+                return $stageLabels[$stageOwner] ?? 'MENUNGGU DIVISION HEAD';
+            }
+            if ($stageOwner === 'foreman') {
+                return 'MENUNGGU FOREMAN';
+            }
+            if ($stageOwner === 'section_head') {
+                return 'MENUNGGU SECTION HEAD';
+            }
+            return $stageOwner === 'dept_head' ? 'MENUNGGU PENILAIAN ANDA' : 'SUDAH DINILAI';
+        }
+
+        if ($user->isDivisionHead() || in_array(strtolower($user->role ?? ''), ['div_head', 'division_head'], true)) {
+            if ($stageOwner === 'foreman') {
+                return 'MENUNGGU FOREMAN';
+            }
+            if ($stageOwner === 'section_head') {
+                return 'MENUNGGU SECTION HEAD';
+            }
+            if ($stageOwner === 'dept_head') {
+                return 'MENUNGGU DEPT HEAD';
+            }
+            if ($stageOwner === 'div_head') {
+                return 'MENUNGGU PENILAIAN ANDA';
+            }
+            if ($stageOwner === 'selesai') {
+                return ($isGol4Up || !empty($ttdByLevel['div_head'])) ? 'SUDAH DINILAI' : 'SELESAI';
+            }
+        }
+
+        return $stageLabels[$stageOwner] ?? strtoupper(str_replace('_', ' ', $status ?: 'DRAFT'));
     }
 
     /**
