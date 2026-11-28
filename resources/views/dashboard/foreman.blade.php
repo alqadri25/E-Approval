@@ -232,11 +232,14 @@
                 <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">
                     Pelacakan Alur Status Dokumen
                 </h3>
+                <p class="text-xs text-slate-500">
+                    Memantau posisi seluruh {{ count($foremanSubordinates) }} berkas penilaian di setiap tahapan sistem
+                </p>
             </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 items-stretch">
-            <!-- Step 1: Penilaian Foreman (To-Do) (Highlighted Amber for Foreman) -->
+            <!-- Step 1: Penilaian Foreman (Highlighted Amber for Foreman) -->
             <div @click="scrollToSection('section-data-karyawan', 'todo')" 
                  class="p-3.5 border {{ $foremanNeedActionCount > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500 ring-1 ring-amber-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                  title="Klik untuk melihat antrean to-do di tabel">
@@ -247,7 +250,7 @@
                             {{ $foremanNeedActionCount }} Orang
                         </span>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman (To-Do)</h4>
+                    <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                         Melakukan Penilaian untuk bawahannya
                     </p>
@@ -267,7 +270,7 @@
                 </div>
             </div>
 
-            <!-- Step 2: Tinjauan Section Head -->
+            <!-- Step 2: Penilaian Section Head -->
             @php
                 $waitingSectionCount = count(array_filter($foremanSubordinates, fn($s) => $s['status'] === 'menunggu_section_head'));
             @endphp
@@ -281,7 +284,7 @@
                             {{ $waitingSectionCount }} Dokumen
                         </span>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Section Head</h4>
+                    <h4 class="text-xs font-bold text-slate-900">2. Penilaian Section Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                         Melakukan Penilaian untuk bawahannya.
                     </p>
@@ -296,7 +299,7 @@
                 </div>
             </div>
 
-            <!-- Step 3: Approval Dept Head -->
+            <!-- Step 3: Penilaian Dept Head -->
             @php
                 $waitingDeptCount = count(array_filter($foremanSubordinates, fn($s) => in_array($s['status'], ['menunggu_dept_head', 'menunggu_div_head'])));
                 $fmDhSudah = count(array_filter($foremanSubordinates, fn($s) => in_array($s['status'], ['menunggu_div_head', 'selesai'])));
@@ -312,7 +315,7 @@
                             {{ $waitingDeptCount }} Dokumen
                         </span>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">3. Approval Dept Head</h4>
+                    <h4 class="text-xs font-bold text-slate-900">3. Penilaian Dept Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                         Telah disetujui Section Head, menunggu persetujuan Department Head.
                     </p>

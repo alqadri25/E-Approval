@@ -348,7 +348,7 @@
                                 {{ $foremanStageCounts['tahap1'] ?? 0 }} Orang
                             </span>
                         </div>
-                        <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman (To-Do)</h4>
+                        <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman</h4>
                         <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                             Foreman Melakukan Penilaian untuk bawahannya
                         </p>
@@ -363,7 +363,7 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Tinjauan Section Head (Tahap Aktif Section Head - Highlighted Amber) -->
+                <!-- Step 2: Penilaian Section Head (Tahap Aktif Section Head - Highlighted Amber) -->
                 <div @click="scrollToSection('section-data-karyawan', 'todo')" 
                      class="p-3.5 border {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500 ring-1 ring-amber-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                      title="Klik untuk melihat dokumen yang siap Anda tinjau di tabel">
@@ -374,7 +374,7 @@
                                 {{ $foremanStageCounts['waiting_section'] ?? 0 }} Dokumen
                             </span>
                         </div>
-                        <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Section Head</h4>
+                        <h4 class="text-xs font-bold text-slate-900">2. Penilaian Section Head</h4>
                         <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                             Melakukan Penilaian untuk bawahannya.
                         </p>
@@ -394,7 +394,7 @@
                     </div>
                 </div>
 
-                <!-- Step 3: Approval Dept Head -->
+                <!-- Step 3: Penilaian Dept Head -->
                 <div @click="scrollToSection('section-data-karyawan', 'done')" 
                      class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                      title="Klik untuk melihat dokumen di tabel">
@@ -405,7 +405,7 @@
                                 {{ $foremanStageCounts['waiting_dept'] ?? 0 }} Dokumen
                             </span>
                         </div>
-                        <h4 class="text-xs font-bold text-slate-900">3. Approval Dept Head</h4>
+                        <h4 class="text-xs font-bold text-slate-900">3. Penilaian Dept Head</h4>
                         <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                             Telah disetujui Section Head, menunggu persetujuan Department Head.
                         </p>
