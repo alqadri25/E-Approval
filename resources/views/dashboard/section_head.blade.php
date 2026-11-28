@@ -298,29 +298,26 @@
             </span>
         </div>
 
-        <!-- 3. Terkirim ke Dept. Head (Klik: Scroll ke tabel filter terkirim) -->
-        @php
-            $shPendingTotal = max(0, count($sectionSubordinates) - ($sectionDoneCount ?? 0));
-        @endphp
+        <!-- 3. Terkirim ke Department Head (Klik: Scroll ke tabel filter terkirim) -->
         <div @click="scrollToSection('section-data-karyawan', 'done')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-blue-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
-             title="Klik untuk melihat dokumen yang telah terkirim ke Dept. Head / Div Head di tabel">
+             title="Klik untuk melihat dokumen yang telah terkirim ke Department Head di tabel">
             <div class="flex items-center gap-3.5">
                 <div class="w-10 h-10 rounded-none bg-blue-50 text-blue-700 font-black flex items-center justify-center text-sm flex-shrink-0 border border-blue-300 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                     ✈
                 </div>
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-blue-700 transition-colors">
-                        Diteruskan / Selesai
+                        Terkirim ke Department Head
                     </p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $sectionDoneCount }}</p>
-                    <p class="text-[11px] {{ $shPendingTotal > 0 ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold' }} mt-1 leading-none">
-                        {{ $shPendingTotal }} Perlu Tindakan (To-Do)
+                    <p class="text-[11px] text-blue-600 font-bold mt-1 leading-none">
+                        Sudah Dinilai: {{ $sectionDhSudahDinilai ?? 0 }} &bull; Belum Dinilai: {{ $sectionDhBelumDinilai ?? 0 }}
                     </p>
                 </div>
             </div>
-            <span class="text-[10px] font-bold px-2 py-1 {{ $shPendingTotal > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
-                {{ $shPendingTotal > 0 ? 'To-Do' : 'Tuntas' }}
+            <span class="text-[10px] font-bold px-2 py-1 {{ ($sectionDoneCount ?? 0) === 0 ? 'bg-slate-100 text-slate-600 border-slate-300' : (($sectionDhBelumDinilai ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300') }} rounded-none border">
+                {{ ($sectionDoneCount ?? 0) === 0 ? 'Belum Ada' : (($sectionDhBelumDinilai ?? 0) > 0 ? 'To-Do' : 'Tuntas') }}
             </span>
         </div>
     </div>
@@ -555,9 +552,6 @@
                             Target Penilaian <span class="text-slate-400 font-normal text-xs">(berdasarkan kategori &amp; KJ)</span>
                         </h3>
                     </div>
-                    <span class="text-[11px] font-bold px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200">
-                        Total Target: {{ ($sectionTargetKjSummary['total'] ?? 0) > 0 ? $sectionTargetKjSummary['total'] : ($totalTargetSection ?? 0) }}
-                    </span>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -638,14 +632,6 @@
                     </table>
                 </div>
             </div>
-
-            <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                    Rencana target kuota perolehan kategori nilai per Klasifikasi Jabatan (KJ)
-                </span>
-                <span class="text-slate-400 text-[10px]">Tahun {{ date('Y') }}</span>
-            </div>
         </div>
 
         <!-- Table 2: Hasil Section Head (Realisasi Dinilai Section Head per KJ) -->
@@ -658,9 +644,6 @@
                             Hasil Section Head <span class="text-slate-400 font-normal text-xs">(nilai dari anda per KJ)</span>
                         </h3>
                     </div>
-                    <span class="text-[11px] font-bold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Total Dinilai: {{ $sectionActualKjSummary['total'] ?? $sectionTotalDinilai }}
-                    </span>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -740,14 +723,6 @@
                         </tfoot>
                     </table>
                 </div>
-            </div>
-
-            <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                    Realisasi perolehan nilai riil yang telah dinilai dan dikonfirmasi Section Head
-                </span>
-                <span class="text-slate-400 text-[10px]">{{ ($sectionActualKjSummary['total'] ?? 0) . '/' . ($sectionTargetKjSummary['total'] ?? ($totalTargetSection ?: count($sectionSubordinates))) }} Dinilai</span>
             </div>
         </div>
 

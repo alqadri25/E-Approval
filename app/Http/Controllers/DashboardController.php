@@ -501,6 +501,8 @@ class DashboardController extends Controller
         $sectionRevisiCount = 0;
         $sectionSelesaiCount = 0;
         $sectionSudahDinilaiCount = 0;
+        $sectionDhSudahDinilai = 0;
+        $sectionDhBelumDinilai = 0;
         $waitingDeptCount = 0;
         $waitingDivCount = 0;
         $foremanStageCounts = [
@@ -588,6 +590,7 @@ class DashboardController extends Controller
                 }
 
                 // Workflow action & stage categorization
+                $hasDhScoreOrSign = $docId && (!empty($nilaiGrouped[$docId]['dept_head']) || !empty($ttdGrouped[$docId]['dept_head']));
                 if ($hasForemanSubordinates) {
                     if ($status === 'selesai') {
                         $actionType = 'sudah_dikirim';
@@ -595,6 +598,7 @@ class DashboardController extends Controller
                         $stageLabel = 'Selesai (Disetujui)';
                         $sectionDoneCount++;
                         $sectionSelesaiCount++;
+                        $sectionDhSudahDinilai++;
                         if ($hasForemanEmp) $foremanDoneCount++;
                         $foremanStageCounts['selesai']++;
                     } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
@@ -612,6 +616,11 @@ class DashboardController extends Controller
                             $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
                             $sectionDoneCount++;
                             $waitingDeptCount++;
+                            if ($status === 'menunggu_div_head' || $hasDhScoreOrSign) {
+                                $sectionDhSudahDinilai++;
+                            } else {
+                                $sectionDhBelumDinilai++;
+                            }
                             if ($hasForemanEmp) $foremanDoneCount++;
                             $foremanStageCounts['waiting_dept']++;
                         }
@@ -667,11 +676,13 @@ class DashboardController extends Controller
                         $stageLabel = 'Selesai (Disetujui)';
                         $sectionDoneCount++;
                         $sectionSelesaiCount++;
+                        $sectionDhSudahDinilai++;
                     } elseif ($status === 'menunggu_div_head') {
                         $actionType = 'sudah_dikirim';
                         $actionLabel = 'Review Div Head';
                         $stageLabel = 'Division Head';
                         $sectionDoneCount++;
+                        $sectionDhSudahDinilai++;
                         $waitingDivCount++;
                     } elseif ($status === 'menunggu_dept_head') {
                         if (!$hasShSign && $calcSection['grand_total'] == 0 && empty($doc['total_nilai'])) {
@@ -685,6 +696,11 @@ class DashboardController extends Controller
                             $actionLabel = 'Terkirim ke Dept Head';
                             $stageLabel = 'Department Head';
                             $sectionDoneCount++;
+                            if ($hasDhScoreOrSign) {
+                                $sectionDhSudahDinilai++;
+                            } else {
+                                $sectionDhBelumDinilai++;
+                            }
                             $waitingDeptCount++;
                         }
                     } elseif ($status === 'draft' || ($isEvaluatedBySection && in_array($status, ['menunggu_section_head', 'menunggu_foreman', 'belum_ada']))) {
@@ -739,7 +755,28 @@ class DashboardController extends Controller
             }
 
             $sectionSubordinates = $enrichedSectionSubordinates;
-            usort($sectionSubordinates, fn($a, $b) => strcmp($a['nrp'], $b['nrp']));
+            usort($sectionSubordinates, function ($a, $b) {
+                $getPriority = function ($row) {
+                    $isAlreadyAssessed = !empty($row['is_evaluated'])
+                        || (($row['score'] ?? '-') !== '-')
+                        || in_array($row['status'] ?? '', ['menunggu_dept_head', 'menunggu_div_head', 'selesai'], true);
+                    if ($isAlreadyAssessed) {
+                        return 0; // Paling atas: Sudah memiliki nilai / sudah dinilai
+                    }
+                    if (in_array($row['status'] ?? '', ['draft', 'menunggu_section_head', 'belum_ada', 'revisi'], true)) {
+                        return 1; // Kedua: Siap langsung dinilai Section Head (Aksi = Nilai)
+                    }
+                    return 2; // Paling bawah: Menunggu Foreman (Aksi = Lihat)
+                };
+
+                $prioA = $getPriority($a);
+                $prioB = $getPriority($b);
+                if ($prioA !== $prioB) {
+                    return $prioA <=> $prioB;
+                }
+
+                return strnatcasecmp((string)($a['nrp'] ?? ''), (string)($b['nrp'] ?? ''));
+            });
 
             $sectionMandiriCount = count(array_filter($sectionSubordinates, fn($s) => strcasecmp($s['nrp'] ?? '', $user->nrp) === 0));
             $sectionBawahanCount = count($sectionSubordinates) - $sectionMandiriCount;
@@ -2619,6 +2656,8 @@ class DashboardController extends Controller
             'sectionRevisiCount',
             'sectionSelesaiCount',
             'sectionSudahDinilaiCount',
+            'sectionDhSudahDinilai',
+            'sectionDhBelumDinilai',
             'waitingDeptCount',
             'waitingDivCount',
             'deptSubordinates',
