@@ -336,43 +336,52 @@
         </div>
 
         @if($hasForemanSubordinates)
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-                <!-- Step 1: Penilaian Foreman (Klik: Filter antrean Foreman) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 items-stretch">
+                <!-- Step 1: Penilaian Foreman (To-Do) (Klik: Filter antrean Foreman) -->
                 <div @click="scrollToSection('section-data-karyawan', 'foreman')" 
-                     class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm"
+                     class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                      title="Klik untuk melihat antrean pengerjaan Foreman di tabel">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 1</span>
-                        <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
-                            {{ $foremanStageCounts['tahap1'] ?? 0 }} Orang
-                        </span>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 1</span>
+                            <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
+                                {{ $foremanStageCounts['tahap1'] ?? 0 }} Orang
+                            </span>
+                        </div>
+                        <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman (To-Do)</h4>
+                        <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                            Foreman Melakukan Penilaian untuk bawahannya
+                        </p>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman</h4>
-                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        {{ $foremanStageCounts['belum'] ?? 0 }} belum dinilai &bull; {{ $foremanStageCounts['draft'] ?? 0 }} draft tersimpan.
-                    </p>
-                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                        <span class="font-medium text-slate-500">
-                            {{ ($foremanStageCounts['tahap1'] ?? 0) > 0 ? 'Menunggu penilaian Foreman' : 'Selesai diinput Foreman' }}
+                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
+                        <span class="font-bold text-emerald-700">
+                            {{ $foremanDoneCount ?? 0 }} Sudah dinilai
                         </span>
-                        <span class="font-mono text-slate-400 text-[10px]">Alur Awal</span>
+                        <span class="font-bold text-slate-500">
+                            {{ $foremanStageCounts['tahap1'] ?? 0 }} Belum dinilai
+                        </span>
                     </div>
                 </div>
 
                 <!-- Step 2: Tinjauan Section Head (Tahap Aktif Section Head - Highlighted Amber) -->
                 <div @click="scrollToSection('section-data-karyawan', 'todo')" 
-                     class="p-3.5 border {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500 ring-1 ring-amber-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm"
+                     class="p-3.5 border {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500 ring-1 ring-amber-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                      title="Klik untuk melihat dokumen yang siap Anda tinjau di tabel">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 2</span>
-                        <span class="text-xs font-black {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'text-amber-800 bg-amber-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
-                            {{ $foremanStageCounts['waiting_section'] ?? 0 }} Dokumen
-                        </span>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 2</span>
+                            <span class="text-xs font-black {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'text-amber-800 bg-amber-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
+                                {{ $foremanStageCounts['waiting_section'] ?? 0 }} Dokumen
+                            </span>
+                        </div>
+                        <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Section Head</h4>
+                        <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                            Section Head Melakukan Penilaian untuk bawahannya.
+                        </p>
+                        <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                            {{ $sectionBelumCount ?? 0 }} belum dinilai &bull; {{ $sectionDraftCount ?? 0 }} draft tersimpan.
+                        </p>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Section Head</h4>
-                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Dokumen siap ditinjau, dinilai, dan disahkan oleh Section Head.
-                    </p>
                     <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
                         <span class="font-bold {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'text-amber-700' : 'text-slate-500' }}">
                             {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
@@ -381,53 +390,63 @@
                             <button @click.stop="scrollToSection('section-data-karyawan', 'todo')" type="button" class="text-[#92302e] font-bold hover:underline inline-flex items-center gap-1">
                                 Kerjakan &rarr;
                             </button>
-                        @else
-                            <span class="font-mono text-slate-400 text-[10px]">Alur Verifikasi</span>
                         @endif
                     </div>
                 </div>
 
-                <!-- Step 3: Approval Dept Head (Tingkat Akhir, tanpa Div Head) -->
+                <!-- Step 3: Approval Dept Head -->
                 <div @click="scrollToSection('section-data-karyawan', 'done')" 
-                     class="p-3.5 border {{ ($foremanStageCounts['waiting_dept'] ?? 0) > 0 ? 'border-indigo-300 bg-indigo-50/40 hover:border-indigo-400' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm"
+                     class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                      title="Klik untuk melihat dokumen di tabel">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 3</span>
-                        <span class="text-xs font-black {{ ($foremanStageCounts['waiting_dept'] ?? 0) > 0 ? 'text-indigo-800 bg-indigo-100' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
-                            {{ $foremanStageCounts['waiting_dept'] ?? 0 }} Dokumen
-                        </span>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 3</span>
+                            <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
+                                {{ $foremanStageCounts['waiting_dept'] ?? 0 }} Dokumen
+                            </span>
+                        </div>
+                        <h4 class="text-xs font-bold text-slate-900">3. Approval Dept Head</h4>
+                        <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                            Telah disetujui Section Head, menunggu persetujuan Department Head.
+                        </p>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">3. Approval Dept Head</h4>
-                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Telah disetujui Section Head, menunggu persetujuan Department Head.
-                    </p>
-                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                        <span class="font-medium text-slate-500">
-                            {{ ($foremanStageCounts['waiting_dept'] ?? 0) > 0 ? 'Proses persetujuan DH' : 'Tidak ada antrean' }}
+                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
+                        <span class="font-bold text-emerald-700">
+                            {{ $sectionDhSudahDinilai ?? 0 }} Sudah dinilai
                         </span>
-                        <span class="font-mono text-slate-400 text-[10px]">Tingkat Akhir</span>
+                        <span class="font-bold text-slate-500">
+                            {{ $sectionDhBelumDinilai ?? 0 }} Belum dinilai
+                        </span>
                     </div>
                 </div>
 
                 <!-- Step 4: Selesai & Terarsip -->
+                @php
+                    $shTrackerSelesai = $sectionSelesaiCount ?? ($foremanStageCounts['selesai'] ?? 0);
+                    $shTrackerBelumDisahkan = max(0, count($sectionSubordinates) - $shTrackerSelesai);
+                @endphp
                 <div @click="scrollToSection('section-data-karyawan', 'done')" 
-                     class="p-3.5 border {{ ($foremanStageCounts['selesai'] ?? 0) > 0 ? 'border-emerald-300 bg-emerald-50/40 hover:border-emerald-400' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm"
+                     class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                      title="Klik untuk melihat arsip dokumen selesai di tabel">
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 4</span>
-                        <span class="text-xs font-black {{ ($foremanStageCounts['selesai'] ?? 0) > 0 ? 'text-emerald-800 bg-emerald-100' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
-                            {{ $foremanStageCounts['selesai'] ?? 0 }} Dokumen
-                        </span>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 4</span>
+                            <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
+                                {{ $shTrackerSelesai }} Dokumen
+                            </span>
+                        </div>
+                        <h4 class="text-xs font-bold text-slate-900">4. Selesai & Terarsip</h4>
+                        <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                            Penilaian disahkan penuh, PDF tersimpan dan nilai resmi tercatat.
+                        </p>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">4. Selesai & Terarsip</h4>
-                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Penilaian disahkan penuh, PDF tersimpan dan nilai resmi tercatat.
-                    </p>
-                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
+                    <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-col gap-0.5 text-[11px]">
                         <span class="font-bold text-emerald-700">
-                            {{ ($foremanStageCounts['selesai'] ?? 0) > 0 ? 'Arsip final tersedia' : 'Belum selesai final' }}
+                            {{ $shTrackerSelesai }} Disahkan
                         </span>
-                        <span class="font-mono text-emerald-600 text-[10px]">Tuntas</span>
+                        <span class="font-bold text-slate-500">
+                            {{ $shTrackerBelumDisahkan }} Belum disahkan
+                        </span>
                     </div>
                 </div>
             </div>
