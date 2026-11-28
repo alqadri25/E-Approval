@@ -244,8 +244,8 @@
         </div>
     @endif
 
-    <!-- 3. Key Stat Cards in a Row (4 Columns Informing What Has Been Done & What Needs To Be Done) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- 3. Key Stat Cards in a Row (3 Columns: Total Karyawan, Total Dinilai, Diteruskan / Selesai) -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <!-- 1. Total Karyawan (Klik: Scroll ke tabel filter semua) -->
         <div @click="scrollToSection('section-data-karyawan', 'all')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
@@ -273,32 +273,7 @@
             </span>
         </div>
 
-        <!-- 2. Total Target (Klik: Scroll ke grafik Target Penilaian) -->
-        <div @click="scrollToSection('chart-target-kategori')" 
-             class="bg-white rounded-none p-4 border border-slate-300 hover:border-[#92302e] hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
-             title="Klik untuk melihat grafik Target Penilaian berdasarkan kategori">
-            <div class="flex items-center gap-3.5">
-                <div class="w-10 h-10 rounded-none bg-[#fbe8e8] text-[#92302e] font-black flex items-center justify-center text-sm flex-shrink-0 border border-[#92302e]/20 group-hover:bg-[#92302e] group-hover:text-white transition-colors">
-                    T
-                </div>
-                <div>
-                    <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-[#92302e] transition-colors">Total Target</p>
-                    <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $totalTargetSection ?? count($sectionSubordinates) }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1 leading-none">
-                        @if(($sectionBawahanCount ?? 0) > 0 && ($sectionMandiriCount ?? 0) > 0)
-                            Target Penilaian Tim
-                        @else
-                            Karyawan yang dinilai
-                        @endif
-                    </p>
-                </div>
-            </div>
-            <span class="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-700 rounded-none border border-blue-200">
-                Target Kerja
-            </span>
-        </div>
-
-        <!-- 3. Total Dinilai (Klik: Scroll ke tabel filter sudah dinilai) -->
+        <!-- 2. Total Dinilai (Klik: Scroll ke tabel filter sudah dinilai) -->
         <div @click="scrollToSection('section-data-karyawan', 'evaluated')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-emerald-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
              title="Klik untuk melihat karyawan yang sudah dinilai (draft & terkirim) di tabel">
@@ -310,8 +285,8 @@
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-emerald-700 transition-colors">Total Dinilai</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $sectionTotalDinilai }}</p>
                     @php
-                        $shDraftCount = $hasForemanSubordinates ? ($foremanStageCounts['draft'] ?? 0) : ($sectionDraftCount ?? 0);
-                        $shBelumCount = $hasForemanSubordinates ? ($foremanStageCounts['belum'] ?? 0) : ($sectionBelumCount ?? 0);
+                        $shDraftCount = $sectionDraftCount ?? 0;
+                        $shBelumCount = max(0, count($sectionSubordinates) - ($sectionDoneCount ?? 0) - $shDraftCount);
                     @endphp
                     <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
                         {{ $shDraftCount }} draft, {{ $shBelumCount }} belum dinilai
@@ -323,7 +298,10 @@
             </span>
         </div>
 
-        <!-- 4. Terkirim ke Dept. Head (Klik: Scroll ke tabel filter terkirim) -->
+        <!-- 3. Terkirim ke Dept. Head (Klik: Scroll ke tabel filter terkirim) -->
+        @php
+            $shPendingTotal = max(0, count($sectionSubordinates) - ($sectionDoneCount ?? 0));
+        @endphp
         <div @click="scrollToSection('section-data-karyawan', 'done')" 
              class="bg-white rounded-none p-4 border border-slate-300 hover:border-blue-600 hover:shadow-md cursor-pointer transition-all flex items-center justify-between group"
              title="Klik untuk melihat dokumen yang telah terkirim ke Dept. Head / Div Head di tabel">
@@ -336,13 +314,13 @@
                         Diteruskan / Selesai
                     </p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $sectionDoneCount }}</p>
-                    <p class="text-[11px] {{ ($sectionNeedActionCount ?? 0) > 0 ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold' }} mt-1 leading-none">
-                        {{ $sectionNeedActionCount }} Perlu Tindakan (To-Do)
+                    <p class="text-[11px] {{ $shPendingTotal > 0 ? 'text-amber-600 font-bold' : 'text-emerald-600 font-bold' }} mt-1 leading-none">
+                        {{ $shPendingTotal }} Perlu Tindakan (To-Do)
                     </p>
                 </div>
             </div>
-            <span class="text-[10px] font-bold px-2 py-1 {{ ($sectionNeedActionCount ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
-                {{ ($sectionNeedActionCount ?? 0) > 0 ? 'To-Do' : 'Tuntas' }}
+            <span class="text-[10px] font-bold px-2 py-1 {{ $shPendingTotal > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
+                {{ $shPendingTotal > 0 ? 'To-Do' : 'Tuntas' }}
             </span>
         </div>
     </div>
@@ -358,26 +336,20 @@
                     Memantau posisi seluruh {{ count($sectionSubordinates) }} berkas penilaian di setiap tahapan sistem
                 </p>
             </div>
-            @if($hasForemanSubordinates)
-                <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-none border border-slate-200 self-start sm:self-auto">
-                    {{ $foremanDoneCount ?? 0 }}/{{ count($sectionSubordinates) }} Telah Melewati Foreman
-                </span>
-            @else
-                <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-none border border-slate-200 self-start sm:self-auto">
-                    {{ $sectionDoneCount }}/{{ count($sectionSubordinates) }} Telah Melewati Section Head
-                </span>
-            @endif
+            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-none border border-slate-200 self-start sm:self-auto">
+                {{ $sectionDoneCount }}/{{ count($sectionSubordinates) }} Telah Melewati Section Head
+            </span>
         </div>
 
         @if($hasForemanSubordinates)
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
                 <!-- Step 1: Penilaian Foreman (Klik: Filter antrean Foreman) -->
                 <div @click="scrollToSection('section-data-karyawan', 'foreman')" 
-                     class="p-3.5 border {{ ($foremanStageCounts['tahap1'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm"
+                     class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm"
                      title="Klik untuk melihat antrean pengerjaan Foreman di tabel">
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 1</span>
-                        <span class="text-xs font-black {{ ($foremanStageCounts['tahap1'] ?? 0) > 0 ? 'text-amber-800 bg-amber-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
+                        <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
                             {{ $foremanStageCounts['tahap1'] ?? 0 }} Orang
                         </span>
                     </div>
@@ -393,22 +365,22 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Tinjauan Section Head (Klik: Scroll ke to-do) -->
+                <!-- Step 2: Tinjauan Section Head (Tahap Aktif Section Head - Highlighted Amber) -->
                 <div @click="scrollToSection('section-data-karyawan', 'todo')" 
-                     class="p-3.5 border {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'border-blue-400 bg-blue-50/50 hover:border-blue-500 ring-1 ring-blue-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm"
+                     class="p-3.5 border {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500 ring-1 ring-amber-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm"
                      title="Klik untuk melihat dokumen yang siap Anda tinjau di tabel">
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 2</span>
-                        <span class="text-xs font-black {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'text-blue-800 bg-blue-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
+                        <span class="text-xs font-black {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'text-amber-800 bg-amber-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
                             {{ $foremanStageCounts['waiting_section'] ?? 0 }} Dokumen
                         </span>
                     </div>
                     <h4 class="text-xs font-bold text-slate-900">2. Tinjauan Section Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Dokumen telah diverifikasi Foreman dan sedang ditinjau Section Head.
+                        Dokumen siap ditinjau, dinilai, dan disahkan oleh Section Head.
                     </p>
                     <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                        <span class="font-bold {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'text-blue-800' : 'text-slate-500' }}">
+                        <span class="font-bold {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'text-amber-700' : 'text-slate-500' }}">
                             {{ ($foremanStageCounts['waiting_section'] ?? 0) > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
                         </span>
                         @if(($foremanStageCounts['waiting_section'] ?? 0) > 0)

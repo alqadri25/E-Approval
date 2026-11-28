@@ -595,7 +595,7 @@ class DashboardController extends Controller
                         $stageLabel = 'Selesai (Disetujui)';
                         $sectionDoneCount++;
                         $sectionSelesaiCount++;
-                        $foremanDoneCount++;
+                        if ($hasForemanEmp) $foremanDoneCount++;
                         $foremanStageCounts['selesai']++;
                     } elseif ($status === 'menunggu_dept_head' || $status === 'menunggu_div_head') {
                         if (!$hasShSign && $calcSection['grand_total'] == 0 && empty($doc['total_nilai']) && $status === 'menunggu_dept_head') {
@@ -604,7 +604,7 @@ class DashboardController extends Controller
                             $stageLabel = 'Section Head';
                             $sectionBelumCount++;
                             $sectionNeedActionCount++;
-                            $foremanDoneCount++;
+                            if ($hasForemanEmp) $foremanDoneCount++;
                             $foremanStageCounts['waiting_section']++;
                         } else {
                             $actionType = 'sudah_dikirim';
@@ -612,7 +612,7 @@ class DashboardController extends Controller
                             $stageLabel = $status === 'menunggu_div_head' ? 'Division Head' : 'Department Head';
                             $sectionDoneCount++;
                             $waitingDeptCount++;
-                            $foremanDoneCount++;
+                            if ($hasForemanEmp) $foremanDoneCount++;
                             $foremanStageCounts['waiting_dept']++;
                         }
                     } elseif ($status === 'revisi') {
@@ -621,10 +621,10 @@ class DashboardController extends Controller
                         $stageLabel = 'Revisi dari Dept Head';
                         $sectionRevisiCount++;
                         $sectionNeedActionCount++;
-                        $foremanDoneCount++;
+                        if ($hasForemanEmp) $foremanDoneCount++;
                         $foremanStageCounts['waiting_section']++;
                     } elseif ($status === 'menunggu_section_head') {
-                        $foremanDoneCount++;
+                        if ($hasForemanEmp) $foremanDoneCount++;
                         $foremanStageCounts['waiting_section']++;
                         $sectionNeedActionCount++;
                         if ($isEvaluatedBySection || $status === 'draft') {
