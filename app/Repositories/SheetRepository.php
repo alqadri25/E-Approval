@@ -134,7 +134,10 @@ class SheetRepository implements SheetRepositoryInterface
 
             // 1. FAST LOCAL-FIRST: Check local SQLite database first (< 1ms)
             if (Schema::hasTable($localTable)) {
-                return $this->getFromLocal($table);
+                $localRows = $this->getFromLocal($table);
+                if (!empty($localRows)) {
+                    return $localRows;
+                }
             }
 
             // 2. Fetch fresh data from Google Apps Script Web App only if local DB is empty
@@ -815,8 +818,8 @@ class SheetRepository implements SheetRepositoryInterface
                     }
                 }
 
-                // If mirroring full operational table and some rows were deleted from Google Sheets, prune local DB
-                if (in_array($table, ['karyawan', 'dokumen', 'kuota_departemen']) && !empty($insertedKeys)) {
+                // Only prune strictly secondary configuration tables if needed (never prune master karyawan or dokumen)
+                if (in_array($table, ['kuota_departemen']) && !empty($insertedKeys)) {
                     foreach ($insertedKeys as $kCol => $keys) {
                         DB::table($localTable)->whereNotIn($kCol, $keys)->delete();
                     }

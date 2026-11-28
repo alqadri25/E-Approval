@@ -341,7 +341,7 @@ class GoogleSyncService
         // Attempt pull from Google Apps Script Web App if URL is provided
         if (!empty($targetAppscript) && filter_var($targetAppscript, FILTER_VALIDATE_URL)) {
             try {
-                $response = Http::timeout(12)->withoutVerifying()->get($targetAppscript, [
+                $response = Http::timeout(25)->withoutVerifying()->get($targetAppscript, [
                     'action' => 'pull_all',
                     'spreadsheet_id' => $targetSpreadsheet,
                 ]);
@@ -377,10 +377,7 @@ class GoogleSyncService
                                 }
                             }
 
-                            // Hapus karyawan lokal yang sudah tidak ada / dihapus di Google Spreadsheet (hanya jika data sheet valid & tidak kosong)
-                            if (!empty($sheetNrps)) {
-                                DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
-                            }
+                            // Jangan hapus secara destruktif karyawan lokal agar karyawan baru tidak terhapus
                         });
 
                         // Also sync documents from spreadsheet if present
@@ -2182,7 +2179,7 @@ class GoogleSyncService
         }
 
         try {
-            $response = Http::timeout(6)->withoutVerifying()->get($appscriptUrl, [
+            $response = Http::timeout(25)->withoutVerifying()->get($appscriptUrl, [
                 'action' => 'pull_all',
             ]);
 
@@ -2190,7 +2187,7 @@ class GoogleSyncService
                 $json = $response->json();
                 $data = $json['data'] ?? [];
 
-                // 0. Sync / Prune karyawan directly from Google Spreadsheet
+                // 0. Sync karyawan directly from Google Spreadsheet
                 if (isset($data['karyawan']) && is_array($data['karyawan'])) {
                     $sheetNrps = [];
                     $kCols = Schema::getColumnListing('karyawan');
@@ -2210,19 +2207,18 @@ class GoogleSyncService
                             DB::table('karyawan')->updateOrInsert(['nrp' => $nrpK], $cleanRow);
                         }
                     }
-                    // Prune: any karyawan in local SQLite that is NOT in Google Spreadsheet is deleted!
-                    DB::table('karyawan')->whereNotIn('nrp', $sheetNrps)->delete();
-                    DB::table('dokumen')->whereNotIn('nrp', $sheetNrps)->delete();
+                    // Non-destructive: Jangan hapus data karyawan / dokumen lokal saat sinkronisasi background
                 }
 
-                // Prune deleted users from Google Spreadsheet sheet 'users'
+                // Prune deleted users from Google Spreadsheet sheet 'users' (tetap lindungi superadmin, admin, dan akun karyawan aktif)
                 if (isset($data['users']) && is_array($data['users'])) {
                     $sheetUserEmails = array_values(array_filter(array_map(fn($u) => strtolower(trim((string)($u['email'] ?? ''))), $data['users'])));
                     $sheetUserNrps = array_values(array_filter(array_map(fn($u) => trim((string)($u['nrp'] ?? '')), $data['users'])));
+                    $activeKaryawanNrpsList = DB::table('karyawan')->pluck('nrp')->map(fn($n) => trim((string)$n))->filter()->toArray();
                     DB::table('app_users')
                         ->whereNotIn('role', ['superadmin', 'admin'])
                         ->whereNotIn('email', $sheetUserEmails)
-                        ->whereNotIn('nrp', $sheetUserNrps)
+                        ->whereNotIn('nrp', array_merge($sheetUserNrps, $activeKaryawanNrpsList))
                         ->delete();
                 }
 
