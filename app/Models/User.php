@@ -749,6 +749,11 @@ class User extends Authenticatable
             return true;
         }
 
+        // Secretary tidak memiliki anggota bawahan; hanya berhak melihat/menilai dirinya sendiri (tetap langsung di bawah Division Head).
+        if ($this->isSecretary()) {
+            return false;
+        }
+
         if (self::isDeptOrDivHeadPosition($karyawan)) {
             return false;
         }
