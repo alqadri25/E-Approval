@@ -482,117 +482,119 @@
         </div>
     </div>
 
-    <!-- 4. Visual Workflow Pipeline Tracker (Pelacakan Alur Status Dokumen Bawahan - Khusus Dept Head) -->
+    <!-- 4. Visual Workflow Pipeline Tracker (Pelacakan Alur Status Dokumen - Khusus Dept Head) -->
     <div class="bg-white rounded-none p-5 border border-slate-300 shadow-sm">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
             <div>
                 <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">
-                    Pelacakan Alur Status Dokumen Bawahan
+                    Pelacakan Alur Status Dokumen
                 </h3>
                 <p class="text-xs text-slate-500">
                     Memantau posisi dokumen seluruh {{ $deptTotalKaryawan }} karyawan departemen di setiap tahapan sistem
                 </p>
             </div>
-            <span class="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-none border border-slate-200 self-start sm:self-auto">
-                {{ $deptDivDoneStageCount }}/{{ $deptTotalKaryawan }} Telah Melewati Dept Head
-            </span>
         </div>
 
-        <!-- Alur 4 Tahap Terpadu: Foreman -> Section Head -> Approval Dept Head -> Approval Division Head -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+        <!-- Alur 4 Tahap Terpadu: Foreman -> Section Head -> Department Head -> Division Head -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 items-stretch">
             <!-- Tahap 1: Penilaian Foreman -->
             <div @click="scrollToSection('dept-data-karyawan', 'foreman')" 
-                 class="p-3.5 border {{ $deptForemanPendingCount > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
+                 class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                  title="Klik untuk melihat antrean pengerjaan Foreman di tabel">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 1</span>
-                        <span class="text-xs font-black {{ $deptForemanPendingCount > 0 ? 'text-amber-800 bg-amber-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
+                        <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
                             {{ $deptForemanPendingCount }} Dokumen
                         </span>
                     </div>
                     <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        {{ $deptStageCounts['belum_dinilai_fm'] ?? 0 }} belum dinilai • {{ $deptStageCounts['draft_fm'] ?? 0 }} draft tersimpan.
+                        Melakukan Penilaian untuk bawahannya.
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                    <span class="font-medium text-slate-500">Proses pengerjaan Foreman</span>
-                    <span class="font-mono text-slate-400 text-[10px]">Alur For-SH-DH</span>
+                    <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $deptForemanDoneCount ?? 0 }}</span>
+                    <span class="font-bold text-slate-500">Belum Dinilai: {{ $deptForemanPendingCount }}</span>
                 </div>
             </div>
 
             <!-- Tahap 2: Penilaian Section Head -->
             <div @click="scrollToSection('dept-data-karyawan', 'section')" 
-                 class="p-3.5 border {{ $deptSectionPendingCount > 0 ? 'border-blue-400 bg-blue-50/50 hover:border-blue-500 ring-1 ring-blue-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
+                 class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                  title="Klik untuk melihat dokumen yang sedang diproses Section Head di tabel">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 2</span>
-                        <span class="text-xs font-black {{ $deptSectionPendingCount > 0 ? 'text-blue-800 bg-blue-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
+                        <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
                             {{ $deptSectionPendingCount }} Dokumen
                         </span>
                     </div>
                     <h4 class="text-xs font-bold text-slate-900">2. Penilaian Section Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        @if($hasAnyForeman ?? false)
-                            Dokumen telah melewati Foreman atau langsung diisi &amp; ditinjau oleh Section Head.
-                        @else
-                            {{ $deptStageCounts['belum_dinilai_sh'] ?? 0 }} belum dinilai • {{ ($deptStageCounts['draft_sh'] ?? 0) + ($deptStageCounts['revisi_sh'] ?? 0) }} draft/revisi.
-                        @endif
+                        Melakukan Penilaian untuk bawahannya.
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                    <span class="font-medium text-slate-500">Proses pengerjaan SH</span>
-                    <span class="font-mono text-slate-400 text-[10px]">Alur SH-DH</span>
+                    <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $deptSectionDoneCount ?? 0 }}</span>
+                    <span class="font-bold text-slate-500">Belum Dinilai: {{ $deptSectionPendingCount }}</span>
                 </div>
             </div>
 
-            <!-- Tahap 3: Approval Department Head -->
+            <!-- Tahap 3: Penilaian Department Head (Highlighted Amber for Department Head) -->
+            @php
+                $deptTahap3Draft = $deptCardDraftCount ?? 0;
+                $deptTahap3Belum = max(0, ($deptNeedActionCount ?? 0) - $deptTahap3Draft);
+            @endphp
             <div @click="scrollToSection('dept-data-karyawan', 'todo')" 
-                 class="p-3.5 border {{ ($deptNeedActionCount ?? 0) > 0 ? 'border-amber-500 bg-amber-100/60 shadow-xs ring-1 ring-amber-400' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
+                 class="p-3.5 border {{ ($deptNeedActionCount ?? 0) > 0 ? 'border-amber-400 bg-amber-50/50 hover:border-amber-500 ring-1 ring-amber-300' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                  title="Klik untuk melihat dokumen yang siap Anda review dan sahkan di tabel">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 3</span>
-                        <span class="text-xs font-black {{ ($deptNeedActionCount ?? 0) > 0 ? 'text-amber-900 bg-amber-300' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
+                        <span class="text-xs font-black {{ ($deptNeedActionCount ?? 0) > 0 ? 'text-amber-800 bg-amber-200' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
                             {{ $deptNeedActionCount ?? 0 }} Dokumen
                         </span>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">3. Approval Department Head</h4>
+                    <h4 class="text-xs font-bold text-slate-900">3. Penilaian Department Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        KJ 1-5, dan form Section Head &amp; Dept Head diteruskan Division Head.
+                        Telah disetujui Section Head, menunggu persetujuan Department Head.
+                    </p>
+                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
+                        {{ $deptTahap3Belum }} belum dinilai &bull; {{ $deptTahap3Draft }} draft tersimpan.
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                    <span class="font-bold {{ ($deptNeedActionCount ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }}">
+                    <span class="font-bold {{ ($deptNeedActionCount ?? 0) > 0 ? 'text-amber-700' : 'text-slate-500' }}">
                         {{ ($deptNeedActionCount ?? 0) > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
                     </span>
-                    <a href="{{ route('penilaian.dept') }}" @click.stop class="text-[#92302e] font-bold hover:underline inline-flex items-center gap-1">
-                        Kerjakan &rarr;
-                    </a>
+                    @if(($deptNeedActionCount ?? 0) > 0)
+                        <a href="{{ route('penilaian.dept') }}" @click.stop class="text-[#92302e] font-bold hover:underline inline-flex items-center gap-1">
+                            Kerjakan &rarr;
+                        </a>
+                    @endif
                 </div>
             </div>
 
-            <!-- Tahap 4: Approval Division Head -->
+            <!-- Tahap 4: Penilaian Division Head -->
             <div @click="scrollToSection('dept-data-karyawan', 'done')" 
-                 class="p-3.5 border {{ $deptDivDoneStageCount > 0 ? 'border-emerald-300 bg-emerald-50/40 hover:border-emerald-400' : 'border-slate-200 bg-slate-50/60' }} rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
+                 class="p-3.5 border border-slate-200 bg-slate-50/60 hover:border-slate-300 rounded-none cursor-pointer transition-all hover:shadow-sm flex flex-col justify-between"
                  title="Klik untuk melihat dokumen yang diteruskan ke Division Head / selesai final di tabel">
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Tahap 4</span>
-                        <span class="text-xs font-black {{ $deptDivDoneStageCount > 0 ? 'text-emerald-800 bg-emerald-100' : 'text-slate-600 bg-slate-200' }} px-2 py-0.5 rounded-none">
-                            {{ $deptDivDoneStageCount }} Dokumen
+                        <span class="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-none">
+                            {{ $deptDivSentCount ?? 0 }} Dokumen
                         </span>
                     </div>
-                    <h4 class="text-xs font-bold text-slate-900">4. Approval Division Head</h4>
+                    <h4 class="text-xs font-bold text-slate-900">4. Penilaian Division Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Penilaian masuk ke pengesahan akhir Division Head hingga selesai final &amp; arsip resmi tercatat.
+                        Telah disetujui Department Head, menunggu persetujuan Division Head.
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                    <span class="font-bold text-emerald-700">Selesai Final</span>
-                    <span class="font-mono text-emerald-600 text-[10px]">Tuntas</span>
+                    <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $deptDivSudahDinilai ?? 0 }}</span>
+                    <span class="font-bold text-slate-500">Belum Dinilai: {{ $deptDivBelumDinilai ?? 0 }}</span>
                 </div>
             </div>
         </div>
@@ -614,8 +616,8 @@
             'summary' => $deptTargetKjSummary ?? ['S' => $targetS, 'A' => $targetA, 'B' => $targetB, 'C' => $targetC, 'K' => $targetK, 'total' => $effectiveTotalTarget],
             'emptyText' => 'Belum ada data target per KJ',
             'dotColor' => 'bg-blue-600',
-            'footerLeft' => 'Rencana target kuota perolehan kategori nilai per Klasifikasi Jabatan (KJ)',
-            'footerRight' => 'Tahun ' . date('Y'),
+            'footerLeft' => '',
+            'footerRight' => '',
         ])
 
         @include('dashboard.partials.kj_matrix_card', [
@@ -629,8 +631,8 @@
             'summary' => $deptActualKjSummary ?? ['S' => 0, 'A' => 0, 'B' => 0, 'C' => 0, 'K' => 0, 'total' => 0],
             'emptyText' => 'Belum ada data realisasi dinilai Department Head per KJ',
             'dotColor' => 'bg-emerald-600',
-            'footerLeft' => 'Realisasi perolehan nilai riil yang telah dinilai & disahkan Department Head',
-            'footerRight' => ($deptActualKjSummary['total'] ?? 0) . '/' . ($deptTargetKjSummary['total'] ?? $effectiveTotalTarget) . ' Dinilai',
+            'footerLeft' => '',
+            'footerRight' => '',
         ])
     </div>
     @endif

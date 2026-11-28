@@ -72,6 +72,7 @@
         </div>
     </div>
 
+    @if(!empty($footerLeft) || !empty($footerRight))
     <div class="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
         <span class="flex items-center gap-1.5">
             <span class="w-1.5 h-1.5 rounded-full {{ $dotColor ?? 'bg-slate-400' }}"></span>
@@ -79,5 +80,6 @@
         </span>
         <span class="text-slate-400 text-[10px]">{{ $footerRight }}</span>
     </div>
+    @endif
 </div>
 
