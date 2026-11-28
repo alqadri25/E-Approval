@@ -109,7 +109,7 @@
             <div>
                 <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Proses Section Head</span>
                 <div class="text-2xl font-black text-slate-900 leading-none">{{ $countProsesSection ?? 0 }}</div>
-                <span class="text-[11px] text-slate-500 mt-1 block">Pengerjaan Form Section Head</span>
+                <span class="text-[11px] text-slate-500 mt-1 block">Pengerjaan Form Sect Head</span>
             </div>
             <div class="w-10 h-10 rounded-none bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200 shrink-0">
                 ⏳
