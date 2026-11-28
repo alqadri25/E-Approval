@@ -346,34 +346,63 @@ class PenilaianController extends Controller
                         : (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head']) ? ($doc['grade_original'] ?? $grade) : '-');
                 }
 
-                // Sinkronkan aturan kolom Nilai PK Foreman, Nilai Mandiri, Nilai PK Sect Head untuk Section Head & Dept Head
-                if (($isDeptOrDivHead && !$isDivHeadUser) || $user->isSectionHead()) {
+                // Sinkronkan aturan kolom Nilai PK Foreman, Nilai Mandiri, Nilai PK Sect Head, Nilai PK Dept Head untuk Section Head, Dept Head & Div Head
+                if ($isDeptOrDivHead || $user->isSectionHead()) {
                     $posUpperR = strtoupper(trim((string)($k['position'] ?? ($k['jabatan'] ?? ''))));
                     $lvlFormR = strtoupper(trim((string)($k['level_form'] ?? '')));
+                    $seksiUpperR = strtoupper(trim((string)($k['seksi'] ?? ($k['nama_sect'] ?? ''))));
                     $empKjNumR = (int)preg_replace('/[^0-9]/', '', (string)$empKj);
                     $isForemanEmpR = (str_contains($posUpperR, 'FOREMAN') || str_contains($posUpperR, 'KETUA') || $lvlFormR === 'FOREMAN') && !str_contains($posUpperR, 'SECTION');
                     $isSectionHeadEmpR = (str_contains($posUpperR, 'SECTION') || str_contains($posUpperR, 'SECT') || str_contains($posUpperR, 'KASIE') || $lvlFormR === 'SECTION_HEAD') && !str_contains($posUpperR, 'NON KASIE');
+                    $isSecretaryEmpR = str_contains($seksiUpperR, 'SECRETARY') || str_contains($posUpperR, 'SECRETARY') || in_array((string)$nrp, ['268', '1237'], true);
+                    $isDeptHeadEmpR = !$isSecretaryEmpR && ($kodeForm === '07-006-DH' || $lvlFormR === 'DEPT_HEAD' || str_contains($posUpperR, 'DEPT HEAD') || str_contains($posUpperR, 'DEPARTMENT HEAD') || str_contains($posUpperR, 'MANAGER'));
                     $fNrpR = $isSelf ? '' : ($k['nrp_foreman'] ?? '');
                     $hasForemanSupR = !empty($fNrpR) && trim((string)$fNrpR) !== '-' && strcasecmp(trim((string)$fNrpR), $nrp) !== 0;
                     $isDirectDeptDivR = self::isDirectDeptDivSubordinate($k, $doc);
                     $hasMandiriWfR = $isSelf
+                        || $isDeptHeadEmpR
+                        || $isSecretaryEmpR
                         || $isSectionHeadEmpR
-                        || ($isForemanEmpR && $empKjNumR <= 5)
-                        || (str_contains(strtoupper((string)($k['seksi'] ?? '')), 'SECRETARY') && $empKjNumR > 5);
+                        || ($isForemanEmpR && $empKjNumR <= 5);
 
                     if (!$hasMandiriWfR) {
                         $mandiriGrade = '-';
+                    } elseif ($isSelf && $isDivHeadUser) {
+                        $divSelfScores = $nilaiGrouped[$docId]['dept_head'] ?? ($nilaiGrouped[$docId]['foreman'] ?? []);
+                        if (!empty($divSelfScores)) {
+                            $dvSelfCalc = $this->calcService->calculate($kodeForm, $divSelfScores);
+                            if (($dvSelfCalc['grand_total'] ?? 0) > 0) {
+                                $mandiriGrade = $this->calcService->scoreToGrade($dvSelfCalc['grand_total']);
+                            }
+                        }
+                        if ($mandiriGrade === '-' && $grade !== '-') {
+                            $mandiriGrade = $grade;
+                        }
                     }
 
                     if ($isSelf) {
                         $foremanGrade = '-';
                         $sectGrade = $user->isSectionHead() ? ($mandiriGrade !== '-' ? $mandiriGrade : $grade) : '-';
+                        if ($isDivHeadUser) {
+                            $deptGradeRow = '-';
+                        }
+                    } elseif ($isSecretaryEmpR) {
+                        $foremanGrade = '-';
+                        $sectGrade = '-';
+                        $deptGradeRow = '-';
+                    } elseif ($isDeptHeadEmpR) {
+                        $foremanGrade = '-';
+                        $sectGrade = '-';
+                        if ($mandiriGrade !== '-') {
+                            $deptGradeRow = $mandiriGrade;
+                        }
                     } elseif ($isSectionHeadEmpR) {
                         $foremanGrade = '-';
                         $sectGrade = $mandiriGrade;
                     } elseif ($isDirectDeptDivR) {
                         $foremanGrade = '-';
                         $sectGrade = '-';
+                        $deptGradeRow = '-';
                     } elseif ($isForemanEmpR && $empKjNumR <= 5) {
                         $foremanGrade = $mandiriGrade;
                     } elseif (!$hasForemanSupR || $isGol4UpForm || str_starts_with($kodeForm, '07-006')) {
