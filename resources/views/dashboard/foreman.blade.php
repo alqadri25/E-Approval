@@ -214,8 +214,8 @@
                 <div>
                     <p class="text-xs text-slate-500 font-semibold leading-none group-hover:text-blue-700 transition-colors">Terkirim ke Section Head</p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $foremanDoneCount }}</p>
-                    <p class="text-[11px] text-blue-600 font-bold mt-1 leading-none">
-                        Sudah Dinilai: {{ $foremanShSudahDinilai ?? 0 }} &bull; Belum Dinilai: {{ $foremanShBelumDinilai ?? 0 }}
+                    <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
+                        {{ $foremanShSudahDinilai ?? 0 }} dinilai, {{ $foremanShBelumDinilai ?? 0 }} belum dinilai
                     </p>
                 </div>
             </div>

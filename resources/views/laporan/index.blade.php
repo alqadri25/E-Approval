@@ -163,9 +163,8 @@
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-slate-600">
-                    Sudah Dinilai: <span class="text-emerald-700">{{ $fmShSudah }}</span> &bull; Belum Dinilai: <span class="{{ $fmShBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $fmShBelum }}</span>
-                </span>
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $fmShSudah }}</span>
+                <span class="font-bold {{ $fmShBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">Belum Dinilai: {{ $fmShBelum }}</span>
             </div>
         </div>
 
@@ -186,9 +185,8 @@
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-slate-600">
-                    Sudah Dinilai: <span class="text-emerald-700">{{ $fmDhSudah }}</span> &bull; Belum Dinilai: <span class="{{ $fmDhBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $fmDhBelum }}</span>
-                </span>
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $fmDhSudah }}</span>
+                <span class="font-bold {{ $fmDhBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">Belum Dinilai: {{ $fmDhBelum }}</span>
             </div>
         </div>
     </div>
