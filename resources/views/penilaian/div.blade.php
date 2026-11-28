@@ -243,14 +243,17 @@
                     <tr class="bg-slate-100 text-slate-700 font-bold text-[11px] uppercase tracking-wider">
                         <th class="py-3 px-3 border-t border-b border-l border-r border-slate-300 text-center w-12">NO</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-24">NRP</th>
-                        <th class="py-3 px-4 border-t border-b border-r border-slate-300">NAMA LENGKAP &amp; POSITION</th>
+                        <th class="py-3 px-4 border-t border-b border-r border-slate-300">NAMA LENGKAP</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300">POSITION</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">KJ</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">GOLONGAN</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">FORM</th>
-                        <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL PENILAIAN MANDIRI</th>
-                        <th class="py-3 px-3 border-t border-b border-r border-slate-300">HASIL DEPT HEAD</th>
-                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">PENGESAHAN DIV. HEAD</th>
-                        <th class="py-3 px-3.5 border-t border-b border-r border-slate-300 min-w-[180px]">CATATAN DIV. HEAD</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center">NILAI MANDIRI</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300">NILAI SECTION HEAD</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300">NILAI DEPARTMENT HEAD</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">NILAI DIVISION HEAD</th>
                         <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">STATUS ALUR</th>
-                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-28">AKSI</th>
+                        <th class="py-3 px-3 border-t border-b border-r border-slate-300 text-center w-24">AKSI</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
@@ -280,7 +283,7 @@
                             @endif
                         </td>
 
-                        <!-- 3. Nama & Jabatan -->
+                        <!-- 3. Nama Lengkap & Division -->
                         <td class="py-2.5 px-4 border-b border-r border-slate-200">
                             <div class="flex items-center gap-1.5">
                                 <span class="font-bold text-slate-900 text-xs">{{ $row['nama_lengkap'] }}</span>
@@ -288,54 +291,129 @@
                                 <span class="px-1.5 py-0.2 rounded-none bg-rose-100 text-rose-800 border border-rose-300 font-black text-[9.5px]">ANDA</span>
                                 @endif
                             </div>
-                            <div class="text-[10px] text-slate-500 font-medium mt-0.5">
-                                {{ $row['jabatan'] }} &bull; {{ $row['golongan'] }} &bull; {{ $row['departemen'] }} ({{ $row['seksi'] }})
+                            @php
+                                $subDivDisplay = !empty($row['division']) && $row['division'] !== '-' ? $row['division'] : ($row['departemen'] ?? '-');
+                            @endphp
+                            @if(!empty($subDivDisplay) && $subDivDisplay !== '-')
+                            <div class="text-[10px] text-slate-400 font-medium mt-0.5">
+                                {{ $subDivDisplay }}
                             </div>
+                            @endif
                         </td>
 
-                        <!-- 4. Kode Form -->
-                        <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center font-mono font-bold text-indigo-700">
-                            {{ $row['kode_form'] ?? '07-006' }}
+                        <!-- 4. Position -->
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 text-slate-800 font-semibold text-xs">
+                            {{ $row['jabatan'] }}
                         </td>
 
-                        <!-- 5. Hasil Penilaian Mandiri -->
-                        <td class="py-2.5 px-3 border-b border-r border-slate-200">
-                            @if($row['nilai_section'] !== '-')
+                        <!-- 5. KJ -->
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center font-mono font-bold text-slate-800">
+                            {{ $row['kj'] ?? '-' }}
+                        </td>
+
+                        <!-- 6. Golongan -->
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center font-semibold text-slate-700">
+                            {{ $row['golongan'] ?? '-' }}
+                        </td>
+
+                        <!-- 7. Kode Form -->
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center {{ !empty($row['is_secretary']) ? 'font-bold text-slate-800' : 'font-mono font-bold text-indigo-700' }}">
+                            @if(!empty($row['is_secretary']))
+                                Form Secretary
+                            @else
+                                {{ str_starts_with($row['kode_form'] ?? '', '07-006') ? '07-006' : ($row['kode_form'] ?? '07-001') }}
+                            @endif
+                        </td>
+
+                        <!-- 8. NILAI MANDIRI -->
+                        @php
+                            $showMandiri = !empty($row['has_mandiri_col']);
+                        @endphp
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
+                            @if(!$showMandiri)
+                                <span class="text-slate-400 font-semibold">-</span>
+                            @elseif(!empty($row['is_self']))
+                                @if(($row['nilai_mandiri'] ?? '-') !== '-')
+                                    <div class="inline-flex flex-col items-center">
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
+                                            {{ $row['nilai_mandiri'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
+                                               ($row['nilai_mandiri'] === 'A' ? 'bg-blue-100 text-blue-800' :
+                                               ($row['nilai_mandiri'] === 'B' ? 'bg-amber-100 text-amber-800' :
+                                               ($row['nilai_mandiri'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
+                                            {{ $row['nilai_mandiri'] }}
+                                        </span>
+                                        <span class="text-[9px] text-emerald-700 font-bold mt-0.5">Mandiri</span>
+                                    </div>
+                                @else
+                                    <span class="text-amber-700 font-medium text-[11px] italic">Belum Dinilai</span>
+                                @endif
+                            @else
+                                <div class="flex items-center gap-2 text-left">
+                                    @if(($row['nilai_mandiri'] ?? '-') !== '-')
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
+                                            {{ $row['nilai_mandiri'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
+                                               ($row['nilai_mandiri'] === 'A' ? 'bg-blue-100 text-blue-800' :
+                                               ($row['nilai_mandiri'] === 'B' ? 'bg-amber-100 text-amber-800' :
+                                               ($row['nilai_mandiri'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
+                                            {{ $row['nilai_mandiri'] }}
+                                        </span>
+                                    @else
+                                        <span class="text-slate-400 font-semibold text-center w-7">-</span>
+                                    @endif
+                                    <div>
+                                        <span class="text-[11px] font-bold text-slate-800 block truncate max-w-[130px]">{{ $row['mandiri_nama'] ?? 'Mandiri' }}</span>
+                                        @if(!empty($row['has_mandiri_sign']))
+                                            <span class="text-[9.5px] font-semibold text-emerald-700 block">✓ TTD Lengkap</span>
+                                        @else
+                                            <span class="text-[9.5px] text-slate-400 italic block">Belum TTD</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+                        </td>
+
+                        <!-- 9. NILAI SECTION HEAD -->
+                        @php
+                            $showSection = !empty($row['has_section_col']);
+                        @endphp
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 {{ !$showSection ? 'text-center' : '' }}">
+                            @if(!$showSection)
+                                <span class="text-slate-400 font-semibold">-</span>
+                            @else
                             <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
-                                    {{ $row['nilai_section'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
-                                       ($row['nilai_section'] === 'A' ? 'bg-blue-100 text-blue-800' :
-                                       ($row['nilai_section'] === 'B' ? 'bg-amber-100 text-amber-800' :
-                                       ($row['nilai_section'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
-                                    {{ $row['nilai_section'] }}
-                                </span>
+                                @if(($row['nilai_section'] ?? '-') !== '-')
+                                    <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
+                                        {{ $row['nilai_section'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
+                                           ($row['nilai_section'] === 'A' ? 'bg-blue-100 text-blue-800' :
+                                           ($row['nilai_section'] === 'B' ? 'bg-amber-100 text-amber-800' :
+                                           ($row['nilai_section'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
+                                        {{ $row['nilai_section'] }}
+                                    </span>
+                                @else
+                                    <span class="text-slate-400 font-semibold text-center w-7">-</span>
+                                @endif
                                 <div>
                                     <span class="text-[11px] font-bold text-slate-800 block truncate max-w-[130px]">{{ $row['section_nama'] }}</span>
-                                    @if($row['has_section_sign'])
+                                    @if(!empty($row['has_section_sign']))
                                         <span class="text-[9.5px] font-semibold text-emerald-700 block">✓ TTD Lengkap</span>
                                     @else
                                         <span class="text-[9.5px] text-slate-400 italic block">Belum TTD</span>
                                     @endif
                                 </div>
                             </div>
-                            @else
-                                <div class="flex items-center gap-2">
-                                    <span class="text-slate-400 font-semibold text-center w-7">-</span>
-                                    <div>
-                                        <span class="text-[11px] font-medium text-slate-400 block truncate max-w-[130px]">{{ $row['section_nama'] }}</span>
-                                        <span class="text-[9.5px] text-slate-400 italic block">Belum Dinilai</span>
-                                    </div>
-                                </div>
                             @endif
                         </td>
 
-                        <!-- 6. Hasil Dept Head -->
-                        <td class="py-2.5 px-3 border-b border-r border-slate-200">
-                            @if($row['is_self'] || ($row['dept_nama'] === '-'))
-                                <span class="text-slate-400 font-semibold text-center block w-full">-</span>
+                        <!-- 10. NILAI DEPARTMENT HEAD -->
+                        @php
+                            $showDept = !empty($row['has_dept_col']);
+                        @endphp
+                        <td class="py-2.5 px-3 border-b border-r border-slate-200 {{ !$showDept ? 'text-center' : '' }}">
+                            @if(!$showDept)
+                                <span class="text-slate-400 font-semibold">-</span>
                             @else
                             <div class="flex items-center gap-2">
-                                @if($row['nilai_dept'] !== '-')
+                                @if(($row['nilai_dept'] ?? '-') !== '-')
                                     <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
                                         {{ $row['nilai_dept'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
                                            ($row['nilai_dept'] === 'A' ? 'bg-blue-100 text-blue-800' :
@@ -348,7 +426,7 @@
                                 @endif
                                 <div>
                                     <span class="text-[11px] font-bold text-slate-800 block truncate max-w-[130px]">{{ $row['dept_nama'] }}</span>
-                                    @if($row['has_dept_sign'])
+                                    @if(!empty($row['has_dept_sign']))
                                         <span class="text-[9.5px] font-semibold text-emerald-700 block">✓ TTD Lengkap</span>
                                     @else
                                         <span class="text-[9.5px] text-slate-400 italic block">Belum TTD</span>
@@ -358,44 +436,47 @@
                             @endif
                         </td>
 
-                        <!-- 7. Pengesahan Nilai Akhir Div. Head (Dropdown Docking) -->
+                        <!-- 11. NILAI DIVISION HEAD -->
                         <td class="py-2 px-3 border-b border-r border-slate-200 text-center">
-                            @if(!empty($row['doc_id']))
-                                @php
-                                    $canEditThisRow = !empty($row['can_evaluate_div']);
-                                @endphp
-                                <select name="penilaian[{{ $row['doc_id'] }}][grade]"
-                                        {{ !$canEditThisRow ? 'disabled' : '' }}
-                                        title="{{ !$canEditThisRow ? 'Terkunci: Menunggu tahapan review sebelumnya' : 'Pilih nilai pengesahan Division Head' }}"
-                                        class="w-20 px-2 py-1 text-xs font-bold text-center rounded-none border {{ !$canEditThisRow ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'border-slate-300 focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] bg-white shadow-xs' }}">
-                                    <option value="">-</option>
-                                    <option value="S" {{ $row['nilai_div'] === 'S' ? 'selected' : '' }}>S</option>
-                                    <option value="A" {{ $row['nilai_div'] === 'A' ? 'selected' : '' }}>A</option>
-                                    <option value="B" {{ $row['nilai_div'] === 'B' ? 'selected' : '' }}>B</option>
-                                    <option value="C" {{ $row['nilai_div'] === 'C' ? 'selected' : '' }}>C</option>
-                                    <option value="K" {{ $row['nilai_div'] === 'K' ? 'selected' : '' }}>K</option>
-                                </select>
+                            @if(!empty($row['is_self']))
+                                @if(!empty($row['nilai_div']))
+                                    <div class="inline-flex flex-col items-center">
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
+                                            {{ $row['nilai_div'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
+                                               ($row['nilai_div'] === 'A' ? 'bg-blue-100 text-blue-800' :
+                                               ($row['nilai_div'] === 'B' ? 'bg-amber-100 text-amber-800' :
+                                               ($row['nilai_div'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
+                                            {{ $row['nilai_div'] }}
+                                        </span>
+                                        <span class="text-[9px] text-emerald-700 font-bold mt-0.5">Div Head</span>
+                                    </div>
+                                @else
+                                    <span class="text-amber-700 font-medium text-[11px] italic">Belum Dinilai</span>
+                                @endif
+                            @elseif(!empty($row['doc_id']))
+                                @if($row['status_raw'] === 'selesai' || !empty($row['has_div_sign']))
+                                    @if(!empty($row['nilai_div']))
+                                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-none font-black text-xs shadow-xs
+                                            {{ $row['nilai_div'] === 'S' ? 'bg-emerald-100 text-emerald-800' :
+                                               ($row['nilai_div'] === 'A' ? 'bg-blue-100 text-blue-800' :
+                                               ($row['nilai_div'] === 'B' ? 'bg-amber-100 text-amber-800' :
+                                               ($row['nilai_div'] === 'C' ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'))) }}">
+                                            {{ $row['nilai_div'] }}
+                                        </span>
+                                    @else
+                                        <span class="text-slate-400">-</span>
+                                    @endif
+                                @else
+                                    <span class="{{ !empty($row['can_evaluate_div']) ? 'text-amber-700 font-medium text-[11px] italic' : 'text-slate-400 font-semibold' }}">
+                                        {{ !empty($row['can_evaluate_div']) ? 'Belum Dinilai' : '-' }}
+                                    </span>
+                                @endif
                             @else
                                 <span class="text-slate-400">-</span>
                             @endif
                         </td>
 
-                        <!-- 8. Catatan Division Head -->
-                        <td class="py-2 px-3.5 border-b border-r border-slate-200">
-                            @if(!empty($row['doc_id']) && !empty($row['can_evaluate_div']))
-                            <input type="text"
-                                   name="penilaian[{{ $row['doc_id'] }}][catatan]"
-                                   value="{{ $row['catatan'] }}"
-                                   placeholder="Catatan pengesahan divisi..."
-                                   class="w-full px-2 py-1 rounded-none border border-slate-300 text-xs font-medium focus:border-[#92302e] focus:ring-1 focus:ring-[#92302e] bg-white">
-                            @else
-                            <span class="text-slate-600 text-[11px] truncate max-w-xs block">
-                                {{ $row['catatan'] ?: 'Sesuai dengan target dan pencapaian kerja divisi.' }}
-                            </span>
-                            @endif
-                        </td>
-
-                        <!-- 9. Status Alur -->
+                        <!-- 12. Status Alur -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
                             @if($row['status_raw'] === 'selesai' || $row['has_div_sign'] || $row['status'] === 'Disahkan Final')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -405,9 +486,9 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
                                     Proses Penilaian Mandiri
                                 </span>
-                            @elseif($row['is_waiting_div'] || $row['status'] === 'Menunggu Pengesahan Anda')
+                            @elseif($row['is_waiting_div'] || $row['status'] === 'Menunggu Pengesahan Anda' || $row['status'] === 'Menunggu Penilaian Anda')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Perlu tindakan Anda">
-                                    {{ $row['is_self'] ? 'Siap Dinilai' : 'Siap Disahkan' }}
+                                    🔔 {{ $row['is_self'] ? 'Siap Dinilai' : 'Siap Disahkan' }}
                                 </span>
                             @elseif($row['status_raw'] === 'menunggu_dept_head' || $row['status'] === 'Proses Dept Head')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
@@ -428,24 +509,20 @@
                             @endif
                         </td>
 
-                        <!-- 10. Aksi (Tombol Review & Sahkan / Nilai Form Mandiri / Lihat) -->
+                        <!-- 13. Aksi (Tombol Buka Form Penilaian) -->
                         <td class="py-2.5 px-3 border-b border-r border-slate-200 text-center">
                             @if(!empty($row['doc_id']))
-                                @if($row['is_self'])
-                                    <a href="{{ route('penilaian.show.divhead', $row['doc_id']) }}" 
-                                       class="inline-flex items-center gap-1 px-3 py-1 rounded-none text-xs font-bold transition shadow-xs {{ $row['status_raw'] === 'selesai' ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' : 'bg-[#92302e] hover:bg-[#7e2524] text-white' }}">
-                                        <span>{!! $row['status_raw'] === 'selesai' ? 'Lihat Form' : 'Form &rarr;' !!}</span>
-                                    </a>
-                                @elseif($row['is_waiting_div'])
-                                    <a href="{{ route('penilaian.show.divhead', $row['doc_id']) }}" 
-                                       class="inline-flex items-center gap-1 px-3 py-1 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white text-xs font-bold transition shadow-xs">
-                                        <span>Review &amp; Sahkan &rarr;</span>
-                                    </a>
+                                @if(!empty($row['can_evaluate_div']) || !empty($row['is_waiting_div']))
+                                <a href="{{ route('penilaian.show.divhead', $row['doc_id']) }}" 
+                                   class="inline-flex items-center gap-1 px-3 py-1 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white text-xs font-bold transition shadow-xs">
+                                    <span>Nilai</span>
+                                    <span>&rarr;</span>
+                                </a>
                                 @else
-                                    <a href="{{ route('penilaian.show.divhead', $row['doc_id']) }}" 
-                                       class="inline-flex items-center gap-1 px-2.5 py-1 rounded-none bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200 text-xs font-semibold transition shadow-xs">
-                                        <span>Lihat</span>
-                                    </a>
+                                <a href="{{ route('penilaian.show.divhead', $row['doc_id']) }}" 
+                                   class="inline-flex items-center gap-1 px-2.5 py-1 rounded-none bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200 text-xs font-semibold transition shadow-xs">
+                                    <span>Lihat</span>
+                                </a>
                                 @endif
                             @else
                                 <a href="{{ route('penilaian.byNrp', $row['nrp']) }}" 
@@ -458,7 +535,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="10" class="py-8 text-center text-slate-400 italic">
+                        <td colspan="13" class="py-8 text-center text-slate-400 italic">
                             Tidak ada data penilaian untuk ditampilkan di divisi ini.
                         </td>
                     </tr>
@@ -467,23 +544,11 @@
             </table>
         </div>
 
-        <!-- Footer Actions -->
+        <!-- Footer Info -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-3 border-t border-slate-200 gap-3">
             <span class="text-xs text-slate-500 font-medium">
                 Total <strong>{{ count($rows) }}</strong> karyawan terdaftar di {{ ($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head'])) ? 'Division Head' : ('divisi ' . ($user->departemen ?? '')) }}
             </span>
-
-            <div class="flex items-center gap-2.5">
-                <button type="submit"
-                        class="px-4 py-2 rounded-none border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition shadow-xs">
-                    Simpan Draft
-                </button>
-                <a href="{{ route('penilaian.cari') }}"
-                   class="px-4 py-2 rounded-none bg-[#92302e] hover:bg-[#7e2524] text-white font-bold text-xs transition inline-flex items-center gap-1.5 shadow-xs">
-                    <span>Buka Form Penilaian Lengkap</span>
-                    <span>&rarr;</span>
-                </a>
-            </div>
         </div>
         </div>
     </form>
