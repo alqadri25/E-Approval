@@ -249,7 +249,7 @@
                     </div>
                     <h4 class="text-xs font-bold text-slate-900">1. Penilaian Foreman (To-Do)</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        Foreman Melakukan Penilaian untuk bawahannya
+                        Melakukan Penilaian untuk bawahannya
                     </p>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                         {{ $foremanBelumCount }} belum dinilai &bull; {{ $foremanDraftCount }} draft tersimpan.
