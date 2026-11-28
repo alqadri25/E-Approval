@@ -6865,11 +6865,15 @@ class PenilaianController extends Controller
                 $statusLabel = $hasForemanSuperior ? 'Menunggu Foreman' : 'Menunggu Section Head';
             }
 
+            $kjFormatted = !empty($k['kj']) ? ExcelKaryawanReader::normalizeKj($k['kj']) : 'KJ 2';
+            $subGolFormatted = !empty($k['sub_gol']) ? trim((string)$k['sub_gol']) : (!empty($k['golongan']) ? trim((string)$k['golongan']) : '-');
+
             $rowItem = [
                 'nrp' => $nrp,
                 'nama_lengkap' => $k['nama_lengkap'],
                 'jabatan' => $k['jabatan'] ?? '-',
-                'golongan' => $k['golongan'] ?? $k['sub_gol'] ?? '-',
+                'kj' => $kjFormatted,
+                'golongan' => $subGolFormatted,
                 'seksi' => $k['seksi'] ?? '-',
                 'is_self' => $isSelf,
                 'is_secretary' => $isSecretary || str_contains(strtoupper((string)($k['seksi'] ?? '')), 'SECRETARY') || in_array((string)$nrp, ['268', '1237']),
@@ -7296,11 +7300,15 @@ class PenilaianController extends Controller
                 $canEvaluateDiv = false;
             }
 
+            $kjFormatted = !empty($k['kj']) ? ExcelKaryawanReader::normalizeKj($k['kj']) : 'KJ 2';
+            $subGolFormatted = !empty($k['sub_gol']) ? trim((string)$k['sub_gol']) : (!empty($k['golongan']) ? trim((string)$k['golongan']) : '-');
+
             $rowItem = [
                 'nrp' => $nrp,
                 'nama_lengkap' => $k['nama_lengkap'],
                 'jabatan' => $k['jabatan'] ?? '-',
-                'golongan' => $k['golongan'] ?? $k['sub_gol'] ?? '-',
+                'kj' => $kjFormatted,
+                'golongan' => $subGolFormatted,
                 'seksi' => $k['seksi'] ?? '-',
                 'departemen' => $k['departemen'] ?? '-',
                 'is_self' => $isSelf,
