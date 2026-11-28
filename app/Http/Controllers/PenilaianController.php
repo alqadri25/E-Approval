@@ -9725,6 +9725,8 @@ class PenilaianController extends Controller
             if ($isSecretaryEmp) {
                 $pkFinal = $doc['docking_final'] ?? ($pkMandiri !== '-' ? $pkMandiri : ($doc['grade_original'] ?? $grade));
                 if (empty($pkFinal)) $pkFinal = '-';
+            } elseif ($user->isDepartmentHead() || in_array(strtolower($user->role ?? ''), ['dept_head', 'department_head'])) {
+                $pkFinal = $pkDept;
             } elseif ($status === 'selesai') {
                 $pkFinal = $doc['docking_final'] ?? ($pkDiv !== '-' ? $pkDiv : ($pkDept !== '-' ? $pkDept : '-'));
             }

@@ -356,8 +356,8 @@
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $roleWorkflowCards['dept_head']['foreman_sudah'] ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ $roleWorkflowCards['dept_head']['proses_foreman'] ?? 0 }}</span>
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $roleWorkflowCards['dept_head']['foreman_sudah'] ?? 0 }}</span>
+                <span class="font-bold text-slate-500">Belum Dinilai: {{ $roleWorkflowCards['dept_head']['proses_foreman'] ?? 0 }}</span>
             </div>
         </div>
 
@@ -373,8 +373,8 @@
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $roleWorkflowCards['dept_head']['section_sudah'] ?? 0 }}</span>
-                <span class="font-bold text-slate-500">Belum: {{ $roleWorkflowCards['dept_head']['proses_section_only'] ?? 0 }}</span>
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $roleWorkflowCards['dept_head']['section_sudah'] ?? 0 }}</span>
+                <span class="font-bold text-slate-500">Belum Dinilai: {{ $roleWorkflowCards['dept_head']['proses_section_only'] ?? 0 }}</span>
             </div>
         </div>
 
@@ -396,7 +396,7 @@
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
                 <span class="font-bold {{ ($roleWorkflowCards['dept_head']['siap_disahkan'] ?? 0) > 0 ? 'text-amber-700' : 'text-slate-400' }}">
-                    {{ ($roleWorkflowCards['dept_head']['siap_disahkan'] ?? 0) > 0 ? 'Menunggu review' : 'Tidak ada antrean' }}
+                    {{ ($roleWorkflowCards['dept_head']['siap_disahkan'] ?? 0) > 0 ? 'Perlu tindakan Anda' : 'Tidak ada antrean' }}
                 </span>
                 @if(($roleWorkflowCards['dept_head']['siap_disahkan'] ?? 0) > 0)
                     <a href="{{ route('penilaian.dept') }}" class="text-[#92302e] font-bold hover:underline inline-flex items-center gap-1">
@@ -406,20 +406,20 @@
             </div>
         </div>
 
-        <!-- Card 5: Approval Division Head -->
+        <!-- Card 5: Diteruskan Ke Division Head -->
         <div class="bg-white rounded-none border {{ ($roleWorkflowCards['dept_head']['menunggu_div'] ?? 0) > 0 ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
             <div>
-                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Approval Division Head</span>
+                <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Division Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
                     {{ $roleWorkflowCards['dept_head']['diteruskan_div'] ?? 0 }}
                 </div>
                 <span class="text-[11px] text-slate-500 mt-1 block font-medium">
-                    {{ ($roleWorkflowCards['dept_head']['menunggu_div'] ?? 0) > 0 ? 'Menunggu approval akhir Division Head' : 'Pengerjaan Form Division Head' }}
+                    Telah diverifikasi Department Head
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-emerald-700">Sudah: {{ $roleWorkflowCards['dept_head']['selesai'] ?? 0 }}</span>
-                <span class="font-bold text-amber-700">Belum: {{ $roleWorkflowCards['dept_head']['menunggu_div'] ?? 0 }}</span>
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $roleWorkflowCards['dept_head']['selesai'] ?? 0 }}</span>
+                <span class="font-bold text-amber-700">Belum Dinilai: {{ $roleWorkflowCards['dept_head']['menunggu_div'] ?? 0 }}</span>
             </div>
         </div>
     </div>
