@@ -5030,7 +5030,10 @@ class PenilaianController extends Controller
             $grand = $calc['grand_total'];
             $grade = $this->calcService->scoreToGrade($grand);
 
-            $dockingFinalVal = $request->input('docking_final') ?: ($dokumen['docking_final'] ?? $grade);
+            $gradeOriginalVal = ($signLevel === 'dept_head' && !empty($dokumen['grade_original']) && in_array($dokumen['grade_original'], ['S', 'A', 'B', 'C', 'K']))
+                ? $dokumen['grade_original']
+                : $grade;
+            $dockingFinalVal = $request->input('docking_final') ?: ($signLevel === 'dept_head' ? $grade : ($dokumen['docking_final'] ?? $grade));
             if (!in_array($dockingFinalVal, ['S', 'A', 'B', 'C', 'K'])) {
                 $dockingFinalVal = $grade;
             }
@@ -5038,7 +5041,7 @@ class PenilaianController extends Controller
             $updateData = [
                 'status' => $nextStatus,
                 'total_nilai' => $grand,
-                'grade_original' => $grade,
+                'grade_original' => $gradeOriginalVal,
                 'docking_final' => $dockingFinalVal,
                 'updated_at' => now()->toDateTimeString(),
             ];
@@ -7713,6 +7716,10 @@ class PenilaianController extends Controller
             $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
             $rowKodeForm = $doc['kode_form'] ?? self::determineKodeForm($k);
             $isQuotaExemptRow = self::isQuotaExemptEmployee($k, $doc);
+            $rowKjDigits = (int)preg_replace('/[^0-9]/', '', (string)($k['kj'] ?? ''));
+            if ($isDeptMode && ($isQuotaExemptRow || $rowKjDigits > 5)) {
+                continue;
+            }
             $hasForemanEmp = !empty($k['nrp_foreman']) && !$isSelf && !$isQuotaExemptRow;
 
             // History Level 1: Foreman
@@ -7871,15 +7878,17 @@ class PenilaianController extends Controller
                     }
                 }
 
-                if ($hasScore && $score > 0) {
-                    $originalGrade = !empty($doc['grade_original']) && in_array($doc['grade_original'], ['S', 'A', 'B', 'C', 'K'])
-                        ? $doc['grade_original']
-                        : $this->calcService->scoreToGrade($score);
+                if ($isDeptMode && ($sectionGradeVal || $foremanGradeVal)) {
+                    $originalGrade = $sectionGradeVal ?: $foremanGradeVal;
                 } elseif (!empty($doc['grade_original']) && in_array($doc['grade_original'], ['S', 'A', 'B', 'C', 'K'])) {
                     $originalGrade = $doc['grade_original'];
+                } elseif ($hasScore && $score > 0) {
+                    $originalGrade = $this->calcService->scoreToGrade($score);
                 }
 
-                if (!empty($doc['docking_final']) && in_array($doc['docking_final'], ['S', 'A', 'B', 'C', 'K'])) {
+                if ($isDeptMode && $deptGradeVal) {
+                    $finalGrade = $deptGradeVal;
+                } elseif (!empty($doc['docking_final']) && in_array($doc['docking_final'], ['S', 'A', 'B', 'C', 'K'])) {
                     $finalGrade = $doc['docking_final'];
                 } elseif ($originalGrade) {
                     $finalGrade = $originalGrade;

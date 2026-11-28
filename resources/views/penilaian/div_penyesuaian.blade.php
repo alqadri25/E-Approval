@@ -26,42 +26,10 @@
         </div>
 
         <div class="flex items-center gap-2 sm:gap-2.5 flex-nowrap flex-shrink-0 whitespace-nowrap">
-            <form action="{{ $routesMap['reset'] }}" method="POST" class="inline-flex flex-shrink-0"
-                  @submit="return confirm('Apakah Anda yakin ingin mereset seluruh nilai penyesuaian kuota (docking) kembali ke status awal?')">
-                @csrf
-                <button type="submit"
-                        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-none bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition shadow-sm border border-slate-700 cursor-pointer whitespace-nowrap flex-shrink-0"
-                        title="Reset seluruh docking kuota">
-                    <svg class="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    <span>Reset</span>
-                </button>
-            </form>
-
-            <form action="{{ $routesMap['autoAdjust'] }}" method="POST" class="inline-flex flex-shrink-0"
-                  @submit.prevent="handleAutoAdjust($event)">
-                @csrf
-                <button type="submit"
-                        :disabled="eligibleCount === 0"
-                        :class="eligibleCount === 0 ? 'opacity-50 cursor-not-allowed bg-slate-300 border-slate-400 text-slate-600' : 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-400 cursor-pointer'"
-                        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-none font-black text-xs transition shadow-sm border whitespace-nowrap flex-shrink-0"
-                        :title="eligibleCount === 0 ? 'Belum ada dokumen yang siap disesuaikan' : 'Sesuaikan ke Target'">
-                    <svg class="w-3.5 h-3.5" :class="eligibleCount === 0 ? 'text-slate-500' : 'text-slate-950'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                    <span>Sesuaikan Target</span>
-                </button>
-            </form>
-
-            <button type="button" @click="submitAll()"
-                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-none bg-white hover:bg-slate-100 text-[#92302e] font-black text-xs transition shadow-sm border border-white cursor-pointer whitespace-nowrap flex-shrink-0"
-                    title="Simpan Penyesuaian Nilai">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
-                </svg>
-                <span>Simpan</span>
-            </button>
+            <a href="{{ $isDeptMode ? route('penilaian.dept') : route('penilaian.div') }}"
+               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-none bg-white hover:bg-slate-100 text-[#92302e] font-black text-xs transition shadow-sm border border-white cursor-pointer whitespace-nowrap flex-shrink-0">
+                <span>&larr; Kembali ke Penilaian</span>
+            </a>
         </div>
     </div>
 
@@ -82,7 +50,7 @@
                     <template x-for="(diff, grade) in overQuotaList" :key="grade">
                         <strong class="font-black text-rose-950 underline ml-1">Rank <span x-text="grade"></span> (+<span x-text="diff"></span> orang)</strong>
                     </template>.
-                    Tolong lakukan penyesuaian pada grade karyawan di tabel bawah agar sesuai dengan alokasi kuota target dari Admin, atau klik tombol <strong>"Sesuaikan ke Target"</strong> di atas.
+                    Tolong lakukan perubahan data dengan mengklik tombol <strong>Form &rarr;</strong> pada tabel karyawan di bawah agar nilai sesuai dengan alokasi kuota target dari Admin.
                 </p>
                 <div class="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
                     <span class="text-slate-600 font-semibold">Slot Tersedia:</span>
@@ -108,7 +76,7 @@
                     Distribusi Nilai Seimbang &amp; Sesuai Target Kuota
                 </h3>
                 <p class="text-xs text-emerald-800 font-medium mt-0.5">
-                    Semua peringkat nilai (Rank S, A, B, C, K) telah memenuhi batas alokasi kuota target yang diberikan oleh Admin. Anda dapat menyimpan perubahan dengan mengklik tombol "Simpan Penyesuaian".
+                    Semua peringkat nilai (Rank S, A, B, C, K) telah memenuhi batas alokasi kuota target yang diberikan oleh Admin.
                 </p>
             </div>
         </div>
@@ -379,7 +347,287 @@
         </div>
     </div>
 
-    <!-- 4. Tabel Perbandingan Target & Nilai Penilaian (Target, Foreman, Section Head, Dept/Div Head) -->
+    <!-- 4. Tabel Karyawan & Penyesuaian Kuota KJ <= 5 (Tepat di bawah Target Kuota KJ) -->
+    <div id="formPenyesuaian"
+         class="bg-white rounded-none border border-slate-300 shadow-sm p-4 space-y-4">
+
+        <!-- Toolbar Filter & Search -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-3 overflow-x-auto">
+            <div class="flex flex-nowrap items-center gap-2.5 shrink-0">
+                <!-- 1. Search -->
+                <div class="relative shrink-0">
+                    <input type="text" x-model="searchQuery" placeholder="Cari NRP, Nama, Position..."
+                           class="w-56 sm:w-64 pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-none focus:outline-none focus:border-[#92302e] font-medium placeholder-slate-400">
+                    <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+
+                <!-- 2. Filter Status Kuota -->
+                <select id="penyesuaianFilterStatus" x-model="filterStatus" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
+                    <option value="all">Status Kuota</option>
+                    <option value="original">PK Original</option>
+                    <option value="adjusted">PK Disesuaikan</option>
+                    <option value="over">PK Over Kuota</option>
+                </select>
+
+                <!-- 3. Filter Section -->
+                @if(!empty($allSections) && count($allSections) > 0)
+                <select id="penyesuaianFilterSection" x-model="filterSection" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
+                    <option value="ALL">Section</option>
+                    @foreach($allSections as $secOpt)
+                    <option value="{{ $secOpt }}">{{ $secOpt }}</option>
+                    @endforeach
+                </select>
+                @endif
+
+                <!-- 4. Filter Position -->
+                @if(!empty($allPositions) && count($allPositions) > 0)
+                <select id="penyesuaianFilterPosition" x-model="filterPosition" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
+                    <option value="ALL">Position</option>
+                    @foreach($allPositions as $posOpt)
+                    <option value="{{ $posOpt }}">{{ $posOpt }}</option>
+                    @endforeach
+                </select>
+                @endif
+
+                <!-- 5. Filter Jenjang KJ -->
+                <select id="penyesuaianFilterKj" x-model="filterKj" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
+                    <option value="ALL">KJ / Golongan</option>
+                    @foreach($kjSummaryCards as $kCode => $kjInfo)
+                    <option value="{{ $kCode }}">{{ $kCode }}</option>
+                    @endforeach
+                </select>
+
+                <!-- Filter Department (jika multi-dept) -->
+                @if(count($allDepts) > 1)
+                <select id="penyesuaianFilterDept" x-model="filterDept" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
+                    <option value="ALL">Department</option>
+                    @foreach($allDepts as $d)
+                    <option value="{{ $d }}">{{ $d }}</option>
+                    @endforeach
+                </select>
+                @endif
+
+                <button type="button"
+                        x-show="searchQuery !== '' || filterStatus !== 'all' || filterSection !== 'ALL' || filterPosition !== 'ALL' || filterKj !== 'ALL' || filterDept !== 'ALL'"
+                        @click="searchQuery = ''; filterStatus = 'all'; filterSection = 'ALL'; filterPosition = 'ALL'; filterKj = 'ALL'; filterDept = 'ALL'"
+                        class="px-2.5 py-1.5 text-xs font-bold text-[#92302e] bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-none cursor-pointer transition shadow-2xs shrink-0 flex items-center gap-1 whitespace-nowrap">
+                    <span>✕</span> Reset
+                </button>
+            </div>
+
+            <!-- Quick Counter Summary -->
+            <div class="text-xs font-medium text-slate-600 flex items-center gap-3">
+                <span>Total: <strong class="text-slate-900" x-text="filteredKaryawan.length"></strong> karyawan</span>
+                <span>•</span>
+                <span>Diubah: <strong class="text-[#92302e]" x-text="countAdjusted"></strong> orang</span>
+            </div>
+        </div>
+
+        <!-- Table Karyawan -->
+        <div class="overflow-x-auto border border-slate-300">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-100 text-slate-700 font-black uppercase tracking-wider text-[11px] border-b border-slate-300 whitespace-nowrap">
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-12">NO</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 min-w-[200px]">NRP &amp; NAMA LENGKAP</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[80px]">KJ</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-28">DEPARTMENT</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-32">SECTION</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[130px]">POSITION</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-28">NILAI FOREMAN</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-28">NILAI SECTION HEAD</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-28">{{ $isDeptMode ? 'NILAI DEPT HEAD (ANDA)' : 'NILAI DEPT HEAD' }}</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[100px]">GRADE ASLI</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[175px] bg-red-50/50 text-[#92302e]">
+                            GRADE FINAL (DOCKING KUOTA)
+                        </th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[165px]">STATUS KUOTA</th>
+                        <th class="py-2.5 px-3 border-r border-slate-300 text-left min-w-[215px]">KETERANGAN</th>
+                        <th class="py-2.5 px-3 text-center min-w-[100px]">AKSI</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <template x-for="(k, idx) in filteredKaryawan" :key="k.doc_id || k.nrp">
+                        <tr class="hover:bg-slate-50 transition-colors"
+                            :class="{
+                                'bg-rose-50/40': getKaryawanRowStatus(k).status === 'over',
+                                'bg-amber-50/30': k.is_adjusted && getKaryawanRowStatus(k).status !== 'over'
+                            }">
+                            <!-- No -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-center font-bold text-slate-500" x-text="idx + 1"></td>
+
+                            <!-- NRP & Nama -->
+                            <td class="py-2.5 px-3 border-r border-slate-300">
+                                <div class="font-black text-slate-900 text-xs flex items-center gap-1.5 flex-wrap">
+                                    <a :href="k.form_url" class="hover:text-[#92302e] hover:underline" title="Buka Form Penilaian">
+                                        <span x-text="k.nama"></span>
+                                    </a>
+                                    <span x-show="k.is_self" class="px-1.5 py-0.2 bg-slate-200 text-slate-700 text-[9px] font-black uppercase">Anda</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500 font-medium mt-0.5">
+                                    NRP: <a :href="k.form_url" class="font-semibold text-slate-700 hover:text-[#92302e] hover:underline font-mono" x-text="k.nrp"></a> • <span x-text="k.jabatan"></span>
+                                </div>
+                            </td>
+
+                            <!-- KJ (Jenjang Kepangkatan Operasional) -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-center whitespace-nowrap">
+                                <span class="px-2.5 py-1 text-xs font-black bg-[#92302e] text-white rounded-none shadow-2xs inline-block whitespace-nowrap"
+                                      x-text="k.kj || '-'"></span>
+                            </td>
+
+                            <!-- Department -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-slate-800 text-center font-bold text-xs whitespace-nowrap" x-text="k.departemen || '-'"></td>
+
+                            <!-- Section -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-slate-600 text-center text-xs font-medium whitespace-nowrap" x-text="(k.seksi && k.seksi !== k.departemen) ? k.seksi : '-'"></td>
+
+                            <!-- Position -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-slate-800 text-center text-xs font-bold whitespace-nowrap" x-text="k.position || k.jabatan || '-'"></td>
+
+                            <!-- Nilai Foreman -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-center">
+                                <template x-if="k.foreman_score_formatted && k.foreman_score_formatted !== '-'">
+                                    <div class="inline-flex flex-col items-center gap-0.5">
+                                        <span class="font-black text-slate-900 text-xs px-1.5 py-0.5 bg-sky-50 border border-sky-200 font-mono" x-text="k.foreman_score_formatted"></span>
+                                        <span class="text-[10px] font-black text-sky-800" x-text="'Rank ' + k.foreman_grade"></span>
+                                    </div>
+                                </template>
+                                <template x-if="!k.foreman_score_formatted || k.foreman_score_formatted === '-'">
+                                    <span class="text-slate-400 font-bold">-</span>
+                                </template>
+                            </td>
+
+                            <!-- Nilai Section Head -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-center">
+                                <template x-if="k.section_score_formatted && k.section_score_formatted !== '-'">
+                                    <div class="inline-flex flex-col items-center gap-0.5">
+                                        <span class="font-black text-slate-900 text-xs px-1.5 py-0.5 bg-teal-50 border border-teal-200 font-mono" x-text="k.section_score_formatted"></span>
+                                        <span class="text-[10px] font-black text-teal-800" x-text="'Rank ' + k.section_grade"></span>
+                                    </div>
+                                </template>
+                                <template x-if="!k.section_score_formatted || k.section_score_formatted === '-'">
+                                    <span class="text-slate-400 font-bold">-</span>
+                                </template>
+                            </td>
+
+                            <!-- Nilai Dept Head -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-center">
+                                <template x-if="k.dept_score_formatted && k.dept_score_formatted !== '-'">
+                                    <div class="inline-flex flex-col items-center gap-0.5">
+                                        <span class="font-black text-slate-900 text-xs px-1.5 py-0.5 bg-amber-50 border border-amber-200 font-mono" x-text="k.dept_score_formatted"></span>
+                                        <span class="text-[10px] font-black text-amber-800" x-text="'Rank ' + k.dept_grade"></span>
+                                    </div>
+                                </template>
+                                <template x-if="!k.dept_score_formatted || k.dept_score_formatted === '-'">
+                                    <span class="text-slate-400 font-bold">-</span>
+                                </template>
+                            </td>
+
+                            <!-- Grade Asli -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-center whitespace-nowrap">
+                                <template x-if="k.original_grade && k.original_grade !== '-'">
+                                    <span class="px-2.5 py-0.5 text-xs font-black rounded-none border inline-block whitespace-nowrap"
+                                          :class="badgeColor(k.original_grade)" x-text="'Rank ' + k.original_grade"></span>
+                                </template>
+                                <template x-if="!k.original_grade || k.original_grade === '-'">
+                                    <span class="text-slate-400 font-bold">-</span>
+                                </template>
+                            </td>
+
+                            <!-- Grade Final (Docking Kuota - Hasil Perubahan dari Form, Read-Only) -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-center bg-red-50/20 whitespace-nowrap">
+                                <template x-if="k.is_ready && k.final_grade && k.final_grade !== '-'">
+                                    <div class="inline-flex flex-col items-center gap-1">
+                                        <span class="px-2.5 py-0.5 text-xs font-black rounded-none border inline-block whitespace-nowrap"
+                                              :class="badgeColor(k.final_grade)"
+                                              x-text="'Rank ' + k.final_grade"></span>
+                                        <div x-show="k.original_grade && k.original_grade !== '-' && k.final_grade !== k.original_grade"
+                                             class="text-[10px] font-bold text-amber-800 whitespace-nowrap">
+                                            ✏️ Diubah (<span x-text="k.original_grade"></span> ➔ <span x-text="k.final_grade"></span>)
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="!k.is_ready">
+                                    <span class="px-2.5 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 inline-block whitespace-nowrap"
+                                          x-text="k.waiting_label || '{{ $isDeptMode ? '⏳ Menunggu For / SH' : '⏳ Menunggu SH / DH' }}'">
+                                    </span>
+                                </template>
+                                <template x-if="k.is_ready && (!k.final_grade || k.final_grade === '-')">
+                                    <span class="text-slate-400 font-bold">-</span>
+                                </template>
+                            </td>
+
+                            <!-- Status Kuota Baris -->
+                            <td class="py-2.5 px-3 border-r border-slate-300 text-center whitespace-nowrap">
+                                <span class="px-2.5 py-0.5 text-[10px] font-black border inline-flex items-center gap-1 whitespace-nowrap"
+                                      :class="getKaryawanRowStatus(k).class"
+                                      x-text="getKaryawanRowStatus(k).text">
+                                </span>
+                            </td>
+
+                            <!-- Keterangan (Catatan Perubahan Nilai via Form) -->
+                            <td class="py-2 px-3 border-r border-slate-300 text-left align-middle">
+                                <p class="text-[10px] leading-snug"
+                                   :class="getKaryawanKeterangan(k).class"
+                                   x-text="getKaryawanKeterangan(k).text">
+                                </p>
+                            </td>
+
+                            <!-- Aksi (Buka Form Penilaian untuk Ubah Nilai) -->
+                            <td class="py-2.5 px-3 text-center whitespace-nowrap">
+                                <div class="inline-flex items-center gap-1.5">
+                                    <template x-if="k.is_ready">
+                                        <a :href="k.form_url"
+                                           class="px-2.5 py-1 bg-[#92302e] hover:bg-[#7e2524] text-white font-black text-[10.5px] border border-[#781b1f] shadow-2xs inline-flex items-center gap-1 transition cursor-pointer"
+                                           title="Buka Form Penilaian untuk mengubah nilai karyawan">
+                                            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                            </svg>
+                                            <span>Form &rarr;</span>
+                                        </a>
+                                    </template>
+                                    <template x-if="!k.is_ready">
+                                        <a :href="k.form_url"
+                                           class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10.5px] border border-slate-300 shadow-2xs inline-flex items-center gap-1 transition cursor-pointer"
+                                           title="Lihat Dokumen Penilaian">
+                                            <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                            </svg>
+                                            <span>Lihat</span>
+                                        </a>
+                                    </template>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+
+                    <tr x-show="filteredKaryawan.length === 0">
+                        <td colspan="14" class="text-center py-8 text-slate-500 text-xs">
+                            Tidak ada data karyawan KJ 5 kebawah yang cocok dengan kriteria filter.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Bottom Action Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-slate-200">
+            <div class="text-xs text-slate-500">
+                Untuk mengubah nilai agar sesuai kuota target, klik tombol <strong>Form &rarr;</strong> pada kolom Aksi. Hasil perubahan otomatis terbaca pada kolom <strong>Grade Final (Docking Kuota)</strong>.
+            </div>
+
+            <div class="flex items-center gap-2">
+                <a href="{{ $isDeptMode ? route('penilaian.dept') : route('penilaian.div') }}" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300">
+                    &larr; Kembali ke Data Penilaian
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Tabel Perbandingan Target & Nilai Penilaian (Target, Foreman, Section Head, Dept Head) -->
     <div class="bg-white rounded-none p-5 border border-slate-300 shadow-sm space-y-4">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-slate-200 pb-3">
             <div>
@@ -554,313 +802,6 @@
         </div>
     </div>
 
-    <!-- 5. Main Form: Tabel Karyawan & Penyesuaian Nilai -->
-    <form id="formPenyesuaian" action="{{ $routesMap['simpan'] }}" method="POST"
-          class="bg-white rounded-none border border-slate-300 shadow-sm p-4 space-y-4">
-        @csrf
-        <input type="hidden" name="force_save" :value="forceSaveVal ? 1 : 0">
-
-        <!-- Toolbar Filter & Search -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-3 overflow-x-auto">
-            <div class="flex flex-nowrap items-center gap-2.5 shrink-0">
-                <!-- 1. Search -->
-                <div class="relative shrink-0">
-                    <input type="text" x-model="searchQuery" placeholder="Cari NRP, Nama, Position..."
-                           class="w-56 sm:w-64 pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-none focus:outline-none focus:border-[#92302e] font-medium placeholder-slate-400">
-                    <svg class="w-4 h-4 text-slate-400 absolute left-2.5 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                </div>
-
-                <!-- 2. Filter Status Kuota -->
-                <select id="penyesuaianFilterStatus" x-model="filterStatus" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
-                    <option value="all">Status Kuota</option>
-                    <option value="original">PK Original</option>
-                    <option value="adjusted">PK Disesuaikan</option>
-                    <option value="over">PK Over Kuota</option>
-                </select>
-
-                <!-- 3. Filter Section -->
-                @if(!empty($allSections) && count($allSections) > 0)
-                <select id="penyesuaianFilterSection" x-model="filterSection" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
-                    <option value="ALL">Section</option>
-                    @foreach($allSections as $secOpt)
-                    <option value="{{ $secOpt }}">{{ $secOpt }}</option>
-                    @endforeach
-                </select>
-                @endif
-
-                <!-- 4. Filter Position -->
-                @if(!empty($allPositions) && count($allPositions) > 0)
-                <select id="penyesuaianFilterPosition" x-model="filterPosition" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
-                    <option value="ALL">Position</option>
-                    @foreach($allPositions as $posOpt)
-                    <option value="{{ $posOpt }}">{{ $posOpt }}</option>
-                    @endforeach
-                </select>
-                @endif
-
-                <!-- 5. Filter Jenjang KJ -->
-                <select id="penyesuaianFilterKj" x-model="filterKj" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
-                    <option value="ALL">KJ / Golongan</option>
-                    @foreach($kjSummaryCards as $kCode => $kjInfo)
-                    <option value="{{ $kCode }}">{{ $kCode }}</option>
-                    @endforeach
-                </select>
-
-                <!-- Filter Department (jika multi-dept) -->
-                @if(count($allDepts) > 1)
-                <select id="penyesuaianFilterDept" x-model="filterDept" class="text-xs border border-slate-300 rounded-none px-2.5 py-1.5 font-semibold text-slate-700 focus:outline-none focus:border-[#92302e] shrink-0">
-                    <option value="ALL">Department</option>
-                    @foreach($allDepts as $d)
-                    <option value="{{ $d }}">{{ $d }}</option>
-                    @endforeach
-                </select>
-                @endif
-
-                <button type="button"
-                        x-show="searchQuery !== '' || filterStatus !== 'all' || filterSection !== 'ALL' || filterPosition !== 'ALL' || filterKj !== 'ALL' || filterDept !== 'ALL'"
-                        @click="searchQuery = ''; filterStatus = 'all'; filterSection = 'ALL'; filterPosition = 'ALL'; filterKj = 'ALL'; filterDept = 'ALL'"
-                        class="px-2.5 py-1.5 text-xs font-bold text-[#92302e] bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-none cursor-pointer transition shadow-2xs shrink-0 flex items-center gap-1 whitespace-nowrap">
-                    <span>✕</span> Reset
-                </button>
-            </div>
-
-            <!-- Quick Counter Summary -->
-            <div class="text-xs font-medium text-slate-600 flex items-center gap-3">
-                <span>Total: <strong class="text-slate-900" x-text="filteredKaryawan.length"></strong> karyawan</span>
-                <span>•</span>
-                <span>Disesuaikan: <strong class="text-[#92302e]" x-text="countAdjusted"></strong> orang</span>
-            </div>
-        </div>
-
-        <!-- Table Karyawan -->
-        <div class="overflow-x-auto border border-slate-300">
-            <table class="w-full text-left text-xs border-collapse">
-                <thead>
-                    <tr class="bg-slate-100 text-slate-700 font-black uppercase tracking-wider text-[11px] border-b border-slate-300 whitespace-nowrap">
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-12">NO</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 min-w-[200px]">NRP &amp; NAMA LENGKAP</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[80px]">KJ</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-28">DEPARTMENT</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-32">SECTION</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[130px]">POSITION</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-28">NILAI FOREMAN</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-28">NILAI SECTION HEAD</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center w-28">{{ $isDeptMode ? 'NILAI DEPT HEAD (ANDA)' : 'NILAI DEPT HEAD' }}</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[100px]">GRADE ASLI</th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[230px] bg-red-50/50 text-[#92302e]">
-                            GRADE FINAL (DOCKING KUOTA)
-                        </th>
-                        <th class="py-2.5 px-3 border-r border-slate-300 text-center min-w-[185px]">STATUS KUOTA</th>
-                        <th class="py-2.5 px-3 text-center min-w-[130px]">AKSI</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-200">
-                    <template x-for="(k, idx) in filteredKaryawan" :key="k.doc_id || k.nrp">
-                        <tr class="hover:bg-slate-50 transition-colors"
-                            :class="{
-                                'bg-rose-50/40': getKaryawanRowStatus(k).status === 'over',
-                                'bg-amber-50/30': k.is_adjusted && getKaryawanRowStatus(k).status !== 'over'
-                            }">
-                            <!-- No -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-center font-bold text-slate-500" x-text="idx + 1"></td>
-
-                            <!-- NRP & Nama -->
-                            <td class="py-2.5 px-3 border-r border-slate-300">
-                                <div class="font-black text-slate-900 text-xs flex items-center gap-1.5 flex-wrap">
-                                    <a :href="k.form_url" class="hover:text-[#92302e] hover:underline" title="Buka Form Penilaian">
-                                        <span x-text="k.nama"></span>
-                                    </a>
-                                    <span x-show="k.is_self" class="px-1.5 py-0.2 bg-slate-200 text-slate-700 text-[9px] font-black uppercase">Anda</span>
-                                </div>
-                                <div class="text-[11px] text-slate-500 font-medium mt-0.5">
-                                    NRP: <a :href="k.form_url" class="font-semibold text-slate-700 hover:text-[#92302e] hover:underline font-mono" x-text="k.nrp"></a> • <span x-text="k.jabatan"></span>
-                                </div>
-                            </td>
-
-                            <!-- KJ (Jenjang Kepangkatan Operasional) -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-center whitespace-nowrap">
-                                <span class="px-2.5 py-1 text-xs font-black bg-[#92302e] text-white rounded-none shadow-2xs inline-block whitespace-nowrap"
-                                      x-text="k.kj || '-'"></span>
-                            </td>
-
-                            <!-- Department -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-slate-800 text-center font-bold text-xs whitespace-nowrap" x-text="k.departemen || '-'"></td>
-
-                            <!-- Section -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-slate-600 text-center text-xs font-medium whitespace-nowrap" x-text="(k.seksi && k.seksi !== k.departemen) ? k.seksi : '-'"></td>
-
-                            <!-- Position -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-slate-800 text-center text-xs font-bold whitespace-nowrap" x-text="k.position || k.jabatan || '-'"></td>
-
-                            <!-- Nilai Foreman -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-center">
-                                <template x-if="k.foreman_score_formatted && k.foreman_score_formatted !== '-'">
-                                    <div class="inline-flex flex-col items-center gap-0.5">
-                                        <span class="font-black text-slate-900 text-xs px-1.5 py-0.5 bg-sky-50 border border-sky-200 font-mono" x-text="k.foreman_score_formatted"></span>
-                                        <span class="text-[10px] font-black text-sky-800" x-text="'Rank ' + k.foreman_grade"></span>
-                                    </div>
-                                </template>
-                                <template x-if="!k.foreman_score_formatted || k.foreman_score_formatted === '-'">
-                                    <span class="text-slate-400 font-bold">-</span>
-                                </template>
-                            </td>
-
-                            <!-- Nilai Section Head -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-center">
-                                <template x-if="k.section_score_formatted && k.section_score_formatted !== '-'">
-                                    <div class="inline-flex flex-col items-center gap-0.5">
-                                        <span class="font-black text-slate-900 text-xs px-1.5 py-0.5 bg-teal-50 border border-teal-200 font-mono" x-text="k.section_score_formatted"></span>
-                                        <span class="text-[10px] font-black text-teal-800" x-text="'Rank ' + k.section_grade"></span>
-                                    </div>
-                                </template>
-                                <template x-if="!k.section_score_formatted || k.section_score_formatted === '-'">
-                                    <span class="text-slate-400 font-bold">-</span>
-                                </template>
-                            </td>
-
-                            <!-- Nilai Dept Head -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-center">
-                                <template x-if="k.dept_score_formatted && k.dept_score_formatted !== '-'">
-                                    <div class="inline-flex flex-col items-center gap-0.5">
-                                        <span class="font-black text-slate-900 text-xs px-1.5 py-0.5 bg-amber-50 border border-amber-200 font-mono" x-text="k.dept_score_formatted"></span>
-                                        <span class="text-[10px] font-black text-amber-800" x-text="'Rank ' + k.dept_grade"></span>
-                                    </div>
-                                </template>
-                                <template x-if="!k.dept_score_formatted || k.dept_score_formatted === '-'">
-                                    <span class="text-slate-400 font-bold">-</span>
-                                </template>
-                            </td>
-
-                            <!-- Grade Asli -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-center whitespace-nowrap">
-                                <template x-if="k.original_grade && k.original_grade !== '-'">
-                                    <span class="px-2.5 py-0.5 text-xs font-black rounded-none border inline-block whitespace-nowrap"
-                                          :class="badgeColor(k.original_grade)" x-text="'Rank ' + k.original_grade"></span>
-                                </template>
-                                <template x-if="!k.original_grade || k.original_grade === '-'">
-                                    <span class="text-slate-400 font-bold">-</span>
-                                </template>
-                            </td>
-
-                            <!-- Grade Final (Docking Selector) -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-center bg-red-50/20 whitespace-nowrap">
-                                <template x-if="k.is_ready && (k.has_score || (k.final_grade && k.final_grade !== '-'))">
-                                    <div>
-                                        <div class="inline-flex items-center border border-slate-300 rounded-none overflow-hidden shadow-2xs">
-                                            <template x-for="opt in ['S', 'A', 'B', 'C', 'K']" :key="opt">
-                                                <button type="button"
-                                                        @click="changeGrade(k, opt)"
-                                                        class="px-3 py-1 font-black text-xs transition-all border-r last:border-r-0 cursor-pointer"
-                                                        :class="k.final_grade === opt ? activeBtnClass(opt) : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'"
-                                                        x-text="opt">
-                                                </button>
-                                            </template>
-                                        </div>
-
-                                        <!-- Hidden input for form submit -->
-                                        <input type="hidden" :name="'docking[' + k.doc_id + ']'" :value="k.final_grade">
-
-                                        <div x-show="k.final_grade && k.original_grade && k.original_grade !== '-' && k.final_grade !== k.original_grade" class="text-[10px] font-bold text-amber-800 mt-1 whitespace-nowrap">
-                                            ✏️ Disesuaikan (<span x-text="k.original_grade"></span> ➔ <span x-text="k.final_grade"></span>)
-                                        </div>
-                                    </div>
-                                </template>
-                                <template x-if="!k.is_ready">
-                                    <span class="px-2.5 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300 inline-block whitespace-nowrap"
-                                          x-text="k.waiting_label || '{{ $isDeptMode ? '⏳ Menunggu For / SH' : '⏳ Menunggu SH / DH' }}'">
-                                    </span>
-                                </template>
-                                <template x-if="k.is_ready && !k.has_score && (!k.final_grade || k.final_grade === '-')">
-                                    <span class="text-slate-400 font-bold">-</span>
-                                </template>
-                            </td>
-
-                            <!-- Status Kuota Baris -->
-                            <td class="py-2.5 px-3 border-r border-slate-300 text-center whitespace-nowrap">
-                                <span class="px-2.5 py-0.5 text-[10px] font-black border inline-flex items-center gap-1 whitespace-nowrap"
-                                      :class="getKaryawanRowStatus(k).class"
-                                      x-text="getKaryawanRowStatus(k).text">
-                                </span>
-                            </td>
-
-                            <!-- Form & Aksi Cepat -->
-                            <td class="py-2.5 px-3 text-center whitespace-nowrap">
-                                <div class="inline-flex items-center gap-1.5">
-                                    <!-- Tombol Menuju Form Penilaian Khusus Division Head -->
-                                    <template x-if="k.is_ready">
-                                        <a :href="k.form_url"
-                                           class="px-2.5 py-1 bg-[#92302e] hover:bg-[#7e2524] text-white font-black text-[10.5px] border border-[#781b1f] shadow-2xs inline-flex items-center gap-1 transition cursor-pointer"
-                                           title="Buka Formulir untuk Melakukan Penilaian / Penyesuaian Ulang Khusus {{ $isDeptMode ? 'Department Head' : 'Division Head' }}">
-                                            <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                            </svg>
-                                            <span>Form &rarr;</span>
-                                        </a>
-                                    </template>
-                                    <template x-if="!k.is_ready">
-                                        <a :href="k.form_url"
-                                           class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10.5px] border border-slate-300 shadow-2xs inline-flex items-center gap-1 transition cursor-pointer"
-                                           title="Lihat Dokumen Penilaian (Terkunci - Menunggu Section Head & Dept Head)">
-                                            <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                            </svg>
-                                            <span>Lihat</span>
-                                        </a>
-                                    </template>
-
-                                    <template x-if="k.is_ready && currentCounts[k.final_grade] > targetQuota[k.final_grade]">
-                                        <button type="button" @click="downgradeGrade(k)"
-                                                title="Sesuaikan ke rank yang ada slot"
-                                                class="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-[10px] border border-amber-600 shadow-2xs inline-flex items-center gap-1 cursor-pointer">
-                                            <span>Sesuaikan ➔</span>
-                                        </button>
-                                    </template>
-                                    <template x-if="k.is_ready && k.final_grade && k.final_grade !== k.original_grade">
-                                        <button type="button" @click="resetGrade(k)"
-                                                title="Kembalikan ke Grade Asli"
-                                                class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] border border-slate-300 shadow-2xs cursor-pointer">
-                                            Reset
-                                        </button>
-                                    </template>
-                                </div>
-                            </td>
-                        </tr>
-                    </template>
-
-                    <tr x-show="filteredKaryawan.length === 0">
-                        <td colspan="13" class="text-center py-8 text-slate-500 text-xs">
-                            Tidak ada data karyawan yang cocok dengan kriteria filter.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Bottom Action Bar -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-slate-200">
-            <div class="text-xs text-slate-500">
-                Klik tombol grade pada kolom <strong>Grade Final (Docking Kuota)</strong> untuk mengubah grade karyawan. Kuota akan diverifikasi secara otomatis.
-            </div>
-
-            <div class="flex items-center gap-2">
-                <a href="{{ route('penilaian.div') }}" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300">
-                    Batal / Kembali
-                </a>
-
-                <button type="button" @click="submitAll()"
-                        class="px-4 py-2 bg-[#92302e] hover:bg-[#781b1f] text-white font-black text-xs border border-[#781b1f] shadow-sm flex items-center gap-2 cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    <span>Simpan &amp; Terapkan Penyesuaian</span>
-                </button>
-            </div>
-        </div>
-    </form>
-
     <!-- Modal Alert Dialog Kuota Penuh (Muncul saat user mencoba memilih rank yang over) -->
     <div x-show="showQuotaFullModal" x-cloak
          class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-2xs flex items-center justify-center p-4">
@@ -1005,6 +946,38 @@ function penyesuaianKuotApp() {
                 }
             });
             return Object.keys(list).length > 0 ? list : this.availableSlotsList;
+        },
+
+        getKaryawanKeterangan(k) {
+            if (!k.is_ready) {
+                return {
+                    text: 'Menunggu penilaian Foreman / Section Head selesai.',
+                    class: 'text-slate-500'
+                };
+            }
+            if (!k.final_grade || k.final_grade === '-') {
+                return {
+                    text: 'Belum ada nilai. Klik Form → untuk mengisi penilaian.',
+                    class: 'text-slate-500'
+                };
+            }
+            const rowSt = this.getKaryawanRowStatus(k);
+            if (rowSt.status === 'over') {
+                return {
+                    text: 'Kuota Rank ' + k.final_grade + ' penuh / melebihi target. Tolong lakukan perubahan data, klik Form → untuk mengubah nilai.',
+                    class: 'text-rose-700 font-medium'
+                };
+            }
+            if (k.original_grade && k.original_grade !== '-' && k.final_grade !== k.original_grade) {
+                return {
+                    text: 'Nilai telah diubah melalui Form (' + k.original_grade + ' ➔ ' + k.final_grade + ').',
+                    class: 'text-emerald-700 font-medium'
+                };
+            }
+            return {
+                text: 'Memenuhi target kuota. Klik Form → jika perlu mengubah nilai.',
+                class: 'text-slate-600'
+            };
         },
 
         getKaryawanRowStatus(k) {
