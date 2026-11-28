@@ -482,10 +482,6 @@
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                                     ✓ Disahkan Final
                                 </span>
-                            @elseif($row['status'] === 'Proses Penilaian Mandiri')
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
-                                    Proses Penilaian Mandiri
-                                </span>
                             @elseif($row['is_waiting_div'] || $row['status'] === 'Menunggu Pengesahan Anda' || $row['status'] === 'Menunggu Penilaian Anda')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse" title="Perlu tindakan Anda">
                                     🔔 {{ $row['is_self'] ? 'Siap Dinilai' : 'Siap Disahkan' }}
@@ -501,6 +497,10 @@
                             @elseif($row['status_raw'] === 'menunggu_foreman' || $row['status'] === 'Proses Foreman')
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-300">
                                     Proses Foreman
+                                </span>
+                            @elseif($row['status'] === 'Proses Penilaian Mandiri')
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                                    Proses Penilaian Mandiri
                                 </span>
                             @else
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">

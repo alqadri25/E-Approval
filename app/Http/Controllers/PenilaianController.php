@@ -7416,16 +7416,12 @@ class PenilaianController extends Controller
                 $statusLabel = 'Menunggu Pengesahan Anda';
                 $isWaitingDiv = true;
                 $canEvaluateDiv = true;
-            } elseif ($isMandiriWorkflow && $nilaiMandiri === '-') {
-                $statusLabel = 'Proses Penilaian Mandiri';
-                $isWaitingDiv = false;
-                $canEvaluateDiv = false;
             } elseif ($statusRaw === 'menunggu_dept_head') {
                 $statusLabel = 'Proses Dept Head';
                 $isWaitingDiv = false;
                 $canEvaluateDiv = false;
             } elseif ($statusRaw === 'menunggu_section_head') {
-                $statusLabel = $isMandiriWorkflow ? 'Proses Penilaian Mandiri' : 'Proses Section Head';
+                $statusLabel = 'Proses Section Head';
                 $isWaitingDiv = false;
                 $canEvaluateDiv = false;
             } elseif ($statusRaw === 'menunggu_foreman') {
