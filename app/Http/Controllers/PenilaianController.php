@@ -6090,13 +6090,32 @@ class PenilaianController extends Controller
 
             $kodeFormRow = $doc['kode_form'] ?? ($isSelf ? '07-006-SH' : self::determineKodeForm($k));
 
-            // Foreman Name
-            $fNrp = $k['nrp_foreman'] ?? '';
+            // Foreman Name (resolving nrp_foreman, self-foreman 07-004, or matching line_category FM1/FM2)
+            $fNrp = trim((string)($k['nrp_foreman'] ?? ''));
+            $isForemanEmpRow = ($kodeFormRow === '07-004') || (!self::isForemanAboveKj5($k, $kodeFormRow) && (str_contains(strtoupper($k['jabatan'] ?? ''), 'FOREMAN') || str_contains(strtoupper($k['level_form'] ?? ''), 'FOREMAN')));
+            $hasForemanEmp = self::requiresForemanStage($k, $kodeFormRow, $statusRaw) && !$isSelf;
+
+            if ($hasForemanEmp && $fNrp === '') {
+                if ($isForemanEmpRow) {
+                    $fNrp = (string)$nrp;
+                } else {
+                    $empLineCat = strtoupper(trim((string)($k['line_category'] ?? '')));
+                    if ($empLineCat !== '' && $empLineCat !== '-' && $empLineCat !== 'NULL') {
+                        foreach ($allKaryawan as $cand) {
+                            $cJab = strtoupper(trim((string)($cand['jabatan'] ?? '')));
+                            $cLine = strtoupper(trim((string)($cand['line_category'] ?? '')));
+                            if (str_contains($cJab, 'FOREMAN') && !str_contains($cJab, 'SECTION') && $cLine === $empLineCat) {
+                                $fNrp = (string)($cand['nrp'] ?? '');
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             $fUser = $userByNrp[$fNrp] ?? null;
             $fKaryawan = $karyawanMap[$fNrp] ?? null;
-            $isForemanEmpRow = ($kodeFormRow === '07-004') || (!self::isForemanAboveKj5($k, $kodeFormRow) && (str_contains(strtoupper($k['jabatan'] ?? ''), 'FOREMAN') || str_contains(strtoupper($k['level_form'] ?? ''), 'FOREMAN')));
             $fName = $fUser['nama'] ?? ($fKaryawan['nama_lengkap'] ?? (!empty($fNrp) ? "Foreman ($fNrp)" : ($isForemanEmpRow ? $k['nama_lengkap'] : "-")));
-            $hasForemanEmp = self::requiresForemanStage($k, $kodeFormRow, $statusRaw) && !$isSelf;
             $fNameClean = $hasForemanEmp ? trim(preg_replace('/\s*\(.*?\)/', '', $fName)) : '-';
 
             // Nilai Foreman
@@ -6106,9 +6125,7 @@ class PenilaianController extends Controller
             $calcForeman = !empty($foremanScores) 
                 ? $this->calcService->calculate($kodeFormRow, $foremanScores) 
                 : ['grand_total' => 0.00];
-            $fScore = $hasForemanEmp ? ($calcForeman['grand_total'] > 0 ? $calcForeman['grand_total'] : ($doc['total_nilai'] ?? 0)) : 0;
-            $hasForemanVal = $hasForemanEmp && (($statusRaw !== 'belum_ada' && $statusRaw !== 'draft' && $statusRaw !== 'menunggu_foreman') || ($fScore > 0));
-            $nilaiForeman = ($hasForemanVal && $fScore > 0) ? $this->calcService->scoreToGrade($fScore) : '-';
+            $fScore = $hasForemanEmp ? ($calcForeman['grand_total'] > 0 ? $calcForeman['grand_total'] : (float)($doc['total_nilai'] ?? 0)) : 0;
 
             // Nilai Section Head
             $sectionScores = ($docId && isset($nilaiGrouped[$docId]['section_head'])) 
@@ -6119,12 +6136,25 @@ class PenilaianController extends Controller
                 : ['grand_total' => 0.00];
             $sScore = $calcSection['grand_total'];
             $hasShTtd = $docId ? (isset($ttdGrouped[$docId]['section_head']) || DB::table('tanda_tangan')->where('dokumen_id', $docId)->where('level', 'section_head')->exists() || !empty($doc['ttd_section_head'])) : false;
+
+            // Safeguard: Jika membutuhkan tahap Foreman namun berstatus menunggu_section_head tanpa skor/TTD Foreman maupun aktivitas Section Head,
+            // kembalikan statusRaw ke menunggu_foreman agar card & baris tabel selalu konsisten.
+            $hasFmTtd = $docId ? (!empty($doc['ttd_foreman']) || DB::table('tanda_tangan')->where('dokumen_id', $docId)->where('level', 'foreman')->exists()) : false;
+            if ($hasForemanEmp && $statusRaw === 'menunggu_section_head' && empty($foremanScores) && !$hasFmTtd && $fScore <= 0 && !$hasShTtd && $sScore <= 0) {
+                $statusRaw = 'menunggu_foreman';
+            }
+
+            $hasForemanVal = $hasForemanEmp && (($statusRaw !== 'belum_ada' && $statusRaw !== 'draft' && $statusRaw !== 'menunggu_foreman') || ($fScore > 0));
+            $nilaiForeman = ($hasForemanVal && $fScore > 0) ? $this->calcService->scoreToGrade($fScore) : '-';
+
             $hasSectionVal = ($sScore > 0) || $hasShTtd || (!empty($doc['total_nilai']) && in_array($statusRaw, ['menunggu_dept_head', 'menunggu_div_head', 'selesai']));
             $nilaiSection = '';
             if ($hasSectionVal) {
                 $finalScore = $sScore > 0 ? $sScore : ($doc['total_nilai'] ?? 0);
                 $nilaiSection = $finalScore > 0 ? $this->calcService->scoreToGrade($finalScore) : '';
             }
+            // Nilai Mandiri hanya untuk baris Section Head sendiri (sama dengan Nilai Section Head)
+            $nilaiMandiri = $isSelf ? ($nilaiSection !== '' ? $nilaiSection : '-') : '-';
 
             $empKjNum = isset($k['kj']) ? (int)preg_replace('/[^0-9]/', '', (string)$k['kj']) : 0;
             $isSubordinate07006 = !$isSelf && (($kodeFormRow === '07-006-KARYAWAN') || self::isSubordinateForm07006($k, $kodeFormRow));
@@ -6162,22 +6192,27 @@ class PenilaianController extends Controller
             // Note / Catatan
             $catatan = $indByDocId[$docId]['kelebihan'] ?? '';
 
+            $kjFormatted = !empty($k['kj']) ? ExcelKaryawanReader::normalizeKj($k['kj']) : 'KJ 2';
+            $subGolFormatted = !empty($k['sub_gol']) ? trim((string)$k['sub_gol']) : (!empty($k['golongan']) ? trim((string)$k['golongan']) : '-');
+
             $rowItem = [
                 'nrp' => $nrp,
                 'nama_lengkap' => $k['nama_lengkap'],
                 'jabatan' => $k['jabatan'] ?? 'Staff',
-                'golongan' => $k['golongan'] ?? 'II',
+                'kj' => $kjFormatted,
+                'golongan' => $subGolFormatted,
                 'seksi' => $k['seksi'] ?? ($user->seksi ?? 'Produksi'),
                 'kode_form' => $kodeFormRow,
                 'is_self' => $isSelf,
                 'is_subordinate_07006' => $isSubordinate07006,
                 'foreman_nama' => $fNameClean,
                 'foreman_nrp' => $hasForemanEmp ? $fNrp : '',
-                'has_foreman_sign' => $hasForemanEmp && (!empty($doc['ttd_foreman']) || ($hasForemanVal && $fScore > 0)),
+                'has_foreman_sign' => $hasForemanEmp && ($hasFmTtd || ($hasForemanVal && $fScore > 0)),
                 'has_section_sign' => $hasShTtd,
                 'doc_id' => $docId,
                 'status_raw' => $statusRaw,
                 'nilai_foreman' => $nilaiForeman,
+                'nilai_mandiri' => $nilaiMandiri,
                 'nilai_section' => $nilaiSection,
                 'catatan' => $catatan,
                 'status' => $statusLabel,
