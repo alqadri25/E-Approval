@@ -959,7 +959,7 @@
         $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan || $isSectionHeadLaporan);
         $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHeadLaporan || $isDeptHeadLaporan);
         $showColDiv = $isSuperOrAdmin || $isDivHeadLaporan;
-        $showColFinal = !$isForemanLaporan && !$isSectionHeadLaporan;
+        $showColFinal = !$isForemanLaporan && !$isSectionHeadLaporan && !$user->isSecretary();
 
         // 17 kolom identitas & bobot + 1 kolom aksi + jumlah kolom nilai PK yang aktif
         $totalTableCols = 18 + ($showColForeman ? 1 : 0) + ($showColMandiri ? 1 : 0) + ($showColSect ? 1 : 0) + ($showColDept ? 1 : 0) + ($showColDiv ? 1 : 0) + ($showColFinal ? 1 : 0);
@@ -990,7 +990,7 @@
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">{{ $isForemanLaporan ? 'NILAI PK FOREMAN' : 'NILAI PK FOREMAN (JIKA ADA)' }}</th>
                         @endif
                         @if($showColMandiri)
-                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">NILAI PK MANDIRI</th>
+                        <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">{{ $user->isSecretary() ? 'NILAI MANDIRI' : 'NILAI PK MANDIRI' }}</th>
                         @endif
                         @if($showColSect)
                         <th class="py-3 px-3.5 border-b border-r border-slate-300 bg-slate-100 font-bold text-slate-700 text-center whitespace-nowrap">{{ $isSectionHeadLaporan ? 'NILAI PK SECTION HEAD' : 'NILAI PK SECT' }}</th>

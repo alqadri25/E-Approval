@@ -10602,7 +10602,7 @@ class PenilaianController extends Controller
         $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead || $isSectionHead);
         $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead);
         $showColDiv = $isSuperOrAdmin || $isDivHead;
-        $showColFinal = !$isForeman && !$isSectionHead;
+        $showColFinal = !$isForeman && !$isSectionHead && !$user->isSecretary();
 
         $headers = [
             'NO',
@@ -10628,7 +10628,7 @@ class PenilaianController extends Controller
             $headers[] = $isForeman ? 'NILAI PK FOREMAN' : 'NILAI PK FOREMAN (JIKA ADA)';
         }
         if ($showColMandiri) {
-            $headers[] = 'NILAI PK MANDIRI';
+            $headers[] = $user->isSecretary() ? 'NILAI MANDIRI' : 'NILAI PK MANDIRI';
         }
         if ($showColSect) {
             $headers[] = $isSectionHead ? 'NILAI PK SECTION HEAD' : 'NILAI PK SECT';
