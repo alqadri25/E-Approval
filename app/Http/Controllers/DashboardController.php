@@ -1216,6 +1216,7 @@ class DashboardController extends Controller
                     'nama' => $k['nama_lengkap'],
                     'nama_lengkap' => $k['nama_lengkap'],
                     'jabatan' => $k['jabatan'] ?? '-',
+                    'departemen' => (!empty($k['departemen']) && trim((string)$k['departemen']) !== '-') ? trim((string)$k['departemen']) : ($user->departemen ?: $seksiName),
                     'seksi' => $seksiName,
                     'golongan' => $k['golongan'] ?? $k['sub_gol'] ?? '-',
                     'sub_gol' => $k['sub_gol'] ?? $k['golongan'] ?? '-',
