@@ -6844,15 +6844,15 @@ class PenilaianController extends Controller
                 }
             }
 
-            $hasDeptHeadOwnGrade = !empty($doc['docking_final'])
-                || $deptCalculatedGrade !== ''
+            $hasDeptHeadOwnGrade = $deptCalculatedGrade !== ''
                 || ($isSelf && $selfNilaiAkhir !== '')
-                || (!$isSelf && ($hasDeptSign || in_array($statusRaw, ['menunggu_div_head', 'selesai'])));
+                || $hasDeptSign
+                || in_array($statusRaw, ['menunggu_div_head', 'selesai']);
 
             if ($isSelf) {
-                $nilaiAkhir = $selfNilaiAkhir ?: ($hasDeptSign ? ($doc['grade_original'] ?? '') : '');
+                $nilaiAkhir = $selfNilaiAkhir ?: ($hasDeptSign ? ($doc['docking_final'] ?? ($doc['grade_original'] ?? '')) : '');
             } elseif ($hasDeptHeadOwnGrade) {
-                $nilaiAkhir = $doc['docking_final'] ?? ($deptCalculatedGrade ?: ($doc['grade_original'] ?? ''));
+                $nilaiAkhir = $deptCalculatedGrade ?: ($doc['docking_final'] ?? ($doc['grade_original'] ?? ''));
             } else {
                 $nilaiAkhir = '';
             }
@@ -6861,7 +6861,7 @@ class PenilaianController extends Controller
             $isSub07006 = ($kodeForm === '07-006-KARYAWAN') || self::isSubordinateForm07006($k, $kodeForm);
             $isDirectDeptHeadEval = !$isSelf && !$isSub07006 && ($isGol4UpDoc || $isKj5Up);
 
-            $isDone = ($statusRaw === 'selesai' || ($isSelf && $statusRaw === 'menunggu_div_head') || !empty($doc['docking_final']) || $hasDeptSign);
+            $isDone = ($statusRaw === 'selesai' || in_array($statusRaw, ['menunggu_div_head', 'selesai']) || $hasDeptSign);
             $canEvaluateDept = $isSelf 
                 ? ($statusRaw !== 'menunggu_div_head' && $statusRaw !== 'selesai') 
                 : ($statusRaw === 'menunggu_dept_head' || $user->isSuperadmin());
@@ -10403,4 +10403,479 @@ class PenilaianController extends Controller
                 $tS = $deptSums[$def['kode']]['S'];
                 $tA = $deptSums[$def['kode']]['A'];
                 $tB = $deptSums[$def['kode']]['B'];
-... [truncated for diff preview]
+                $tC = $deptSums[$def['kode']]['C'];
+                $tK = $deptSums[$def['kode']]['K'];
+            } else {
+                if ($target > 0) {
+                    $prop = self::computeProportionalTargetCounts($target);
+                    $tS = $prop['S'] ?? max(0, (int)round($target * 0.10));
+                    $tA = $prop['A'] ?? max(0, (int)round($target * 0.30));
+                    $tB = $prop['B'] ?? max(0, (int)round($target * 0.30));
+                    $tC = $prop['C'] ?? max(0, (int)round($target * 0.20));
+                    $tK = $prop['K'] ?? max(0, $target - ($tS + $tA + $tB + $tC));
+                } else {
+                    $tS = $tA = $tB = $tC = $tK = 0;
+                }
+            }
+
+            $sumCompanyTargetS += $tS;
+            $sumCompanyTargetA += $tA;
+            $sumCompanyTargetB += $tB;
+            $sumCompanyTargetC += $tC;
+            $sumCompanyTargetK += $tK;
+
+            $rekapDivisiDepartemen[] = [
+                'kode' => $def['kode'],
+                'departemen' => $def['kode'],
+                'departemen_label' => $def['nama'],
+                'division' => $divName,
+                'total_karyawan' => $target,
+                'sudah_dinilai' => $dinilai,
+                'belum_dinilai' => $belum,
+                'pct_val' => $pct,
+                'target_s' => $tS,
+                'target_a' => $tA,
+                'target_b' => $tB,
+                'target_c' => $tC,
+                'target_k' => $tK,
+                'status' => $statusBadge,
+            ];
+        }
+
+        $totalTargetPerusahaan = array_sum(array_column($rekapDivisiDepartemen, 'total_karyawan'));
+        $totalDinilaiPerusahaan = array_sum(array_column($rekapDivisiDepartemen, 'sudah_dinilai'));
+        $totalBelumPerusahaan = array_sum(array_column($rekapDivisiDepartemen, 'belum_dinilai'));
+        $totalPctPerusahaan = $totalTargetPerusahaan > 0 ? (int)round(($totalDinilaiPerusahaan / $totalTargetPerusahaan) * 100) : 0;
+
+        return [
+            'employeeRows' => $employeeRows,
+            'hierarchyCards' => $hierarchyCards,
+            'foremanStageCounts' => $foremanStageCounts,
+            'foremanDoneCount' => $fmCountDiteruskanSection,
+            'roleWorkflowCards' => $roleWorkflowCards,
+            'targetKuota' => $targetKuota,
+            'actualCounts' => $actualCounts,
+            'quotaActualCounts' => $quotaActualCounts,
+            'quotaSudahDinilai' => $quotaSudahDinilai,
+            'quotaBelumDinilai' => $quotaBelumDinilai,
+            'quotaPctDinilai' => $quotaPctDinilai,
+            'totalTargetKaryawan' => $totalTargetKaryawan,
+            'kategoriList' => $kategoriList,
+            'totalKaryawan' => $totalKaryawan,
+            'totalKaryawanSubtitle' => $totalKaryawanSubtitle,
+            'sudahDinilai' => $sudahDinilai,
+            'belumDinilai' => $belumDinilai,
+            'pctDinilai' => $pctDinilai,
+            'distinctDivisions' => $distinctDivisions,
+            'distinctDepts' => $distinctDepts,
+            'distinctJabatans' => $distinctJabatans,
+            'distinctKjs' => $distinctKjs,
+            'distinctSeksi' => $distinctSeksi,
+            'allSeksi' => $distinctSeksi,
+            'distinctBagians' => $distinctBagians,
+            'filterDivision' => $filterDivision,
+            'filterBagian' => $filterBagian,
+            'filterDept' => $filterDept,
+            'filterAtasan' => $filterAtasan,
+            'filterJabatan' => $filterJabatan,
+            'filterKj' => $filterKj,
+            'filterSeksi' => $filterSeksi,
+            'filterGrade' => $filterGrade,
+            'search' => $search,
+            'hasForeman' => $hasForeman,
+            'isSectionHeadWithoutForeman' => $isSectionHeadWithoutForeman,
+            'matrixKjList' => $matrixKjList,
+            'subCountByKj' => $subCountByKj,
+            'targetKjMatrix' => $targetKjMatrix,
+            'actualKjMatrix' => $actualKjMatrix,
+            'deptActualKjMatrix' => $deptActualKjMatrix,
+            'deptQuotaActualCounts' => $deptQuotaActualCounts,
+            'deptQuotaTotalDinilai' => $deptQuotaTotalDinilai,
+            'rekapDivisiDepartemen' => $rekapDivisiDepartemen,
+            'totalTargetPerusahaan' => $totalTargetPerusahaan,
+            'totalDinilaiPerusahaan' => $totalDinilaiPerusahaan,
+            'totalBelumPerusahaan' => $totalBelumPerusahaan,
+            'totalPctPerusahaan' => $totalPctPerusahaan,
+            'sumCompanyTargetS' => $sumCompanyTargetS,
+            'sumCompanyTargetA' => $sumCompanyTargetA,
+            'sumCompanyTargetB' => $sumCompanyTargetB,
+            'sumCompanyTargetC' => $sumCompanyTargetC,
+            'sumCompanyTargetK' => $sumCompanyTargetK,
+        ];
+    }
+
+    /**
+     * Laporan Penilaian page for Department Head, Admin & Superadmin.
+     */
+    public function laporan(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $forceSync = $request->boolean('sync') || $request->boolean('refresh');
+        if ($forceSync) {
+            try {
+                \App\Services\GoogleSyncService::syncOperationalTablesFromGoogle(true);
+                \App\Services\GoogleSyncService::syncTargetPemantauan();
+                \App\Services\GoogleSyncService::syncDokumenDinilai();
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Sync from Google on /laporan: " . $e->getMessage());
+            }
+
+            return redirect()->route('laporan.index', $request->except(['sync', 'refresh']))
+                ->with('success', 'Data Laporan berhasil disinkronkan langsung dari Google Spreadsheet!');
+        }
+
+        $data = $this->getFilteredLaporanData($request, $user);
+
+        return view('laporan.index', array_merge($data, [
+            'user' => $user,
+        ]));
+    }
+
+    /**
+     * Export Laporan to formatted Excel (.xlsx) matching the exact web table columns and active filters.
+     */
+    public function exportExcelLaporan(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $data = $this->getFilteredLaporanData($request, $user);
+        // Hanya export data yang telah dinilai (yang memiliki isi nilai)
+        $employeeRows = array_values(array_filter($data['employeeRows'], function ($k) {
+            return !empty($k['has_score']);
+        }));
+
+        if (empty($employeeRows)) {
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Tidak ada data penilaian yang sudah dinilai untuk diekspor ke Excel pada filter saat ini.');
+        }
+
+        $userRole = strtolower($user->role ?? '');
+        $isSuperOrAdmin = $user->isAdmin() || $user->isSuperadmin();
+        $isDivHead = $user->isDivisionHead() || in_array($userRole, ['div_head', 'division_head']);
+        $isDeptHead = $user->isDepartmentHead() || in_array($userRole, ['dept_head', 'department_head']);
+        $isSectionHead = $user->isSectionHead() || in_array($userRole, ['section_head', 'section', 'sechead']);
+        $isForeman = $user->isForeman() || in_array($userRole, ['foreman', 'ketua']);
+
+        $showColForeman = !$user->isSecretary();
+        $showColMandiri = !$isForeman;
+        $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead || $isSectionHead);
+        $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead);
+        $showColDiv = $isSuperOrAdmin || $isDivHead;
+        $showColFinal = !$isForeman && !$isSectionHead;
+
+        $headers = [
+            'NO',
+            'NRP',
+            'NAMA LENGKAP',
+            'CODE BAGIAN',
+            'NAMA BAGIAN',
+            'SECTION',
+            'DEPARTMENT',
+            'DIVISION',
+            'POSITION',
+            'START WORK',
+            'KJ',
+            'GOLONGAN',
+            'HASIL KERJA',
+            'PROSES KERJA',
+            'SIKAP KERJA',
+            'MAN MANAGEMENT',
+            'TOTAL NILAI',
+        ];
+
+        if ($showColForeman) {
+            $headers[] = $isForeman ? 'NILAI PK FOREMAN' : 'NILAI PK FOREMAN (JIKA ADA)';
+        }
+        if ($showColMandiri) {
+            $headers[] = 'NILAI PK MANDIRI';
+        }
+        if ($showColSect) {
+            $headers[] = $isSectionHead ? 'NILAI PK SECTION HEAD' : 'NILAI PK SECT';
+        }
+        if ($showColDept) {
+            $headers[] = 'NILAI PK DEPT';
+        }
+        if ($showColDiv) {
+            $headers[] = 'NILAI PK DIV';
+        }
+        if ($showColFinal) {
+            $headers[] = 'NILAI PK FINAL';
+        }
+
+        $exportRows = [];
+        $no = 1;
+        foreach ($employeeRows as $k) {
+            $row = [
+                $no++,
+                (string)($k['nrp'] ?? ''),
+                (string)($k['nama'] ?? ''),
+                (string)($k['code_bagian'] ?? '-'),
+                (string)($k['nama_bagian'] ?? '-'),
+                (string)($k['nama_sect'] ?? '-'),
+                (string)($k['departemen'] ?? '-'),
+                (string)($k['division'] ?? '-'),
+                strtoupper((string)($k['jabatan'] ?? '-')),
+                (string)($k['start_work'] ?? '-'),
+                (string)($k['kj'] ?? '-'),
+                (string)($k['sub_gol'] ?? '-'),
+                $k['hasil_kerja_bobot'] !== null ? number_format((float)$k['hasil_kerja_bobot'], 2) : '-',
+                $k['proses_kerja_bobot'] !== null ? number_format((float)$k['proses_kerja_bobot'], 2) : '-',
+                $k['sikap_kerja_bobot'] !== null ? number_format((float)$k['sikap_kerja_bobot'], 2) : '-',
+                $k['man_management_bobot'] !== null ? number_format((float)$k['man_management_bobot'], 2) : '-',
+                $k['total_nilai'] !== null ? number_format((float)$k['total_nilai'], 2) : '-',
+            ];
+
+            if ($showColForeman) {
+                $row[] = (string)($k['pk_foreman'] ?? '-');
+            }
+            if ($showColMandiri) {
+                $row[] = (string)($k['pk_mandiri'] ?? '-');
+            }
+            if ($showColSect) {
+                $row[] = (string)($k['pk_sect'] ?? '-');
+            }
+            if ($showColDept) {
+                $row[] = (string)($k['pk_dept'] ?? '-');
+            }
+            if ($showColDiv) {
+                $row[] = (string)($k['pk_div'] ?? '-');
+            }
+            if ($showColFinal) {
+                $row[] = (string)($k['pk_final'] ?? '-');
+            }
+
+            $exportRows[] = $row;
+        }
+
+        $centeredCols = array_values(array_diff(range(0, count($headers) - 1), [2, 4, 8]));
+        $xlsxBinary = ExcelKaryawanExporter::buildXlsxBinary('Laporan Penilaian', $headers, $exportRows, $centeredCols);
+
+        $deptLabel = $data['filterDept'] ? strtoupper(Str::slug($data['filterDept'], '_')) : 'SEMUA';
+        $filename = "Laporan_Penilaian_Karya_{$deptLabel}_" . date('Ymd_His') . '.xlsx';
+
+        return response($xlsxBinary, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Length' => (string)strlen($xlsxBinary),
+            'Cache-Control' => 'max-age=0',
+        ]);
+    }
+
+    /**
+     * Ensure each filtered employee has an appraisal dokumen record matching its form type before PDF export.
+     *
+     * @param array<int, array<string, mixed>> $employeeRows
+     * @return array<int, array<string, mixed>>
+     */
+    private function ensureDocsForPdfExport(array $employeeRows): array
+    {
+        $activePeriod = DB::table('periode')->where('status', 'aktif')->first();
+        $periodeId = $activePeriod->id ?? 1;
+        $karyawanByNrp = collect($this->repository->all('karyawan'))->keyBy('nrp');
+        $docsByNrp = collect($this->repository->all('dokumen'))->keyBy('nrp');
+
+        $resolved = [];
+        foreach ($employeeRows as $row) {
+            $nrp = $row['nrp'] ?? '';
+            if ($nrp === '') {
+                continue;
+            }
+
+            if (empty($row['doc_id'])) {
+                $existing = $docsByNrp->get($nrp);
+                if (!empty($existing['id'])) {
+                    $row['doc_id'] = $existing['id'];
+                    $row['kode_form'] = $existing['kode_form'] ?? ($row['kode_form'] ?? '07-001');
+                } else {
+                    $karyawan = $karyawanByNrp->get($nrp);
+                    if (!$karyawan) {
+                        continue;
+                    }
+                    $kodeForm = self::determineKodeForm($karyawan);
+                    $isDiv = $kodeForm === '07-006-DIV' || ($karyawan['level_form'] ?? '') === 'DIV_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIV HEAD') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DIVISION HEAD');
+                    $isDept = $kodeForm === '07-006-DH' || ($karyawan['level_form'] ?? '') === 'DEPT_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPT HEAD') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'DEPARTMENT HEAD');
+                    $isSect = $kodeForm === '07-006-SH' || ($karyawan['level_form'] ?? '') === 'SECTION_HEAD' || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'SECTION HEAD') || str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'SECT HEAD');
+                    
+                    if ($isDiv) {
+                        $initialStatus = 'menunggu_div_head';
+                    } elseif ($isDept) {
+                        $initialStatus = 'menunggu_dept_head';
+                    } elseif ($isSect) {
+                        $initialStatus = 'menunggu_section_head';
+                    } else {
+                        $hasAssignedForeman = !empty($karyawan['nrp_foreman']) && trim((string)$karyawan['nrp_foreman']) !== '-' && strcasecmp(trim((string)$karyawan['nrp_foreman']), $nrp) !== 0;
+                        $isForemanKjUnderEqual5 = !self::isForemanAboveKj5($karyawan, $kodeForm) && (str_contains(strtoupper($karyawan['jabatan'] ?? ''), 'FOREMAN') || str_contains(strtoupper($karyawan['level_form'] ?? ''), 'FOREMAN') || $kodeForm === '07-004');
+                        $requiresForeman = ($hasAssignedForeman || $isForemanKjUnderEqual5) && !self::isForm07006($kodeForm);
+                        $initialStatus = $requiresForeman ? 'menunggu_foreman' : 'menunggu_section_head';
+                    }
+                    $row['doc_id'] = DB::table('dokumen')->insertGetId([
+                        'periode_id' => $periodeId,
+                        'nrp' => $nrp,
+                        'kode_form' => $kodeForm,
+                        'status' => $initialStatus,
+                        'kode_verifikasi' => 'VERIF-' . strtoupper(Str::random(10)),
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ]);
+                    $row['kode_form'] = $kodeForm;
+                }
+            }
+
+            $resolved[] = $row;
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Build shared static PDF assets once per request to accelerate multi-PDF ZIP export.
+     *
+     * @return array<string, mixed>
+     */
+    private function preloadPdfSharedAssets(): array
+    {
+        $periode = $this->repository->find('periode', 'status', 'aktif') ?? $this->repository->find('periode', 'id', 1);
+        $allSettings = DB::table('pengaturan')->pluck('value', 'key')->toArray();
+        $formSettings = [
+            'tahun_penilaian' => $allSettings['tahun_penilaian'] ?? ($periode['tahun'] ?? 2025),
+            'periode_penilaian' => $allSettings['periode_penilaian'] ?? 'Jan - Des',
+            'judul_form_pk' => $allSettings['judul_form_pk'] ?? 'PENILAIAN KARYA',
+            'nama_perusahaan' => $allSettings['nama_perusahaan'] ?? 'PT MUSASHI AUTO PARTS INDONESIA',
+            'catatan_petunjuk_penilai' => $allSettings['catatan_petunjuk_penilai'] ?? 'Pilih salah satu dari 5 pilihan kalimat kriteria di bawah ini yang paling sesuai.',
+            'label_kerahasiaan' => $allSettings['label_kerahasiaan'] ?? 'RAHASIA',
+            'catatan_1' => $allSettings['catatan_1'] ?? 'Jika nilai pecahan, ditentukan dua angka dibelakang koma.',
+            'catatan_2' => $allSettings['catatan_2'] ?? 'Pembulatan : ≤ 0,5 pembulatan ke bawah ; > 0,5 pembulatan ke atas.',
+            'judul_evaluasi_potensi' => $allSettings['judul_evaluasi_potensi'] ?? 'INDIKATOR EVALUASI POTENSI KARYAWAN',
+            'petunjuk_evaluasi_potensi' => $allSettings['petunjuk_evaluasi_potensi'] ?? 'Setiap Atasan diharapkan mengisi dengan seksama kolom ini untuk mengetahui seberapa jauh potensi karyawan dapat dikembangkan ke posisi & tanggung jawab yang lebih besar sesuai dengan ketentuan yang berlaku dan selagi ada kesempatan dalam struktur organisasi.',
+            'opsi_potensi_1' => $allSettings['opsi_potensi_1'] ?? 'Memenuhi standard untuk dipromosikan pada level diatasnya, saran pada posisi :',
+            'opsi_potensi_2' => $allSettings['opsi_potensi_2'] ?? 'Sesuai dengan posisi saat ini dan masih bisa dikembangkan dengan pengalaman dan pelatihan sesuai matriks.',
+            'opsi_potensi_3' => $allSettings['opsi_potensi_3'] ?? 'Sesuai untuk posisi saat ini dan tidak bisa dikembangkan lagi, alasan :',
+            'opsi_potensi_4' => $allSettings['opsi_potensi_4'] ?? 'Yang bersangkutan kurang sesuai dengan posisi saat ini, dengan alasan :',
+            'judul_kelebihan' => $allSettings['judul_kelebihan'] ?? 'KELEBIHAN KARYAWAN',
+            'judul_kekurangan' => $allSettings['judul_kekurangan'] ?? 'KEKURANGAN KARYAWAN',
+        ];
+
+        $logoPath = file_exists(public_path('logomusashi.png'))
+            ? public_path('logomusashi.png')
+            : (file_exists(base_path('logomusashi.png'))
+                ? base_path('logomusashi.png')
+                : (file_exists(public_path('musashi.png')) ? public_path('musashi.png') : base_path('musashi.png')));
+        $musashiLogoBase64 = file_exists($logoPath)
+            ? 'data:image/png;base64,' . base64_encode((string)file_get_contents($logoPath))
+            : null;
+
+        $installedFontsPath = storage_path('fonts/installed-fonts.json');
+        $installedFonts = file_exists($installedFontsPath)
+            ? (json_decode((string)file_get_contents($installedFontsPath), true) ?: [])
+            : [];
+
+        return [
+            'periode' => $periode,
+            'formSettings' => $formSettings,
+            'musashiLogoBase64' => $musashiLogoBase64,
+            'installedFonts' => $installedFonts,
+        ];
+    }
+
+    /**
+     * Export Laporan official PDF (single file for single filter, ZIP archive for multi).
+     */
+    public function exportPdfLaporan(Request $request)
+    {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '1024M');
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        $data = $this->getFilteredLaporanData($request, $user);
+        // Hanya export formulir PDF yang telah dinilai (yang memiliki isi nilai)
+        $evaluatedRows = array_values(array_filter($data['employeeRows'], function ($r) {
+            return !empty($r['has_score']);
+        }));
+
+        if (empty($evaluatedRows)) {
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Tidak ada formulir penilaian yang sudah dinilai untuk diunduh sebagai PDF pada filter saat ini.');
+        }
+
+        $evaluatedWithDoc = $this->ensureDocsForPdfExport($evaluatedRows);
+
+        if (empty($evaluatedWithDoc)) {
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Tidak ada data formulir penilaian yang dapat diunduh untuk filter saat ini.');
+        }
+
+        $sharedAssets = $this->preloadPdfSharedAssets();
+
+        // If exactly 1 employee in filtered result, download 1 PDF directly
+        if (count($evaluatedWithDoc) === 1) {
+            $singleDocId = $evaluatedWithDoc[0]['doc_id'];
+            $pdfData = $this->getPdfInstanceForDoc($singleDocId, $user, $sharedAssets);
+            if ($pdfData && !empty($pdfData['pdf'])) {
+                return $pdfData['pdf']->download($pdfData['filename']);
+            }
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Gagal membuat file PDF untuk karyawan terpilih atau akses ditolak.');
+        }
+
+        if (!class_exists(\ZipArchive::class)) {
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Ekstensi ZIP PHP belum aktif di server.');
+        }
+
+        $tempDir = storage_path('app/temp');
+        if (!is_dir($tempDir)) {
+            @mkdir($tempDir, 0755, true);
+        }
+        $tempZipPath = $tempDir . DIRECTORY_SEPARATOR . 'pk_zip_' . uniqid() . '.zip';
+
+        $zip = new \ZipArchive();
+        if ($zip->open($tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Gagal membuat file ZIP arsip penilaian.');
+        }
+
+        $addedCount = 0;
+        $usedNames = [];
+        foreach ($evaluatedWithDoc as $row) {
+            try {
+                $pdfData = $this->getPdfInstanceForDoc($row['doc_id'], $user, $sharedAssets);
+                if ($pdfData && !empty($pdfData['pdf'])) {
+                    $entryName = $pdfData['filename'];
+                    if (isset($usedNames[$entryName])) {
+                        $usedNames[$entryName]++;
+                        $entryName = preg_replace('/\.pdf$/i', '_' . $usedNames[$entryName] . '.pdf', $entryName);
+                    } else {
+                        $usedNames[$entryName] = 1;
+                    }
+                    $zip->addFromString($entryName, $pdfData['pdf']->output());
+                    $addedCount++;
+                }
+            } catch (\Throwable $e) {
+                continue;
+            }
+        }
+        $zip->close();
+
+        if ($addedCount === 0 || !file_exists($tempZipPath)) {
+            @unlink($tempZipPath);
+            return redirect()->route('laporan.index', $request->query())
+                ->with('error', 'Gagal memproses dokumen penilaian ke dalam ZIP.');
+        }
+
+        $deptLabel = $data['filterDept'] ? strtoupper(Str::slug($data['filterDept'], '_')) : 'SEMUA';
+        $atasanLabel = $data['filterAtasan'] ? '_' . strtoupper(Str::slug($data['filterAtasan'], '_')) : '';
+        $zipFilename = "Laporan_Penilaian_Karya_{$deptLabel}{$atasanLabel}_" . date('Ymd_His') . ".zip";
+
+        return response()->download($tempZipPath, $zipFilename, [
+            'Content-Type' => 'application/zip',
+            'Cache-Control' => 'max-age=0',
+        ])->deleteFileAfterSend(true);
+    }
+}
+
