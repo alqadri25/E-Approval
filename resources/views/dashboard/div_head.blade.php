@@ -324,8 +324,6 @@
             <!-- Tahap 3: Penilaian Department Head -->
             @php
                 $divDhPendingCount = $divStageCounts['tahap2_dept'] ?? 0;
-                $divDhDraftCount = $divStageCounts['draft_dh'] ?? 0;
-                $divDhBelumCount = max(0, $divDhPendingCount - $divDhDraftCount);
             @endphp
             <div onclick="filterDivKaryawan('tahap2')"
                  role="button"
@@ -342,9 +340,6 @@
                     <h4 class="text-xs font-bold text-slate-900">3. Penilaian Department Head</h4>
                     <p class="text-[11px] text-slate-600 mt-1 leading-snug">
                         Telah disetujui Section Head, menunggu persetujuan Department Head.
-                    </p>
-                    <p class="text-[11px] text-slate-600 mt-1 leading-snug">
-                        {{ $divDhBelumCount }} belum dinilai &bull; {{ $divDhDraftCount }} draft tersimpan.
                     </p>
                 </div>
                 <div class="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
