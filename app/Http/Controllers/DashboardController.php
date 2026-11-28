@@ -1652,6 +1652,9 @@ class DashboardController extends Controller
                         'nama_lengkap' => $k['nama_lengkap'],
                         'jabatan' => $k['jabatan'] ?? '-',
                         'departemen' => $deptName,
+                        'division' => (!empty($k['division']) && trim((string)$k['division']) !== '-')
+                            ? trim((string)$k['division'])
+                            : ((!empty($k['nama_bagian']) && trim((string)$k['nama_bagian']) !== '-') ? trim((string)$k['nama_bagian']) : $deptName),
                         'seksi' => (!empty($k['seksi']) && $k['seksi'] !== '-') ? $k['seksi'] : $deptName,
                         'golongan' => $k['golongan'] ?? $k['sub_gol'] ?? '-',
                         'sub_gol' => $k['sub_gol'] ?? $k['golongan'] ?? '-',
@@ -1846,6 +1849,9 @@ class DashboardController extends Controller
                     'nama_lengkap' => $k['nama_lengkap'],
                     'jabatan' => $k['jabatan'] ?? '-',
                     'departemen' => $deptName,
+                    'division' => (!empty($k['division']) && trim((string)$k['division']) !== '-')
+                        ? trim((string)$k['division'])
+                        : ((!empty($k['nama_bagian']) && trim((string)$k['nama_bagian']) !== '-') ? trim((string)$k['nama_bagian']) : $deptName),
                     'seksi' => (!empty($k['seksi']) && $k['seksi'] !== '-') ? $k['seksi'] : $deptName,
                     'golongan' => $k['golongan'] ?? $k['sub_gol'] ?? '-',
                     'sub_gol' => $k['sub_gol'] ?? $k['golongan'] ?? '-',

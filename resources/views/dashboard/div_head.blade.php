@@ -578,7 +578,7 @@
                                         <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-none bg-rose-100 text-[#92302e] border border-rose-200 uppercase">Anda</span>
                                     @endif
                                 </div>
-                                <span class="text-[10px] text-slate-400 font-normal">{{ $row['seksi'] }}</span>
+                                <span class="text-[10px] text-slate-400 font-normal">{{ $row['division'] ?? $row['seksi'] }}</span>
                             </div>
                         </td>
                         <td class="py-3 px-4 font-mono text-slate-700 font-medium border border-slate-200">
