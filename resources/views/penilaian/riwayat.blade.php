@@ -346,7 +346,7 @@
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Div Head</th>
                         @elseif($isDeptHeadRiwayat)
                             @if($user->isSecretary())
-                            <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Mandiri</th>
+                            <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai Mandiri</th>
                             @else
                             <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Foreman</th>
                             <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai Mandiri</th>
@@ -360,7 +360,7 @@
                         @elseif($isForemanRiwayat)
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Foreman</th>
                         @elseif($isMandiriUser)
-                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK Mandiri</th>
+                        <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai Mandiri</th>
                         @else
                         <th class="py-3 px-3.5 border-r border-slate-300 text-center">Nilai PK {{ $evaluatorPkColLabel }}</th>
                         @endif
