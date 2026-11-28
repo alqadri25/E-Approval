@@ -117,12 +117,12 @@
         </div>
         @endif
 
-        <!-- Card 5: Diteruskan Ke Division Head -->
+        <!-- Card 5: Diteruskan Ke Div Head -->
         <div class="bg-white rounded-none p-4 border border-slate-300 shadow-sm flex items-center justify-between">
             <div>
-                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">{{ $user->isSecretary() ? 'Diteruskan Ke Division Head' : 'Diteruskan Ke Division Head' }}</span>
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Div Head</span>
                 <div class="text-2xl font-black text-slate-900 leading-none">{{ $countSelesai ?? 0 }}</div>
-                <span class="text-[11px] text-emerald-700 font-bold mt-1 block">Telah diverifikasi {{ $user->isSecretary() ? 'Secretary' : 'Department Head' }}</span>
+                <span class="text-[11px] text-emerald-700 font-bold mt-1 block">Telah diverifikasi {{ $user->isSecretary() ? 'Secretary' : 'Dept Head' }}</span>
             </div>
             <div class="w-10 h-10 rounded-none bg-emerald-50 text-emerald-700 font-black flex items-center justify-center text-sm border border-emerald-200 shrink-0">
                 ✓
