@@ -346,8 +346,8 @@ class PenilaianController extends Controller
                         : (!in_array($status, ['draft', 'belum_ada', 'menunggu_foreman', 'menunggu_section_head']) ? ($doc['grade_original'] ?? $grade) : '-');
                 }
 
-                // Sinkronkan aturan kolom Nilai PK Foreman, Nilai Mandiri, Nilai PK Sect Head untuk Dept Head
-                if ($isDeptOrDivHead && !$isDivHeadUser) {
+                // Sinkronkan aturan kolom Nilai PK Foreman, Nilai Mandiri, Nilai PK Sect Head untuk Section Head & Dept Head
+                if (($isDeptOrDivHead && !$isDivHeadUser) || $user->isSectionHead()) {
                     $posUpperR = strtoupper(trim((string)($k['position'] ?? ($k['jabatan'] ?? ''))));
                     $lvlFormR = strtoupper(trim((string)($k['level_form'] ?? '')));
                     $empKjNumR = (int)preg_replace('/[^0-9]/', '', (string)$empKj);
@@ -367,7 +367,7 @@ class PenilaianController extends Controller
 
                     if ($isSelf) {
                         $foremanGrade = '-';
-                        $sectGrade = '-';
+                        $sectGrade = $user->isSectionHead() ? ($mandiriGrade !== '-' ? $mandiriGrade : $grade) : '-';
                     } elseif ($isSectionHeadEmpR) {
                         $foremanGrade = '-';
                         $sectGrade = $mandiriGrade;
