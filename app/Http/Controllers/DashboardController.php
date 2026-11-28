@@ -411,7 +411,23 @@ class DashboardController extends Controller
                 ];
             }
 
-            usort($foremanSubordinates, fn($a, $b) => strcmp($a['nrp'], $b['nrp']));
+            usort($foremanSubordinates, function ($a, $b) {
+                $isNilaiAction = static function (array $row): bool {
+                    if (empty($row['doc_id'])) {
+                        return true;
+                    }
+                    return in_array($row['status'] ?? '', ['draft', 'menunggu_foreman', 'belum_ada', 'revisi'], true)
+                        || ($row['action_type'] ?? '') === 'belum_dinilai';
+                };
+
+                $aNilai = $isNilaiAction($a);
+                $bNilai = $isNilaiAction($b);
+                if ($aNilai !== $bNilai) {
+                    return $aNilai ? -1 : 1;
+                }
+
+                return strnatcasecmp((string)($a['nrp'] ?? ''), (string)($b['nrp'] ?? ''));
+            });
 
             $foremanSudahDinilaiCount = count(array_filter($foremanSubordinates, function ($sub) {
                 return in_array($sub['action_type'], ['draft', 'sudah_dikirim']) || !empty($sub['is_evaluated']);
@@ -757,16 +773,18 @@ class DashboardController extends Controller
             $sectionSubordinates = $enrichedSectionSubordinates;
             usort($sectionSubordinates, function ($a, $b) {
                 $getPriority = function ($row) {
-                    $isAlreadyAssessed = !empty($row['is_evaluated'])
+                    // Paling atas: seluruh baris dengan tombol Aksi "Nilai" (meskipun skor/grade sudah terisi)
+                    if (empty($row['doc_id']) || in_array($row['status'] ?? '', ['draft', 'menunggu_section_head', 'belum_ada', 'revisi'], true)) {
+                        return 0;
+                    }
+                    // Kedua: sudah dinilai & diteruskan (Aksi = Lihat)
+                    if (!empty($row['is_evaluated'])
                         || (($row['score'] ?? '-') !== '-')
-                        || in_array($row['status'] ?? '', ['menunggu_dept_head', 'menunggu_div_head', 'selesai'], true);
-                    if ($isAlreadyAssessed) {
-                        return 0; // Paling atas: Sudah memiliki nilai / sudah dinilai
+                        || in_array($row['status'] ?? '', ['menunggu_dept_head', 'menunggu_div_head', 'selesai'], true)) {
+                        return 1;
                     }
-                    if (in_array($row['status'] ?? '', ['draft', 'menunggu_section_head', 'belum_ada', 'revisi'], true)) {
-                        return 1; // Kedua: Siap langsung dinilai Section Head (Aksi = Nilai)
-                    }
-                    return 2; // Paling bawah: Menunggu Foreman (Aksi = Lihat)
+                    // Paling bawah: masih menunggu Foreman (Aksi = Lihat)
+                    return 2;
                 };
 
                 $prioA = $getPriority($a);
@@ -1254,8 +1272,10 @@ class DashboardController extends Controller
             usort($deptSubordinateRows, function ($a, $b) {
                 $getPriority = static function ($row) {
                     $st = $row['status'] ?? '';
-                    $isReady = ($st === 'menunggu_dept_head')
-                        || (!empty($row['is_self']) && !in_array($st, ['menunggu_div_head', 'selesai']));
+                    $isReady = !empty($row['doc_id']) && (
+                        ($st === 'menunggu_dept_head')
+                        || (!empty($row['is_self']) && !in_array($st, ['menunggu_div_head', 'selesai']))
+                    );
                     if ($isReady) {
                         return 0;
                     }
