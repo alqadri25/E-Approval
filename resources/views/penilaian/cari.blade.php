@@ -722,7 +722,7 @@
                                             @elseif(!empty($sub['is_kj_locked']) && $sub['status'] !== 'selesai')
                                                 <span>🔒 Buka Form (Kuota {{ $sub['quota_kj'] ?? $sub['kj'] }} Penuh)</span>
                                             @elseif($user->isDepartmentHead())
-                                                <span>{{ $sub['status'] === 'menunggu_dept_head' ? '✍️ Tinjau & Nilai Dept Head' : (!empty($sub['is_waiting_foreman']) ? '🔒 Buka Form (Menunggu Foreman)' : (!empty($sub['is_waiting_section']) ? '🔒 Buka Form (Menunggu Section)' : ($sub['status'] === 'selesai' ? '👁️ Lihat Form Selesai' : '👁️ Buka Form Penilaian'))) }}</span>
+                                                <span>{{ $sub['status'] === 'menunggu_dept_head' ? '✍️ Nilai Dept Head' : (!empty($sub['is_waiting_foreman']) ? '🔒 Buka Form (Menunggu Foreman)' : (!empty($sub['is_waiting_section']) ? '🔒 Buka Form (Menunggu Section)' : ($sub['status'] === 'selesai' ? '👁️ Lihat Form Selesai' : '👁️ Buka Form Penilaian'))) }}</span>
                                             @elseif($user->isDivisionHead() || in_array($user->role, ['div_head', 'division_head']))
                                                 <span>{{ $sub['status'] === 'menunggu_div_head' ? '✍️ Tinjau & Final Approval' : ($sub['status'] === 'selesai' ? '👁️ Lihat Form Selesai' : ($sub['status'] === 'menunggu_dept_head' ? '🔒 Buka Form (Menunggu Dept Head)' : ($sub['status'] === 'menunggu_section_head' ? '🔒 Buka Form (Menunggu Section)' : ($sub['status'] === 'menunggu_foreman' ? '🔒 Buka Form (Menunggu Foreman)' : '👁️ Buka Form Penilaian')))) }}</span>
                                             @elseif($user->isSectionHead())
