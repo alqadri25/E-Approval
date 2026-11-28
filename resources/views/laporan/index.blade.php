@@ -273,9 +273,8 @@
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-slate-600">
-                    Sudah Dinilai: <span class="text-emerald-700">{{ $shFmSudah }}</span> &bull; Belum Dinilai: <span class="{{ $shFmBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $shFmBelum }}</span>
-                </span>
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $shFmSudah }}</span>
+                <span class="font-bold {{ $shFmBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">Belum Dinilai: {{ $shFmBelum }}</span>
             </div>
         </div>
         @endif
@@ -297,9 +296,8 @@
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-slate-600">
-                    Sudah Dinilai: <span class="text-emerald-700">{{ $shDhSudah }}</span> &bull; Belum Dinilai: <span class="{{ $shDhBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $shDhBelum }}</span>
-                </span>
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $shDhSudah }}</span>
+                <span class="font-bold {{ $shDhBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">Belum Dinilai: {{ $shDhBelum }}</span>
             </div>
         </div>
 
@@ -320,9 +318,8 @@
                 </span>
             </div>
             <div class="mt-3 pt-2.5 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                <span class="font-bold text-slate-600">
-                    Sudah Dinilai: <span class="text-emerald-700">{{ $shDivSudah }}</span> &bull; Belum Dinilai: <span class="{{ $shDivBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">{{ $shDivBelum }}</span>
-                </span>
+                <span class="font-bold text-emerald-700">Sudah Dinilai: {{ $shDivSudah }}</span>
+                <span class="font-bold {{ $shDivBelum > 0 ? 'text-amber-700' : 'text-slate-500' }}">Belum Dinilai: {{ $shDivBelum }}</span>
             </div>
         </div>
     </div>

@@ -311,8 +311,8 @@
                         Terkirim ke Department Head
                     </p>
                     <p class="text-2xl font-black text-slate-900 mt-1.5 leading-none">{{ $sectionDoneCount }}</p>
-                    <p class="text-[11px] text-blue-600 font-bold mt-1 leading-none">
-                        Sudah Dinilai: {{ $sectionDhSudahDinilai ?? 0 }} &bull; Belum Dinilai: {{ $sectionDhBelumDinilai ?? 0 }}
+                    <p class="text-[11px] text-slate-500 font-medium mt-1 leading-none">
+                        {{ $sectionDhSudahDinilai ?? 0 }} sudah dinilai, {{ $sectionDhBelumDinilai ?? 0 }} belum dinilai
                     </p>
                 </div>
             </div>
