@@ -119,7 +119,7 @@
         </div>
 
         <!-- Card 2: Siap Disahkan (To-Do) -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['foreman']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="rounded-none border {{ ($roleWorkflowCards['foreman']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300 bg-white' }} p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-[11px] font-black uppercase tracking-wider {{ ($roleWorkflowCards['foreman']['siap_disahkan'] ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }}">Siap Disahkan (To-Do)</span>
@@ -152,7 +152,7 @@
             $fmShBelum = $roleWorkflowCards['foreman']['sh_belum'] ?? 0;
             $fmShTotal = $roleWorkflowCards['foreman']['diteruskan_section'] ?? ($fmShSudah + $fmShBelum);
         @endphp
-        <div class="bg-white rounded-none border {{ $fmShBelum > 0 ? 'border-blue-300 bg-blue-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Section Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
@@ -174,7 +174,7 @@
             $fmDhBelum = $roleWorkflowCards['foreman']['dh_belum'] ?? 0;
             $fmDhTotal = $roleWorkflowCards['foreman']['diteruskan_dept'] ?? ($fmDhSudah + $fmDhBelum);
         @endphp
-        <div class="bg-white rounded-none border {{ $fmDhBelum > 0 ? 'border-indigo-300 bg-indigo-50/30' : ($fmDhSudah > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300') }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Department Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
@@ -234,7 +234,7 @@
             $shFmSudah = $roleWorkflowCards['section_head']['fm_sudah'] ?? 0;
             $shFmBelum = $roleWorkflowCards['section_head']['fm_belum'] ?? ($roleWorkflowCards['section_head']['proses_foreman'] ?? 0);
         @endphp
-        <div class="bg-white rounded-none border {{ $shFmBelum > 0 ? 'border-blue-300 bg-blue-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Proses Foreman</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
@@ -252,7 +252,7 @@
         @endif
 
         <!-- Card 3: Siap Disahkan (To-Do) -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['section_head']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="rounded-none border {{ ($roleWorkflowCards['section_head']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300 bg-white' }} p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-[11px] font-black uppercase tracking-wider {{ ($roleWorkflowCards['section_head']['siap_disahkan'] ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }}">Siap Disahkan (To-Do)</span>
@@ -285,7 +285,7 @@
             $shDhBelum = $roleWorkflowCards['section_head']['dh_belum'] ?? 0;
             $shDhTotal = $roleWorkflowCards['section_head']['diteruskan_dept'] ?? ($shDhSudah + $shDhBelum);
         @endphp
-        <div class="bg-white rounded-none border {{ $shDhBelum > 0 ? 'border-amber-300 bg-amber-50/30' : ($shDhSudah > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300') }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Dept Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
@@ -307,7 +307,7 @@
             $shDivBelum = $roleWorkflowCards['section_head']['div_belum'] ?? 0;
             $shDivTotal = $roleWorkflowCards['section_head']['diteruskan_div'] ?? ($shDivSudah + $shDivBelum);
         @endphp
-        <div class="bg-white rounded-none border {{ $shDivBelum > 0 ? 'border-purple-300 bg-purple-50/30' : ($shDivSudah > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300') }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Division Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
@@ -379,7 +379,7 @@
         </div>
 
         <!-- Card 4: Siap Disahkan (To-Do) -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['dept_head']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="rounded-none border {{ ($roleWorkflowCards['dept_head']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300 bg-white' }} p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-[11px] font-black uppercase tracking-wider {{ ($roleWorkflowCards['dept_head']['siap_disahkan'] ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }}">Siap Disahkan (To-Do)</span>
@@ -407,7 +407,7 @@
         </div>
 
         <!-- Card 5: Diteruskan Ke Division Head -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['dept_head']['menunggu_div'] ?? 0) > 0 ? 'border-indigo-300 bg-indigo-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Diteruskan Ke Division Head</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
@@ -445,7 +445,7 @@
         </div>
 
         <!-- Card 2: Siap Disahkan (To-Do) -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['div_head']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="rounded-none border {{ ($roleWorkflowCards['div_head']['siap_disahkan'] ?? 0) > 0 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300 bg-white' }} p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-[11px] font-black uppercase tracking-wider {{ ($roleWorkflowCards['div_head']['siap_disahkan'] ?? 0) > 0 ? 'text-amber-800' : 'text-slate-500' }}">Siap Disahkan (To-Do)</span>
@@ -507,7 +507,7 @@
         </div>
 
         <!-- Card 5: Disahkan Final (Selesai) -->
-        <div class="bg-white rounded-none border {{ ($roleWorkflowCards['div_head']['disahkan_final'] ?? 0) > 0 ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-300' }} p-4 shadow-sm flex flex-col justify-between">
+        <div class="bg-white rounded-none border border-slate-300 p-4 shadow-sm flex flex-col justify-between">
             <div>
                 <span class="text-[11px] font-black uppercase tracking-wider text-slate-500 block mb-1">Disahkan Final (Selesai)</span>
                 <div class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
