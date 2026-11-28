@@ -396,74 +396,74 @@
     <!-- 5. Target Penilaian Divisi (Compact Summary Table - Form 07-006 Semua Divisi) -->
     <div class="bg-white rounded-none border border-slate-300 shadow-sm flex flex-col justify-between min-w-0">
         <div>
-            <div class="px-4 py-3 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div class="px-5 py-3.5 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <div>
-                    <h3 class="text-sm font-bold text-slate-900">
+                    <h3 class="text-base sm:text-lg font-extrabold text-slate-900">
                         Target Penilaian Divisi
                     </h3>
-                    <p class="text-xs text-slate-500 mt-0.5">
-                        Target kuota semua divisi (Form 07-006) untuk kategori nilai S, A, B, C, K &amp; jumlah yang sudah dinilai
+                    <p class="text-xs sm:text-sm text-slate-600 mt-0.5">
+                        Target kuota semua divisi (Form 07-006) dari Admin / Super Admin untuk kategori nilai S, A, B, C, K &amp; akumulasi sudah dinilai semua divisi
                     </p>
                 </div>
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-none bg-blue-50 text-blue-700 border border-blue-200">
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                    <span class="text-xs sm:text-sm font-extrabold px-3 py-1.5 rounded-none bg-blue-50 text-blue-800 border border-blue-200">
                         Target 07-006: {{ $sumDivTargets }} Orang
                     </span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-none bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="text-xs sm:text-sm font-extrabold px-3 py-1.5 rounded-none bg-emerald-50 text-emerald-800 border border-emerald-200">
                         Sudah Dinilai: {{ $sumActual }} Orang
                     </span>
                 </div>
             </div>
 
-            <div class="p-3.5">
+            <div class="p-4">
                 <div class="overflow-x-auto border border-slate-300">
-                    <table class="w-full text-left text-xs border-collapse whitespace-nowrap">
+                    <table class="w-full text-left text-sm border-collapse whitespace-nowrap">
                         <thead>
-                            <tr class="border-b border-slate-300 text-slate-700 font-bold bg-slate-100 text-[11px] uppercase tracking-wider">
-                                <th class="py-2 px-3 border-r border-slate-300">Kategori Nilai</th>
-                                <th class="py-2 px-3 text-center border-r border-slate-300 w-36">Target Kuota</th>
-                                <th class="py-2 px-3 text-center w-36">Sudah Dinilai</th>
+                            <tr class="border-b border-slate-300 text-slate-700 font-extrabold bg-slate-100 text-xs sm:text-sm uppercase tracking-wider">
+                                <th class="py-3 px-4 border-r border-slate-300">Kategori Nilai</th>
+                                <th class="py-3 px-4 text-center border-r border-slate-300 w-44">Target Kuota</th>
+                                <th class="py-3 px-4 text-center w-44">Sudah Dinilai</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 bg-white">
                             @php
                                 $divGradeRows = [
-                                    ['code' => 'S', 'label' => 'Grade S', 'badge' => 'bg-purple-100 text-purple-900 border-purple-300', 'actText' => 'text-purple-700', 'subText' => 'text-purple-900/60', 'target' => $targetS, 'actual' => $actS],
-                                    ['code' => 'A', 'label' => 'Grade A', 'badge' => 'bg-emerald-100 text-emerald-900 border-emerald-300', 'actText' => 'text-emerald-700', 'subText' => 'text-emerald-900/60', 'target' => $targetA, 'actual' => $actA],
-                                    ['code' => 'B', 'label' => 'Grade B', 'badge' => 'bg-blue-100 text-blue-900 border-blue-300', 'actText' => 'text-blue-700', 'subText' => 'text-blue-900/60', 'target' => $targetB, 'actual' => $actB],
-                                    ['code' => 'C', 'label' => 'Grade C', 'badge' => 'bg-amber-100 text-amber-900 border-amber-300', 'actText' => 'text-amber-700', 'subText' => 'text-amber-900/60', 'target' => $targetC, 'actual' => $actC],
-                                    ['code' => 'K', 'label' => 'Grade K', 'badge' => 'bg-rose-100 text-rose-900 border-rose-300', 'actText' => 'text-rose-700', 'subText' => 'text-rose-900/60', 'target' => $targetK, 'actual' => $actK],
+                                    ['code' => 'S', 'label' => 'Grade S', 'badge' => 'bg-purple-100 text-purple-900 border-purple-300', 'actText' => 'text-purple-700', 'subText' => 'text-purple-900/70', 'target' => $targetS, 'actual' => $actS],
+                                    ['code' => 'A', 'label' => 'Grade A', 'badge' => 'bg-emerald-100 text-emerald-900 border-emerald-300', 'actText' => 'text-emerald-700', 'subText' => 'text-emerald-900/70', 'target' => $targetA, 'actual' => $actA],
+                                    ['code' => 'B', 'label' => 'Grade B', 'badge' => 'bg-blue-100 text-blue-900 border-blue-300', 'actText' => 'text-blue-700', 'subText' => 'text-blue-900/70', 'target' => $targetB, 'actual' => $actB],
+                                    ['code' => 'C', 'label' => 'Grade C', 'badge' => 'bg-amber-100 text-amber-900 border-amber-300', 'actText' => 'text-amber-700', 'subText' => 'text-amber-900/70', 'target' => $targetC, 'actual' => $actC],
+                                    ['code' => 'K', 'label' => 'Grade K', 'badge' => 'bg-rose-100 text-rose-900 border-rose-300', 'actText' => 'text-rose-700', 'subText' => 'text-rose-900/70', 'target' => $targetK, 'actual' => $actK],
                                 ];
                             @endphp
                             @foreach($divGradeRows as $gr)
                             <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="py-2 px-3 font-bold border-r border-slate-200">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-6 h-6 rounded-none border flex items-center justify-center font-black text-[11px] font-mono {{ $gr['badge'] }}">
+                                <td class="py-3 px-4 font-bold border-r border-slate-200">
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="w-8 h-8 rounded-none border flex items-center justify-center font-black text-sm font-mono {{ $gr['badge'] }}">
                                             {{ $gr['code'] }}
                                         </span>
-                                        <span class="font-bold text-slate-900">{{ $gr['label'] }}</span>
+                                        <span class="text-sm sm:text-base font-bold text-slate-900">{{ $gr['label'] }}</span>
                                     </div>
                                 </td>
-                                <td class="py-2 px-3 text-slate-900 font-bold text-center border-r border-slate-200 font-mono text-xs">
-                                    {{ $gr['target'] }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
+                                <td class="py-3 px-4 text-slate-900 font-extrabold text-center border-r border-slate-200 font-mono text-base sm:text-lg">
+                                    {{ $gr['target'] }} <span class="text-xs sm:text-sm text-slate-500 font-medium">Orang</span>
                                 </td>
-                                <td class="py-2 px-3 {{ $gr['actText'] }} font-black text-center font-mono text-xs">
-                                    {{ $gr['actual'] }} <span class="text-[10px] {{ $gr['subText'] }} font-normal">Orang</span>
+                                <td class="py-3 px-4 {{ $gr['actText'] }} font-black text-center font-mono text-base sm:text-lg">
+                                    {{ $gr['actual'] }} <span class="text-xs sm:text-sm {{ $gr['subText'] }} font-medium">Orang</span>
                                 </td>
                             </tr>
                             @endforeach
                         </tbody>
                         <tfoot class="bg-slate-100/90 font-bold border-t-2 border-slate-300 text-slate-900">
                             <tr>
-                                <td class="py-2 px-3 border-r border-slate-300 uppercase tracking-wider text-[11px]">
+                                <td class="py-3.5 px-4 border-r border-slate-300 uppercase tracking-wider text-xs sm:text-sm font-black">
                                     TOTAL PENILAIAN (FORM 07-006)
                                 </td>
-                                <td class="py-2 px-3 text-center border-r border-slate-300 font-mono text-xs text-slate-900">
-                                    {{ $sumDivTargets }} <span class="text-[10px] text-slate-500 font-normal">Orang</span>
+                                <td class="py-3.5 px-4 text-center border-r border-slate-300 font-mono text-base sm:text-lg font-black text-slate-900">
+                                    {{ $sumDivTargets }} <span class="text-xs sm:text-sm text-slate-500 font-semibold">Orang</span>
                                 </td>
-                                <td class="py-2 px-3 text-center font-mono text-xs text-[#92302e]">
-                                    {{ $sumActual }} <span class="text-[10px] text-[#92302e]/60 font-normal">Orang</span>
+                                <td class="py-3.5 px-4 text-center font-mono text-base sm:text-lg font-black text-[#92302e]">
+                                    {{ $sumActual }} <span class="text-xs sm:text-sm text-[#92302e]/70 font-semibold">Orang</span>
                                 </td>
                             </tr>
                         </tfoot>

@@ -10312,14 +10312,20 @@ class PenilaianController extends Controller
                 $divCountSiap++;
             }
             if (!$isSelfEmp) {
-                if (in_array($st, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
-                    $divSectionSudah++;
-                } elseif (in_array($st, ['belum_ada', '', null, 'draft', 'revisi', 'menunggu_foreman', 'menunggu_section_head'])) {
-                    $divCountProsesSection++;
+                $isSubDeptHeadDiv = strtoupper(trim((string)$kodeFormEmp)) === '07-006-DH'
+                    || strtoupper(trim((string)($k['level_form'] ?? ''))) === 'DEPT_HEAD';
+                $isSecretaryDiv = str_contains(strtoupper((string)($k['seksi'] ?? ($k['nama_sect'] ?? ''))), 'SECRETARY')
+                    || str_contains(strtoupper((string)($k['jabatan'] ?? '')), 'SECRETARY');
+                if (!$isSubDeptHeadDiv && !$isSecretaryDiv) {
+                    if (in_array($st, ['menunggu_dept_head', 'menunggu_div_head', 'selesai'])) {
+                        $divSectionSudah++;
+                    } elseif ($st === 'menunggu_section_head' || (!$hasForemanKaryawan && in_array($st, ['belum_ada', '', null, 'draft', 'revisi', 'menunggu_foreman']))) {
+                        $divCountProsesSection++;
+                    }
                 }
                 if (in_array($st, ['menunggu_div_head', 'selesai'])) {
                     $divDeptSudah++;
-                } elseif ($st === 'menunggu_dept_head') {
+                } elseif ($st === 'menunggu_dept_head' && !$isSecretaryDiv) {
                     $divCountProsesDept++;
                 }
             }
