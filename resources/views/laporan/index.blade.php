@@ -49,8 +49,16 @@
             </p>
         </div>
 
+        @php
+            $hideSyncSpreadsheetBtn = $user->isForeman()
+                || $user->isSectionHead()
+                || $user->isDepartmentHead()
+                || $user->isDivisionHead()
+                || in_array(strtolower((string)$user->role), ['foreman', 'ketua', 'section_head', 'section', 'sechead', 'dept_head', 'department_head', 'div_head', 'division_head']);
+        @endphp
         <!-- Action Export Buttons -->
         <div class="flex flex-wrap items-center gap-2">
+            @if(!$hideSyncSpreadsheetBtn)
             <a href="{{ route('laporan.index', array_merge(request()->query(), ['sync' => 1])) }}"
                class="inline-flex items-center gap-2 px-3.5 py-2 rounded-none bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition border border-emerald-500 cursor-pointer"
                title="Tarik & Sinkronkan langsung data terbaru dari Google Spreadsheet">
@@ -59,6 +67,7 @@
                 </svg>
                 <span>Sinkron Spreadsheet</span>
             </a>
+            @endif
 
             <button type="button"
                     @click="openConfirm('pdf')"
