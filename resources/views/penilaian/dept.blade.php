@@ -295,9 +295,14 @@
                                 <span class="px-1.5 py-0.2 rounded-none bg-rose-100 text-rose-800 border border-rose-300 font-black text-[9.5px]">ANDA</span>
                                 @endif
                             </div>
-                            @if(!empty($row['seksi']) && $row['seksi'] !== '-')
+                            @php
+                                $subDeptDisplay = !empty($row['departemen']) && $row['departemen'] !== '-' && strtoupper((string)$row['departemen']) !== 'ALL'
+                                    ? $row['departemen']
+                                    : ($row['seksi'] ?? '-');
+                            @endphp
+                            @if(!empty($subDeptDisplay) && $subDeptDisplay !== '-')
                             <div class="text-[10px] text-slate-400 font-medium mt-0.5">
-                                {{ $row['seksi'] }}
+                                {{ $subDeptDisplay }}
                             </div>
                             @endif
                         </td>

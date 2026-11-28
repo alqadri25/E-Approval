@@ -6894,6 +6894,7 @@ class PenilaianController extends Controller
                 'kj' => $kjFormatted,
                 'golongan' => $subGolFormatted,
                 'seksi' => $k['seksi'] ?? '-',
+                'departemen' => $k['departemen'] ?? '-',
                 'is_self' => $isSelf,
                 'is_secretary' => $isSecretary || str_contains(strtoupper((string)($k['seksi'] ?? '')), 'SECRETARY') || in_array((string)$nrp, ['268', '1237']),
                 'doc_id' => $docId,
