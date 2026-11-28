@@ -2418,6 +2418,11 @@ class GoogleSyncService
                     });
                 }
 
+                // 4.5. Heal unsigned document statuses & resolve foreman subordinates so docs don't prematurely skip Foreman
+                try {
+                    \App\Services\DatabaseSyncService::healUnsignedDocumentStatuses();
+                } catch (\Throwable $e) {}
+
                 // 2. Sync kuota_departemen (Target Kuota from Google Sheets)
                 if (!empty($data['kuota_departemen']) && is_array($data['kuota_departemen'])) {
                     DB::transaction(function () use ($data) {

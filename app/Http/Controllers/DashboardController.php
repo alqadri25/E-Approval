@@ -199,17 +199,38 @@ class DashboardController extends Controller
                 $docId = $doc['id'] ?? null;
                 $status = $doc['status'] ?? 'belum_ada';
 
-                // Check foreman scores
+                // Check foreman scores & signatures
                 $foremanScores = ($docId && isset($nilaiGrouped[$docId]['foreman'])) 
                     ? $nilaiGrouped[$docId]['foreman'] 
                     : [];
+                $hasForemanTtd = ($docId && !empty($ttdGrouped[$docId]['foreman']));
+                $hasShScores = ($docId && !empty($nilaiGrouped[$docId]['section_head']));
+                $hasShTtd = ($docId && !empty($ttdGrouped[$docId]['section_head']));
+                $hasDeptTtd = ($docId && !empty($ttdGrouped[$docId]['dept_head']));
+                $hasDivTtd = ($docId && !empty($ttdGrouped[$docId]['div_head']));
+                $hasHigherActivity = $hasShScores || $hasShTtd || $hasDeptTtd || $hasDivTtd;
 
                 $calc = !empty($foremanScores) 
                     ? $this->calcService->calculate($doc['kode_form'] ?? '07-001', $foremanScores) 
                     : ['grand_total' => 0.00];
 
-                $score = $doc['total_nilai'] ?? $calc['grand_total'];
-                $isEvaluated = ($status !== 'belum_ada' && $status !== 'draft' && $status !== 'menunggu_foreman') || ($score > 0);
+                $score = !empty($doc['total_nilai']) ? (float)$doc['total_nilai'] : (float)$calc['grand_total'];
+
+                $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
+                $isForemanKjAbove5 = $isSelf && PenilaianController::isForemanAboveKj5($k, $doc['kode_form'] ?? null);
+
+                // Jika dokumen yang membutuhkan tahap Foreman (termasuk evaluasi mandiri Foreman KJ <= 5)
+                // masih berstatus menunggu_section_head tanpa ada nilai/TTD Foreman maupun aktivitas atasan,
+                // pastikan status efektifnya kembali ke menunggu_foreman (Belum Dinilai).
+                if ($status === 'menunggu_section_head' && !$isForemanKjAbove5) {
+                    $requiresForeman = $isSelf || PenilaianController::requiresForemanStage($k, $doc['kode_form'] ?? null, $status);
+                    $hasForemanSubmission = !empty($foremanScores) || $hasForemanTtd || ($score > 0) || $hasHigherActivity;
+                    if ($requiresForeman && !$hasForemanSubmission) {
+                        $status = 'menunggu_foreman';
+                    }
+                }
+
+                $isEvaluated = ($status !== 'belum_ada' && $status !== 'draft' && $status !== 'menunggu_foreman' && $status !== 'revisi') || ($score > 0);
 
                 $grade = '-';
                 if ($isEvaluated && $score > 0) {
@@ -225,11 +246,7 @@ class DashboardController extends Controller
                 $actionLabel = 'Belum Dinilai';
                 $stageLabel = 'Foreman';
 
-                $isSelf = (strcasecmp($nrp, $user->nrp) === 0);
-
                 if ($isSelf) {
-                    $isForemanKjAbove5 = PenilaianController::isForemanAboveKj5($k, $doc['kode_form'] ?? null);
-
                     if ($isForemanKjAbove5) {
                         // Foreman KJ 5 ke atas (Form 07-006) dinilai langsung oleh Section Head -> Dept Head -> Div Head.
                         // Dokumen Foreman KJ > 5 tidak memerlukan tindakan penilaian mandiri oleh Foreman sendiri.
@@ -252,8 +269,7 @@ class DashboardController extends Controller
                             $actionLabel = 'Terkirim ke Section Head';
                             $stageLabel = 'Section Head';
                             $foremanDoneCount++;
-                            $hasShScore = ($docId && isset($nilaiGrouped[$docId]['section_head']) && !empty($nilaiGrouped[$docId]['section_head']));
-                            if ($hasShScore) {
+                            if ($hasShScores || $hasShTtd) {
                                 $foremanShSudahDinilai++;
                             } else {
                                 $foremanShBelumDinilai++;
@@ -286,8 +302,7 @@ class DashboardController extends Controller
                             $actionLabel = 'Terkirim ke Section Head';
                             $stageLabel = 'Section Head';
                             $foremanDoneCount++;
-                            $hasShScore = ($docId && isset($nilaiGrouped[$docId]['section_head']) && !empty($nilaiGrouped[$docId]['section_head']));
-                            if ($hasShScore) {
+                            if ($hasShScores || $hasShTtd) {
                                 $foremanShSudahDinilai++;
                             } else {
                                 $foremanShBelumDinilai++;
@@ -302,7 +317,7 @@ class DashboardController extends Controller
                             // Belum dinilai mandiri
                             $actionType = 'belum_dinilai';
                             $actionLabel = 'Belum Dinilai';
-                            $stageLabel = 'Penilaian Foreman (To-Do)';
+                            $stageLabel = 'Foreman';
                             $foremanBelumCount++;
                             $foremanNeedActionCount++;
                         }
@@ -333,8 +348,7 @@ class DashboardController extends Controller
                         $actionLabel = 'Terkirim ke Section Head';
                         $stageLabel = 'Section Head';
                         $foremanDoneCount++;
-                        $hasShScore = ($docId && isset($nilaiGrouped[$docId]['section_head']) && !empty($nilaiGrouped[$docId]['section_head']));
-                        if ($hasShScore) {
+                        if ($hasShScores || $hasShTtd) {
                             $foremanShSudahDinilai++;
                         } else {
                             $foremanShBelumDinilai++;
@@ -348,7 +362,7 @@ class DashboardController extends Controller
                     } else {
                         $actionType = 'belum_dinilai';
                         $actionLabel = 'Belum Dinilai';
-                        $stageLabel = 'Belum Dinilai';
+                        $stageLabel = 'Foreman';
                         $foremanBelumCount++;
                         $foremanNeedActionCount++;
                     }
@@ -524,12 +538,17 @@ class DashboardController extends Controller
                 $foremanScores = ($hasForemanEmp && $docId && isset($nilaiGrouped[$docId]['foreman'])) 
                     ? $nilaiGrouped[$docId]['foreman'] 
                     : [];
+                $hasForemanSign = $hasForemanEmp && $docId && !empty($ttdGrouped[$docId]['foreman']);
                 $calcForeman = !empty($foremanScores) 
                     ? $this->calcService->calculate($kodeFormDoc, $foremanScores) 
                     : ['grand_total' => 0.00];
                 $fScore = $hasForemanEmp
-                    ? ($calcForeman['grand_total'] > 0 ? $calcForeman['grand_total'] : ($doc['total_nilai'] ?? 0))
+                    ? ($calcForeman['grand_total'] > 0 ? $calcForeman['grand_total'] : (float)($doc['total_nilai'] ?? 0))
                     : 0;
+                $hasShEvidence = $docId && (!empty($nilaiGrouped[$docId]['section_head']) || !empty($ttdGrouped[$docId]['section_head']));
+                if ($hasForemanEmp && $status === 'menunggu_section_head' && empty($foremanScores) && !$hasForemanSign && $fScore <= 0 && !$hasShEvidence) {
+                    $status = 'menunggu_foreman';
+                }
                 $isEvaluatedByForeman = $hasForemanEmp && (($status !== 'belum_ada' && $status !== 'draft' && $status !== 'menunggu_foreman') || ($fScore > 0));
                 $foremanGrade = '-';
                 if ($isEvaluatedByForeman && $fScore > 0) {

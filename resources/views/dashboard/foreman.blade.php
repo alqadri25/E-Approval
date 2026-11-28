@@ -219,8 +219,8 @@
                     </p>
                 </div>
             </div>
-            <span class="text-[10px] font-bold px-2 py-1 {{ ($foremanShBelumDinilai ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300' }} rounded-none border">
-                {{ ($foremanShBelumDinilai ?? 0) > 0 ? 'To-Do' : 'Tuntas' }}
+            <span class="text-[10px] font-bold px-2 py-1 {{ ($foremanDoneCount ?? 0) === 0 ? 'bg-slate-100 text-slate-600 border-slate-300' : (($foremanShBelumDinilai ?? 0) > 0 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300') }} rounded-none border">
+                {{ ($foremanDoneCount ?? 0) === 0 ? 'Belum Ada' : (($foremanShBelumDinilai ?? 0) > 0 ? 'To-Do' : 'Tuntas') }}
             </span>
         </div>
     </div>
@@ -674,8 +674,7 @@
                             @if($sub['doc_id'])
                                 @php
                                     $isNeedEvaluate = in_array($sub['status'], ['draft', 'menunggu_foreman', 'belum_ada', 'revisi'])
-                                        || ($sub['action_type'] ?? '') === 'belum_dinilai'
-                                        || (strcasecmp($sub['nrp'] ?? '', $user->nrp ?? '') === 0 && in_array($sub['status'], ['menunggu_section_head', 'draft']));
+                                        || ($sub['action_type'] ?? '') === 'belum_dinilai';
                                 @endphp
                                 <a href="{{ route('penilaian.show.foreman', $sub['doc_id']) }}" 
                                    class="inline-block px-2.5 py-1 rounded-none text-xs font-bold transition-colors {{ $isNeedEvaluate ? 'bg-[#92302e] text-white hover:bg-[#7e2524]' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' }}">

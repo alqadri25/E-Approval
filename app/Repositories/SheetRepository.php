@@ -123,8 +123,8 @@ class SheetRepository implements SheetRepositoryInterface
     public function all(string $table, ?int $cacheTtl = 3600): array
     {
         $cacheKey = "sheet_all_{$table}";
-        if ($table === 'karyawan' || $table === 'users') {
-            $cacheTtl = min($cacheTtl ?? 3600, 30);
+        if (in_array($table, ['karyawan', 'users', 'dokumen', 'nilai', 'tanda_tangan', 'indikator'])) {
+            $cacheTtl = min($cacheTtl ?? 3600, 15);
         } else {
             $cacheTtl = $cacheTtl ?? config('google.cache_ttl', 3600);
         }

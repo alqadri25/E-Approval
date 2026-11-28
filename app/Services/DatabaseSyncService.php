@@ -409,8 +409,10 @@ class DatabaseSyncService
 
         if ($healed > 0) {
             try {
-                app(\App\Repositories\SheetRepository::class)->clearCache('dokumen');
+                app(\App\Contracts\SheetRepositoryInterface::class)->clearCache('dokumen');
             } catch (\Throwable $e) {}
+            \Illuminate\Support\Facades\Cache::forget('sheet_all_dokumen');
+            \Illuminate\Support\Facades\Cache::forget('sheet_all_karyawan');
         }
 
         return $healed;
