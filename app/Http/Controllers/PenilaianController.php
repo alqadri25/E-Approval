@@ -9815,7 +9815,9 @@ class PenilaianController extends Controller
 
             // 5. NILAI PK FINAL
             $pkFinal = '-';
-            if ($isSecretaryEmp) {
+            if ($user->isDivisionHead() || in_array(strtolower($user->role ?? ''), ['div_head', 'division_head'])) {
+                $pkFinal = $pkDiv;
+            } elseif ($isSecretaryEmp) {
                 $pkFinal = $doc['docking_final'] ?? ($pkMandiri !== '-' ? $pkMandiri : ($doc['grade_original'] ?? $grade));
                 if (empty($pkFinal)) $pkFinal = '-';
             } elseif ($user->isDepartmentHead() || in_array(strtolower($user->role ?? ''), ['dept_head', 'department_head'])) {
@@ -10690,7 +10692,7 @@ class PenilaianController extends Controller
         $isSectionHead = $user->isSectionHead() || in_array($userRole, ['section_head', 'section', 'sechead']);
         $isForeman = $user->isForeman() || in_array($userRole, ['foreman', 'ketua']);
 
-        $showColForeman = !$user->isSecretary();
+        $showColForeman = !$user->isSecretary() && !$isDivHead;
         $showColMandiri = !$isForeman;
         $showColSect = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead || $isSectionHead);
         $showColDept = !$user->isSecretary() && ($isSuperOrAdmin || $isDivHead || $isDeptHead);
